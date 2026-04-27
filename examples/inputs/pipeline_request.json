@@ -1,0 +1,10 @@
+{
+  "audio_base64": "UklGRjQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YRAAAAAA",
+  "filename": "sample.wav",
+  "context": {
+    "posture": "sitting",
+    "water_gap_minutes": 140
+  },
+  "execute_actions": true,
+  "synthesize_audio": true
+}

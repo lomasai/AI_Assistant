@@ -1,0 +1,9 @@
+{
+  "user_text": "Please remind me to take medicine at 9 pm and log this plan.",
+  "context": {
+    "posture": "sitting",
+    "time": "9 pm"
+  },
+  "retrieve_memory": true,
+  "store_log": true
+}

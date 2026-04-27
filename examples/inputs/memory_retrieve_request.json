@@ -1,0 +1,5 @@
+{
+  "query": "medicine routine reminder",
+  "top_k": 3,
+  "recent_k": 8
+}

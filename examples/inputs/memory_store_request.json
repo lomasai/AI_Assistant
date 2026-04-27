@@ -1,0 +1,10 @@
+{
+  "role": "user",
+  "message": "I usually take medicine at 9 pm.",
+  "source": "example",
+  "metadata": {
+    "tag": "medicine_routine"
+  },
+  "auto_summarize_recent": true,
+  "summarize_limit": 8
+}
