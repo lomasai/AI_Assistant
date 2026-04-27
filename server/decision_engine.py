@@ -12,6 +12,7 @@ Output:
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
@@ -21,6 +22,7 @@ from server.router import IntentRouter, RouteDecision, intent_router
 
 
 DecisionType = Literal["response", "action"]
+logger = logging.getLogger("server.decision_engine")
 
 
 class DecisionEngineError(Exception):
@@ -136,6 +138,19 @@ class DecisionEngine:
             raise DecisionEngineError("user_text cannot be empty.")
 
         route = payload.route_override or self.router.route(normalized_text)
+        simple_response = self._simple_phrase_response(normalized_text)
+        if simple_response is not None:
+            return DecisionOutput(
+                decision_type="response",
+                intent=route.intent,
+                model="local_rule",
+                response_text=simple_response,
+                action=None,
+                confidence=route.confidence,
+                reasons=route.reasons + ["local_simple_phrase_response"],
+                raw_model_output=None,
+            )
+
         system_prompt = self._build_system_prompt()
         prompt = self._build_user_prompt(
             user_text=normalized_text,
@@ -147,8 +162,14 @@ class DecisionEngine:
         raw_output: str | None = None
         try:
             raw_output = await self._generate_with_routed_model(route=route, prompt=prompt, system_prompt=system_prompt)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             # Fallback avoids hard failure when provider is unavailable.
+            logger.warning(
+                "LLM generation failed; using fallback response model=%s error_type=%s error=%s",
+                route.model,
+                exc.__class__.__name__,
+                exc,
+            )
             fallback_action = self._extract_action_fallback(normalized_text, payload.context or {})
             if fallback_action is not None:
                 decision = DecisionOutput(
@@ -386,6 +407,19 @@ class DecisionEngine:
         if re.search(r"\b(stop tracking|stop following)\b", text):
             return {"name": "stop_tracking", "args": {}}
 
+        return None
+
+    @staticmethod
+    def _simple_phrase_response(user_text: str) -> str | None:
+        text = user_text.lower()
+        if text in {"hi", "hello", "hey", "good morning"}:
+            return "Hello! How can I help you?"
+        if text == "good night":
+            return "Good night. Let me know if you need anything before you rest."
+        if text in {"thanks", "thank you"}:
+            return "You're welcome."
+        if text in {"ok", "okay"}:
+            return "Okay."
         return None
 
     @staticmethod

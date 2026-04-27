@@ -26,11 +26,14 @@ class STTError(Exception):
 class STTConfig:
     """Configuration for the STT service."""
 
-    provider: str = "placeholder"  # whisper_local | whisper_api | placeholder
+    provider: str = "placeholder"  # whisper_local | whisper_api | groq_whisper | placeholder
     whisper_model: str = "base"
     whisper_api_url: str = "https://api.openai.com/v1/audio/transcriptions"
     whisper_api_key: str = ""
     whisper_api_model_name: str = "whisper-1"
+    groq_api_url: str = "https://api.groq.com/openai/v1/audio/transcriptions"
+    groq_api_key: str = ""
+    groq_model_name: str = "whisper-large-v3-turbo"
     language: str = ""
     request_timeout_s: float = 30.0
     placeholder_text: str = "Transcription placeholder output."
@@ -47,6 +50,12 @@ class STTConfig:
             ).strip(),
             whisper_api_key=os.getenv("WHISPER_API_KEY", "").strip(),
             whisper_api_model_name=os.getenv("WHISPER_API_MODEL", "whisper-1").strip(),
+            groq_api_url=os.getenv(
+                "GROQ_WHISPER_API_URL",
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+            ).strip(),
+            groq_api_key=os.getenv("GROQ_API_KEY", "").strip(),
+            groq_model_name=os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo").strip(),
             language=os.getenv("STT_LANGUAGE", "").strip(),
             request_timeout_s=float(os.getenv("STT_TIMEOUT_SECONDS", "30")),
             placeholder_text=os.getenv(
@@ -89,6 +98,8 @@ class STTService:
             text = await self._transcribe_with_local_whisper(audio_bytes=audio_bytes, filename=filename)
         elif self.config.provider == "whisper_api":
             text = await self._transcribe_with_whisper_api(audio_bytes=audio_bytes, filename=filename)
+        elif self.config.provider == "groq_whisper":
+            text = await self._transcribe_with_groq_whisper(audio_bytes=audio_bytes, filename=filename)
         elif self.config.provider == "placeholder":
             text = await self._transcribe_with_placeholder()
         else:
@@ -152,6 +163,41 @@ class STTService:
 
         return str(text)
 
+    async def _transcribe_with_groq_whisper(self, audio_bytes: bytes, filename: str) -> str:
+        """Transcribe using Groq's OpenAI-compatible Whisper endpoint."""
+        if not self.config.groq_api_key:
+            raise STTError("GROQ_API_KEY is required when STT_PROVIDER=groq_whisper.")
+
+        headers = {"Authorization": f"Bearer {self.config.groq_api_key}"}
+        data = {
+            "model": self.config.groq_model_name,
+            "response_format": "json",
+            "temperature": "0",
+        }
+        if self.config.language:
+            data["language"] = self.config.language
+
+        files = {"file": (filename, audio_bytes, self._content_type_for_filename(filename))}
+
+        try:
+            response = await self._http_client.post(
+                self.config.groq_api_url,
+                headers=headers,
+                data=data,
+                files=files,
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise STTError(f"Groq Whisper HTTP error {exc.response.status_code}: {exc.response.text}") from exc
+        except httpx.HTTPError as exc:
+            raise STTError(f"Groq Whisper request failed: {exc}") from exc
+
+        payload = response.json()
+        text = payload.get("text") if isinstance(payload, dict) else None
+        if not text:
+            raise STTError("Groq Whisper returned no transcription text.")
+        return str(text)
+
     async def _transcribe_with_local_whisper(self, audio_bytes: bytes, filename: str) -> str:
         """Transcribe using the local open-source Whisper package."""
         model = await self._get_or_load_whisper_model()
@@ -204,6 +250,19 @@ class STTService:
         """Normalize whitespace and trim boundary punctuation."""
         cleaned = " ".join(text.replace("\n", " ").replace("\t", " ").split())
         return cleaned.strip(" \"'")
+
+    @staticmethod
+    def _content_type_for_filename(filename: str) -> str:
+        suffix = Path(filename).suffix.lower()
+        if suffix == ".webm":
+            return "audio/webm"
+        if suffix == ".mp3":
+            return "audio/mpeg"
+        if suffix == ".m4a":
+            return "audio/mp4"
+        if suffix == ".ogg":
+            return "audio/ogg"
+        return "audio/wav"
 
 
 stt_service = STTService()

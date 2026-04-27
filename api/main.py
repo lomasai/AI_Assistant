@@ -14,9 +14,11 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Literal
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.vision import build_vision_router
 from server.decision_engine import DecisionEngineError, decision_engine
 from server.memory.vector_db import MemoryError, memory_service
 from server.pipeline import PipelineError, pipeline_engine
@@ -470,6 +472,30 @@ def create_app() -> FastAPI:
     app.include_router(api_v1)
     app.include_router(build_core_router())
     app.include_router(build_memory_router())
+    app.include_router(build_vision_router())
+
+    # ------------------------------------------------------------------
+    # Frontend static files
+    #
+    # If a `frontend` directory exists at the project root (one level
+    # above the `api` package), mount it at `/static` so that the web
+    # application can serve JavaScript and other assets. The root path
+    # ("/") is routed to deliver the `index.html` page. These routes
+    # are not included in the OpenAPI schema since they are purely for
+    # human-facing UI and do not represent API endpoints.
+    frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+    if frontend_dir.exists():
+        # Mount the directory for static assets. `html=False` ensures
+        # that only explicit file requests are served (e.g., /static/script.js).
+        app.mount(
+            "/static",
+            StaticFiles(directory=str(frontend_dir), html=False),
+            name="static",
+        )
+
+        @app.get("/", include_in_schema=False)
+        async def serve_frontend() -> FileResponse:
+            return FileResponse(frontend_dir / "index.html")
 
     @app.middleware("http")
     async def request_logging_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]

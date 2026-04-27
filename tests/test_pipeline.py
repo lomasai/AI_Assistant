@@ -30,7 +30,7 @@ from server.pipeline import PipelineEngine, PipelineRuntimeConfig
 
 class _FakeSTT:
     async def transcribe_bytes(self, audio_bytes, filename="audio.wav"):
-        return "hello"
+        return "what is your status"
 
 
 class _FakeGroq:
