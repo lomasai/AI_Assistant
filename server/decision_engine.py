@@ -23,6 +23,14 @@ from server.router import IntentRouter, RouteDecision, intent_router
 
 DecisionType = Literal["response", "action"]
 logger = logging.getLogger("server.decision_engine")
+SUPPORTED_ACTION_NAMES = {
+    "mark_medicine_taken",
+    "log_event",
+    "trigger_alert",
+    "set_reminder",
+    "start_tracking",
+    "stop_tracking",
+}
 
 
 class DecisionEngineError(Exception):
@@ -205,6 +213,26 @@ class DecisionEngine:
             if mode == "action":
                 action = parsed.get("action")
                 if isinstance(action, dict) and isinstance(action.get("name"), str) and action.get("name"):
+                    action_name = str(action["name"]).strip()
+                    if action_name not in SUPPORTED_ACTION_NAMES:
+                        repaired = await self._regenerate_unsupported_action_as_response(
+                            route=route,
+                            original_prompt=prompt,
+                            system_prompt=system_prompt,
+                            unsupported_action=action_name,
+                        )
+                        if repaired:
+                            return DecisionOutput(
+                                decision_type="response",
+                                intent=route.intent,
+                                model=route.model,
+                                response_text=repaired,
+                                action=None,
+                                confidence=max(0.75, route.confidence - 0.05),
+                                reasons=route.reasons + ["unsupported_action_repaired_as_response"],
+                                raw_model_output=raw_output,
+                            )
+
                     decision = DecisionOutput(
                         decision_type="action",
                         intent=route.intent,
@@ -331,6 +359,36 @@ class DecisionEngine:
             raise DecisionEngineError("Groq client is not configured.")
         return await self.groq_client.generate(prompt=prompt, system_prompt=system_prompt)
 
+    async def _regenerate_unsupported_action_as_response(
+        self,
+        route: RouteDecision,
+        original_prompt: str,
+        system_prompt: str,
+        unsupported_action: str,
+    ) -> str | None:
+        repair_prompt = (
+            f"{original_prompt}\n\n"
+            f"The previous output requested unsupported action '{unsupported_action}'. "
+            "This is not a robot control action. Answer the user's request directly as mode='response'. "
+            "Return JSON only with action set to null."
+        )
+        try:
+            repaired_raw = await self._generate_with_routed_model(
+                route=route,
+                prompt=repair_prompt,
+                system_prompt=system_prompt,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to repair unsupported action response: %s", exc)
+            return None
+
+        repaired = self._parse_json_object(repaired_raw)
+        if repaired is not None:
+            response = repaired.get("response")
+            if isinstance(response, str) and response.strip():
+                return response.strip()
+        return repaired_raw.strip() if repaired_raw.strip() else None
+
     @staticmethod
     def _build_system_prompt() -> str:
         return (
@@ -338,6 +396,10 @@ class DecisionEngine:
             "Return strict JSON only with keys: mode, response, action. "
             "mode must be 'response' or 'action'. "
             "If mode='action', provide action as {'name': string, 'args': object}. "
+            "Use action mode only for these supported robot actions: "
+            "mark_medicine_taken, log_event, trigger_alert, set_reminder, start_tracking, stop_tracking. "
+            "For writing, explaining, planning, generating charts, answering questions, or general assistance, "
+            "always use mode='response' and set action to null. "
             "If mode='response', set action to null."
         )
 

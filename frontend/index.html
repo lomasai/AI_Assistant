@@ -7,57 +7,38 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <main class="dashboard">
-    <section class="chat-panel" aria-label="Assistant chat">
-      <div class="panel-heading compact app-title-row">
-        <div>
-          <p class="eyebrow">Robot Control Console</p>
-          <h1>AI Robot Assistant</h1>
-        </div>
-        <button id="toggle-info" class="secondary-button small-button" type="button">Info</button>
+  <main class="immersive-dashboard">
+    <section class="camera-stage" aria-label="Live camera">
+      <video id="camera-preview" autoplay playsinline muted></video>
+      <canvas id="vision-overlay"></canvas>
+      <div id="camera-empty-state" class="video-empty-state">
+        <span>Camera feed is off</span>
       </div>
-      <div class="panel-heading compact chat-subtitle">
-        <div>
-          <p class="eyebrow">Conversation</p>
-          <h2>Assistant Chat</h2>
-        </div>
-      </div>
-      <div id="conversation" class="conversation" aria-live="polite"></div>
-
-      <div class="transcript-panel" aria-label="Voice transcript">
-        <div>
-          <span>Voice Transcript</span>
-          <p id="voice-transcript">Press Mic and speak. Transcript will appear here.</p>
-        </div>
-        <strong id="voice-status">Idle</strong>
-      </div>
-
-      <form id="chat-form" class="chat-input-row">
-        <button id="record-btn" class="icon-button record-button" type="button">Mic</button>
-        <input id="user-input" type="text" autocomplete="off" placeholder="Type your message..." />
-        <button id="send-btn" class="primary-button" type="submit">Send</button>
-      </form>
     </section>
 
-    <section class="vision-panel" aria-label="Robot vision dashboard">
-      <div class="panel-heading">
+    <header class="hud-topbar">
+      <div>
+        <p class="eyebrow">Robot Control Console</p>
+        <h1>AI Robot Assistant</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="camera-status" class="status-pill">Camera stopped</span>
+        <button id="toggle-info" class="glass-button" type="button">Info</button>
+      </div>
+    </header>
+
+    <section class="camera-control-card glass-card">
+      <button id="start-camera" class="primary-button" type="button">Start Camera</button>
+      <button id="stop-camera" class="secondary-button" type="button">Stop</button>
+    </section>
+
+    <section id="vision-details-panel" class="vision-details-panel glass-card" aria-label="Vision intelligence">
+      <div class="details-header">
         <div>
           <p class="eyebrow">Live Vision</p>
-          <h2>Multimodal Vision</h2>
+          <h2>Vision Intelligence</h2>
         </div>
-        <span id="camera-status" class="status-pill">Camera stopped</span>
-      </div>
-
-      <div class="vision-top">
-        <div class="video-frame">
-          <video id="camera-preview" autoplay playsinline muted></video>
-          <canvas id="vision-overlay"></canvas>
-          <div id="camera-empty-state" class="video-empty-state">Camera feed is off</div>
-        </div>
-        <div class="camera-actions">
-          <button id="start-camera" class="primary-button small-button" type="button">Start</button>
-          <button id="stop-camera" class="secondary-button small-button" type="button">Stop</button>
-        </div>
+        <button id="toggle-vision-details" class="glass-button" type="button">Collapse</button>
       </div>
 
       <div class="quick-metrics">
@@ -66,25 +47,25 @@
         <div class="metric"><span>Tracking</span><strong id="tracking-status">Center</strong></div>
         <div class="metric"><span>FPS</span><strong id="fps-status">0.0</strong></div>
         <div class="metric"><span>Latency</span><strong id="latency-status">-</strong></div>
-        <div class="metric"><span>Last Analysis</span><strong id="analysis-time-status">-</strong></div>
+        <div class="metric"><span>Analysis</span><strong id="analysis-time-status">-</strong></div>
       </div>
 
       <div class="analysis-grid">
         <article class="analysis-card">
-          <h3>Face Analysis</h3>
+          <h3>Face</h3>
           <dl>
             <dt>Detected</dt><dd id="face-detected-value">false</dd>
             <dt>Count</dt><dd id="face-count-value">0</dd>
             <dt>Confidence</dt><dd id="face-confidence-value">0%</dd>
-            <dt>Apparent gender estimate</dt><dd id="gender-value">Unknown</dd>
-            <dt>Estimated age range</dt><dd id="age-value">Unknown</dd>
+            <dt>Gender estimate</dt><dd id="gender-value">Unknown</dd>
+            <dt>Age range</dt><dd id="age-value">Unknown</dd>
             <dt>Expression</dt><dd id="expression-value">Unknown</dd>
             <dt>Center</dt><dd id="face-center-value">-</dd>
           </dl>
         </article>
 
         <article class="analysis-card">
-          <h3>Eye / Attention</h3>
+          <h3>Attention</h3>
           <dl>
             <dt>Eyes visible</dt><dd id="eyes-visible-value">false</dd>
             <dt>Eye contact</dt><dd id="eye-contact-value">unknown</dd>
@@ -96,52 +77,52 @@
         </article>
 
         <article class="analysis-card">
-          <h3>Posture / Body</h3>
+          <h3>Body</h3>
           <dl>
             <dt>Person</dt><dd id="person-value">false</dd>
             <dt>Posture</dt><dd id="body-posture-value">unknown</dd>
             <dt>Confidence</dt><dd id="posture-confidence-value">0%</dd>
             <dt>Position</dt><dd id="body-position-value">unknown</dd>
-            <dt>Sitting minutes</dt><dd id="sitting-minutes-value">0</dd>
+            <dt>Sitting min</dt><dd id="sitting-minutes-value">0</dd>
             <dt>Warning</dt><dd id="posture-warning-value">None</dd>
           </dl>
         </article>
 
         <article class="analysis-card">
-          <h3>Robot Tracking</h3>
+          <h3>Tracking</h3>
           <dl>
             <dt>Target X</dt><dd id="target-x-value">-</dd>
             <dt>Target Y</dt><dd id="target-y-value">-</dd>
             <dt>Direction</dt><dd id="direction-value">center</dd>
-            <dt>Motor action</dt><dd id="motor-action-value">hold_position</dd>
-            <dt>Motor ready</dt><dd id="motor-ready-value">false</dd>
+            <dt>Motor</dt><dd id="motor-action-value">hold_position</dd>
+            <dt>Ready</dt><dd id="motor-ready-value">false</dd>
             <dt>Quality</dt><dd id="tracking-quality-value">lost</dd>
           </dl>
         </article>
 
         <article class="analysis-card">
-          <h3>Health / Behavior</h3>
+          <h3>Health</h3>
           <dl>
-            <dt>Sitting warning</dt><dd id="sitting-warning-value">false</dd>
+            <dt>Sitting</dt><dd id="sitting-warning-value">false</dd>
             <dt>Water</dt><dd id="water-value">ok</dd>
             <dt>Medicine</dt><dd id="medicine-value">ok</dd>
             <dt>Fatigue</dt><dd id="fatigue-value">false</dd>
-            <dt>Drowsiness</dt><dd id="drowsiness-value">false</dd>
-            <dt>Attention warning</dt><dd id="attention-warning-value">false</dd>
+            <dt>Drowsy</dt><dd id="drowsiness-value">false</dd>
+            <dt>Attention</dt><dd id="attention-warning-value">false</dd>
             <dt>Summary</dt><dd id="behavior-summary-value">No alert.</dd>
           </dl>
         </article>
 
         <article class="analysis-card">
-          <h3>Sensor Data <span class="subtle">(mock/context)</span></h3>
+          <h3>Sensors <span class="subtle">mock/context</span></h3>
           <dl>
-            <dt>Temperature</dt><dd id="temperature-value">-</dd>
+            <dt>Temp</dt><dd id="temperature-value">-</dd>
             <dt>Humidity</dt><dd id="humidity-value">-</dd>
             <dt>Distance</dt><dd id="distance-value">-</dd>
             <dt>Light</dt><dd id="light-value">-</dd>
             <dt>Battery</dt><dd id="battery-value">-</dd>
             <dt>Motion</dt><dd id="motion-value">-</dd>
-            <dt>Edge device</dt><dd id="edge-value">false</dd>
+            <dt>Edge</dt><dd id="edge-value">false</dd>
           </dl>
         </article>
       </div>
@@ -157,18 +138,26 @@
         </div>
       </div>
 
-      <div class="timeline-card compact-timeline">
-        <div class="panel-heading compact">
-          <div>
-            <p class="eyebrow">Live Events</p>
-          </div>
-        </div>
+      <div class="timeline-card">
         <div id="event-timeline" class="event-timeline"></div>
       </div>
+    </section>
 
-      <p class="privacy-note">
-        Visual estimates are approximate. Apparent gender, age, and expression remain unknown unless a validated optional model is installed. Face images are not stored by default.
-      </p>
+    <section class="latest-chat-card glass-card" aria-label="Latest chat">
+      <div class="latest-chat-header">
+        <div>
+          <p class="eyebrow">Latest Exchange</p>
+          <h2>Chat</h2>
+        </div>
+        <strong id="voice-status" class="status-pill">Idle</strong>
+      </div>
+      <div id="conversation" class="conversation" aria-live="polite"></div>
+      <p id="voice-transcript" class="voice-transcript">Mic transcript is hidden after sending.</p>
+      <form id="chat-form" class="chat-input-row">
+        <button id="record-btn" class="icon-button record-button" type="button">Mic</button>
+        <input id="user-input" type="text" autocomplete="off" placeholder="Ask the assistant..." />
+        <button id="send-btn" class="primary-button" type="submit">Send</button>
+      </form>
     </section>
   </main>
 

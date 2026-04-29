@@ -10,6 +10,8 @@ const cameraEmptyState = document.getElementById('camera-empty-state');
 const startCameraBtn = document.getElementById('start-camera');
 const stopCameraBtn = document.getElementById('stop-camera');
 const visionOverlay = document.getElementById('vision-overlay');
+const visionDetailsPanel = document.getElementById('vision-details-panel');
+const toggleVisionDetailsBtn = document.getElementById('toggle-vision-details');
 
 const FRAME_INTERVAL_MS = 700;
 const eventState = { face: null, attention: null, posture: null, decision: null };
@@ -33,6 +35,9 @@ function $(id) {
 }
 
 function appendMessage(sender, html) {
+  if (sender === 'user') {
+    conversation.innerHTML = '';
+  }
   const msgDiv = document.createElement('div');
   msgDiv.classList.add('flex', 'mb-2');
   if (sender === 'user') msgDiv.classList.add('justify-end');
@@ -44,6 +49,46 @@ function appendMessage(sender, html) {
   conversation.appendChild(msgDiv);
   conversation.scrollTop = conversation.scrollHeight;
   return bubble;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderMarkdown(text) {
+  let safe = escapeHtml(text || '').replace(/\r\n/g, '\n');
+  safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+  safe = safe.replace(/^#{1,3}\s+(.+)$/gm, '<strong>$1</strong>');
+  safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  safe = safe.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  safe = safe.replace(/(^|\s)(\d+)\.\s+/g, (match, prefix, number, offset) => {
+    const separator = offset === 0 ? '' : '<br>';
+    return `${separator}<strong>${number}.</strong> `;
+  });
+  safe = safe.replace(/(^|\n)\s*[-*]\s+/g, '<br>&bull; ');
+  safe = safe.replace(/\n/g, '<br>');
+  return safe.replace(/^(<br>)+/, '');
+}
+
+function renderAssistantReply(data) {
+  let reply = renderMarkdown(data.response_text || '');
+  if (data.decision_type === 'action' && data.action) {
+    reply += `<br><em>Action:</em> ${escapeHtml(data.action.name)}`;
+    if (data.action.args && Object.keys(data.action.args).length) {
+      reply += `<br><em>Args:</em> <code>${escapeHtml(JSON.stringify(data.action.args))}</code>`;
+    }
+  }
+  if (data.action_result) {
+    reply += `<br><em>Result:</em> <code>${escapeHtml(JSON.stringify(data.action_result))}</code>`;
+  }
+  const confPercent = data.confidence ? `${(data.confidence * 100).toFixed(1)}%` : '-';
+  reply += `<br><small class="text-gray-500">Model: ${escapeHtml(data.model)}, Intent: ${escapeHtml(data.intent)}, Confidence: ${confPercent}</small>`;
+  return reply;
 }
 
 function addEvent(message, level = 'info') {
@@ -62,6 +107,11 @@ function setVoiceStatus(text, active = false) {
 
 function setTranscript(text) {
   voiceTranscript.textContent = text || 'No speech recognized yet.';
+}
+
+function clearTranscriptAfterSend() {
+  setTranscript('Mic transcript is hidden after sending.');
+  setVoiceStatus('Idle');
 }
 
 function createSpeechRecognition() {
@@ -327,7 +377,10 @@ function drawBoxes(ctx, boxes, sx, sy, color, label) {
   ctx.strokeStyle = color;
   ctx.font = '700 13px system-ui, sans-serif';
   boxes.forEach((box) => {
-    const x = box.x * sx, y = box.y * sy, w = box.width * sx, h = box.height * sy;
+    const w = box.width * sx;
+    const h = box.height * sy;
+    const x = ctx.canvas.clientWidth - ((box.x * sx) + w);
+    const y = box.y * sy;
     ctx.strokeRect(x, y, w, h);
     ctx.fillStyle = color;
     ctx.fillText(`${label} ${pct(box.confidence)}`, x + 8, Math.max(18, y - 8));
@@ -338,7 +391,7 @@ function drawPoints(ctx, points, width, height, color) {
   ctx.fillStyle = color;
   points.forEach((point) => {
     ctx.beginPath();
-    ctx.arc(point.x * width, point.y * height, 4, 0, Math.PI * 2);
+    ctx.arc(width - (point.x * width), point.y * height, 4, 0, Math.PI * 2);
     ctx.fill();
   });
 }
@@ -355,7 +408,7 @@ function drawPose(ctx, points, width, height) {
 
 function drawGaze(ctx, gaze, width, height, attention) {
   if (typeof gaze.from_x !== 'number' || typeof gaze.from_y !== 'number') return;
-  const startX = gaze.from_x * width;
+  const startX = width - (gaze.from_x * width);
   const startY = gaze.from_y * height;
   const delta = { left: [-42, 0], right: [42, 0], up: [0, -36], down: [0, 36], center: [0, -28] }[gaze.direction] || [0, -28];
   ctx.strokeStyle = attention === 'distracted' ? '#f59e0b' : '#38bdf8';
@@ -399,6 +452,7 @@ function latestVisionContext() {
 
 async function sendMessage(message) {
   appendMessage('user', message);
+  clearTranscriptAfterSend();
   const placeholder = appendMessage('assistant', '<span class="italic text-gray-500">Thinking...</span>');
   try {
     const res = await fetch('/chat', {
@@ -419,15 +473,7 @@ async function sendMessage(message) {
       return;
     }
     const data = await res.json();
-    let reply = data.response_text || '';
-    if (data.decision_type === 'action' && data.action) {
-      reply += `<br/><em>Action:</em> ${data.action.name}`;
-      if (data.action.args && Object.keys(data.action.args).length) reply += `<br/><em>Args:</em> ${JSON.stringify(data.action.args)}`;
-    }
-    if (data.action_result) reply += `<br/><em>Result:</em> ${JSON.stringify(data.action_result)}`;
-    const confPercent = data.confidence ? `${(data.confidence * 100).toFixed(1)}%` : '-';
-    reply += `<br/><small class="text-gray-500">Model: ${data.model}, Intent: ${data.intent}, Confidence: ${confPercent}</small>`;
-    placeholder.innerHTML = reply;
+    placeholder.innerHTML = renderAssistantReply(data);
   } catch (err) {
     placeholder.innerHTML = `<span class="text-red-500">Error: ${err}</span>`;
   }
@@ -481,17 +527,13 @@ recordBtn.addEventListener('click', async () => {
       if (speechRecognitionSupported) await new Promise((resolve) => window.setTimeout(resolve, 350));
       const browserTranscript = speechFinalTranscript.trim();
       if (browserTranscript) {
-        setTranscript(browserTranscript);
-        setVoiceStatus('Transcript ready');
-        appendMessage('user', '<em>[voice message]</em>');
-        appendMessage('assistant', `<span class="italic text-gray-500">You said: "${browserTranscript}"</span>`);
+        clearTranscriptAfterSend();
         sendMessage(browserTranscript);
         return;
       }
       const blob = new Blob(audioChunks, { type: 'audio/webm' });
       const base64Audio = arrayBufferToBase64(await blob.arrayBuffer());
-      appendMessage('user', '<em>[voice message]</em>');
-      const transPlaceholder = appendMessage('assistant', '<span class="italic text-gray-500">Transcribing...</span>');
+      setVoiceStatus('Backend STT');
       try {
         const sttRes = await fetch('/stt', {
           method: 'POST',
@@ -499,17 +541,20 @@ recordBtn.addEventListener('click', async () => {
           body: JSON.stringify({ audio_base64: base64Audio, filename: 'audio.webm' }),
         });
         if (!sttRes.ok) {
-          transPlaceholder.innerHTML = `<span class="text-red-500">STT error: ${await sttRes.text()}</span>`;
+          appendMessage('assistant', `<span class="text-red-500">STT error: ${await sttRes.text()}</span>`);
           return;
         }
         const sttData = await sttRes.json();
-        setTranscript(sttData.text || '(no speech recognized)');
-        setVoiceStatus(speechRecognitionSupported ? 'Backend fallback' : 'Backend STT');
-        transPlaceholder.innerHTML = `<span class="italic text-gray-500">You said: "${sttData.text || '(no speech recognized)'}"</span>`;
-        if (sttData.text) sendMessage(sttData.text);
+        if (sttData.text) {
+          clearTranscriptAfterSend();
+          sendMessage(sttData.text);
+        } else {
+          setTranscript('No speech recognized.');
+          setVoiceStatus('Idle');
+        }
       } catch (err) {
         setVoiceStatus('STT error');
-        transPlaceholder.innerHTML = `<span class="text-red-500">STT error: ${err}</span>`;
+        appendMessage('assistant', `<span class="text-red-500">STT error: ${err}</span>`);
       }
     };
     mediaRecorder.start();
@@ -555,6 +600,10 @@ startCameraBtn.addEventListener('click', startCamera);
 stopCameraBtn.addEventListener('click', () => {
   stopCamera();
   addEvent('Camera stopped', 'info');
+});
+toggleVisionDetailsBtn.addEventListener('click', () => {
+  const collapsed = visionDetailsPanel.classList.toggle('is-collapsed');
+  toggleVisionDetailsBtn.textContent = collapsed ? 'Expand' : 'Collapse';
 });
 $('toggle-info').addEventListener('click', () => {
   fetchSystemInfo();
