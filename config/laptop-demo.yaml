@@ -1,0 +1,147 @@
+environment: laptop_demo
+bind_host: 127.0.0.1
+bind_port: 8000
+
+llm:
+  active_provider: mock
+
+camera:
+  provider: mock
+  device_index: 0
+  width: 640
+  height: 480
+  preview_fps: 12
+  analysis_fps: 5
+  rotation_degrees: 0
+  flip_horizontal: false
+  flip_vertical: false
+  jpeg_quality: 75
+  warmup_timeout_seconds: 3
+  browser_fallback: true
+
+audio:
+  input_provider: mock
+  output_provider: mock
+  sample_rate: 16000
+  channels: 1
+  chunk_duration_ms: 30
+  buffer_max_chunks: 16
+  max_recording_seconds: 8
+  min_recording_ms: 0
+  half_duplex: true
+  barge_in_enabled: false
+  retain_temporary_audio: false
+
+wake_word:
+  provider: mock
+  phrase: hey tutor
+  sensitivity: 0.5
+  cooldown_seconds: 0.5
+  activation_timeout_seconds: 1
+
+vad:
+  provider: mock
+  speech_threshold: 0.01
+  silence_timeout_ms: 1
+  max_recording_seconds: 8
+  min_recording_ms: 0
+  noise_floor: 0.005
+
+stt:
+  provider: mock
+  language: en
+  timeout_seconds: 20
+  mock_transcript: A fraction is part of a whole.
+
+tts:
+  provider: mock
+  voice: default
+  language: en
+  speed: 1
+  volume: 1
+  timeout_seconds: 20
+
+recognition:
+  face_detection_provider: mock
+  face_recognition_provider: mock
+  face_match_threshold: 0.72
+  unknown_label: Guest
+  registration_sample_count: 3
+  blur_threshold: 20
+  brightness_min: 20
+  brightness_max: 240
+  recognition_interval_seconds: 0.001
+  retain_temporary_media: false
+
+database:
+  sqlite_path: memory/laptop-demo.db
+
+engagement:
+  enabled: true
+  provider: mock
+  analysis_fps: 2
+  rolling_window_seconds: 10
+  absence_duration_seconds: 2
+  response_inactivity_seconds: 5
+  intervention_cooldown_seconds: 0
+  max_interventions_per_lesson: 3
+  abnormal_sample_ratio: 0.6
+  minimum_samples: 3
+  event_retention: 100
+  retain_raw_frames: false
+
+hardware:
+  enabled: true
+  provider: mock
+  transport: mock
+  physical_output_enabled: false
+  hardware_profile_approved: false
+  esp32_board: ""
+  communication_method: ""
+  serial_port: ""
+  power_supply: ""
+  driver_board: ""
+  emergency_stop_method: ""
+  command_timeout_seconds: 1
+  heartbeat_interval_seconds: 2
+  heartbeat_timeout_seconds: 5
+  retry_limit: 1
+  stale_command_seconds: 5
+  duplicate_retention: 100
+  audit_history_limit: 100
+  motion_cooldown_seconds: 0
+  max_continuous_motion_seconds: 1
+  unsafe_operating_zone_clear: true
+  emergency_stop_on_lost_connection: true
+  neutral_on_startup: true
+  neutral_on_shutdown: true
+  permitted_actions:
+    - neutral
+    - small_nod
+    - small_head_turn
+    - reset_position
+  servo_limits:
+    min_angle_deg: -20
+    max_angle_deg: 20
+    max_speed_deg_per_second: 30
+    max_duration_seconds: 1
+  motor_limits:
+    max_speed_percent: 0
+    max_duration_seconds: 0
+
+feature_flags:
+  browser_camera: true
+  backend_camera_stream: true
+  student_registration: true
+  wake_word: true
+  servo_motion: false
+  student_ui: true
+  text_input: true
+  stt_input: true
+  tts_output: true
+  face_recognition: true
+  push_to_talk: true
+  voice_turns: true
+  barge_in: false
+  engagement_analysis: true
+  hardware_control: true
