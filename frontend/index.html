@@ -7,10 +7,111 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <main class="immersive-dashboard">
+  <main id="student-app" class="student-shell">
+    <header class="student-header">
+      <div>
+        <p class="eyebrow">AI Teaching Assistant</p>
+        <h1>Lesson Studio</h1>
+      </div>
+      <button id="open-debug-view" class="secondary-button" type="button">Admin</button>
+    </header>
+
+    <section id="startup-view" class="student-view">
+      <div class="self-test-grid">
+        <div><span>System</span><strong id="self-test-system">Checking</strong></div>
+        <div><span>Camera</span><strong id="self-test-camera">Checking</strong></div>
+        <div><span>Input</span><strong>Text ready</strong></div>
+      </div>
+    </section>
+
+    <section id="setup-view" class="student-view">
+      <div class="student-identity-row">
+        <strong id="recognized-student-name">Guest</strong>
+        <select id="manual-student-select" aria-label="Manual student selection">
+          <option value="">Guest</option>
+        </select>
+      </div>
+      <form id="lesson-setup-form" class="lesson-setup">
+        <label><span>Name</span><input id="student-name-input" required value="Student" /></label>
+        <label><span>Level</span><input id="student-level-input" required value="middle_school" /></label>
+        <label><span>Topic</span><input id="lesson-topic-input" required value="Fractions" /></label>
+        <label><span>Language</span><input id="lesson-language-input" required value="en" /></label>
+        <label class="wide"><span>Objective</span><input id="lesson-objective-input" required value="Understand the main idea and answer one check question." /></label>
+        <button class="primary-button wide" type="submit">Start Lesson</button>
+      </form>
+    </section>
+
+    <section id="live-teaching-view" class="student-view hidden">
+      <div class="lesson-main">
+        <article class="lesson-board">
+          <div class="lesson-meta">
+            <strong id="lesson-student-name">Student</strong>
+            <span id="lesson-state-label">Ready</span>
+          </div>
+          <h2 id="lesson-title">Lesson</h2>
+          <p id="lesson-objective">Objective</p>
+          <ul id="lesson-points"></ul>
+          <div class="question-panel">
+            <span>Question</span>
+            <p id="lesson-question">Start a lesson to see the question.</p>
+          </div>
+          <div id="engagement-panel" class="engagement-panel hidden" aria-live="polite">
+            <strong id="engagement-message">Ready when you are.</strong>
+            <div class="engagement-actions">
+              <button id="engagement-continue" class="secondary-button" type="button">Continue</button>
+              <button id="engagement-repeat" class="secondary-button" type="button">Repeat</button>
+              <button id="engagement-pause" class="secondary-button" type="button">Pause</button>
+              <button id="engagement-use-text" class="secondary-button" type="button">Use text</button>
+            </div>
+          </div>
+          <div class="voice-turn-panel">
+            <div class="voice-turn-status">
+              <strong id="student-audio-state">Audio ready</strong>
+              <span id="student-transcript-preview">Transcript preview</span>
+            </div>
+            <div class="voice-turn-actions">
+              <button id="student-mic-button" class="secondary-button" type="button">Mic</button>
+              <button id="student-audio-cancel" class="secondary-button" type="button">Cancel</button>
+              <button id="student-audio-retry" class="secondary-button" type="button">Retry</button>
+              <label class="mute-row"><input id="student-mute-tts" type="checkbox" /> <span>Mute</span></label>
+            </div>
+            <p id="student-audio-message">Text input remains available.</p>
+          </div>
+          <form id="answer-form" class="answer-row">
+            <input id="answer-input" type="text" autocomplete="off" placeholder="Type your answer..." />
+            <button id="answer-submit" class="primary-button" type="submit">Submit</button>
+          </form>
+          <div class="lesson-actions">
+            <button id="pause-lesson" class="secondary-button" type="button">Pause</button>
+            <button id="resume-lesson" class="secondary-button" type="button">Resume</button>
+            <button id="stop-lesson" class="secondary-button" type="button">Stop</button>
+          </div>
+          <progress id="lesson-progress" value="0" max="8"></progress>
+        </article>
+        <aside class="student-camera-panel">
+          <video id="student-browser-camera" autoplay playsinline muted></video>
+          <img id="student-backend-camera" class="hidden" alt="Camera preview" />
+          <p id="student-camera-message">Camera preview is optional.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="summary-view" class="student-view hidden">
+      <article class="summary-board">
+        <h2>Session Summary</h2>
+        <p id="summary-text">No summary yet.</p>
+        <button id="new-lesson" class="primary-button" type="button">New Lesson</button>
+      </article>
+    </section>
+  </main>
+
+  <main id="debug-dashboard" class="immersive-dashboard hidden">
     <section class="camera-stage" aria-label="Live camera">
-      <video id="camera-preview" autoplay playsinline muted></video>
-      <canvas id="vision-overlay"></canvas>
+      <div class="camera-frame">
+        <video id="camera-preview" autoplay playsinline muted></video>
+        <img id="backend-camera-preview" class="hidden" alt="Backend camera preview" />
+        <canvas id="vision-overlay"></canvas>
+      </div>
       <div id="camera-empty-state" class="video-empty-state">
         <span>Camera feed is off</span>
       </div>
@@ -31,6 +132,69 @@
     <section class="camera-control-card glass-card">
       <button id="start-camera" class="primary-button" type="button">Start Camera</button>
       <button id="stop-camera" class="secondary-button" type="button">Stop</button>
+    </section>
+
+    <section class="registration-panel glass-card" aria-label="Student registration">
+      <div class="details-header">
+        <div>
+          <p class="eyebrow">Admin</p>
+          <h2>Student Registration</h2>
+        </div>
+        <strong id="registration-status" class="status-pill">Ready</strong>
+      </div>
+      <form id="registration-form" class="registration-form">
+        <label><span>Name</span><input id="registration-name" required maxlength="80" /></label>
+        <label><span>Grade</span><input id="registration-grade" maxlength="40" /></label>
+        <label><span>Language</span><input id="registration-language" maxlength="20" value="en" /></label>
+        <label class="consent-row"><input id="registration-consent" type="checkbox" /> <span>Consent confirmed</span></label>
+        <button class="primary-button" type="submit">Start Registration</button>
+      </form>
+      <div class="registration-capture">
+        <p id="registration-guidance">Centre face guidance will appear after starting.</p>
+        <div class="registration-actions">
+          <button id="capture-registration-sample" class="secondary-button" type="button">Capture Sample</button>
+          <button id="complete-registration" class="secondary-button" type="button">Complete</button>
+          <button id="cancel-registration" class="secondary-button" type="button">Cancel</button>
+        </div>
+        <p id="registration-feedback" class="subtle">No samples captured.</p>
+      </div>
+      <div>
+        <h3>Profiles</h3>
+        <div id="student-profile-list" class="profile-list"></div>
+      </div>
+    </section>
+
+    <section class="engagement-admin-panel glass-card" aria-label="Engagement support">
+      <div class="details-header">
+        <div>
+          <p class="eyebrow">Support Policy</p>
+          <h2>Engagement Cues</h2>
+        </div>
+        <strong id="engagement-admin-status" class="status-pill">Disabled</strong>
+      </div>
+      <p class="subtle">Observable cues only. This is not a psychological, medical or ability assessment.</p>
+      <div id="engagement-admin-history" class="engagement-history"></div>
+    </section>
+
+    <section class="hardware-admin-panel glass-card" aria-label="Hardware safety">
+      <div class="details-header">
+        <div>
+          <p class="eyebrow">Motion Safety</p>
+          <h2>Hardware Control</h2>
+        </div>
+        <strong id="hardware-admin-status" class="status-pill">Disabled</strong>
+      </div>
+      <p id="hardware-mode" class="subtle">Mock mode. Physical output disabled.</p>
+      <div class="hardware-actions">
+        <button id="hardware-neutral" class="secondary-button" type="button">Neutral</button>
+        <button id="hardware-nod" class="secondary-button" type="button">Small nod</button>
+        <button id="hardware-turn" class="secondary-button" type="button">Small turn</button>
+        <button id="hardware-reset" class="secondary-button" type="button">Reset</button>
+        <button id="hardware-cancel" class="secondary-button" type="button">Cancel</button>
+        <button id="hardware-estop" class="danger-button" type="button">Emergency stop</button>
+      </div>
+      <p id="hardware-limits" class="subtle">Safety limits unavailable.</p>
+      <div id="hardware-history" class="engagement-history"></div>
     </section>
 
     <section id="vision-details-panel" class="vision-details-panel glass-card" aria-label="Vision intelligence">
@@ -58,9 +222,9 @@
             <dt>Detected</dt><dd id="face-detected-value">false</dd>
             <dt>Count</dt><dd id="face-count-value">0</dd>
             <dt>Confidence</dt><dd id="face-confidence-value">0%</dd>
-            <dt>Gender estimate</dt><dd id="gender-value">Unknown</dd>
-            <dt>Age range</dt><dd id="age-value">Unknown</dd>
-            <dt>Expression</dt><dd id="expression-value">Unknown</dd>
+            <dt>Attribute inference</dt><dd id="gender-value">Not used</dd>
+            <dt>Age inference</dt><dd id="age-value">Not used</dd>
+            <dt>Expression inference</dt><dd id="expression-value">Not used</dd>
             <dt>Center</dt><dd id="face-center-value">-</dd>
           </dl>
         </article>
@@ -70,10 +234,10 @@
           <dl>
             <dt>Eyes visible</dt><dd id="eyes-visible-value">false</dd>
             <dt>Eye contact</dt><dd id="eye-contact-value">unknown</dd>
-            <dt>Attention</dt><dd id="attention-value">unknown</dd>
+            <dt>Support state</dt><dd id="attention-value">observable only</dd>
             <dt>Blink</dt><dd id="blink-value">false</dd>
             <dt>EAR</dt><dd id="ear-value">-</dd>
-            <dt>Reason</dt><dd id="distraction-value">low confidence</dd>
+            <dt>Cue</dt><dd id="distraction-value">No diagnostic label</dd>
           </dl>
         </article>
 
@@ -107,10 +271,10 @@
             <dt>Sitting</dt><dd id="sitting-warning-value">false</dd>
             <dt>Water</dt><dd id="water-value">ok</dd>
             <dt>Medicine</dt><dd id="medicine-value">ok</dd>
-            <dt>Fatigue</dt><dd id="fatigue-value">false</dd>
-            <dt>Drowsy</dt><dd id="drowsiness-value">false</dd>
-            <dt>Attention</dt><dd id="attention-warning-value">false</dd>
-            <dt>Summary</dt><dd id="behavior-summary-value">No alert.</dd>
+            <dt>Fatigue inference</dt><dd id="fatigue-value">Not used</dd>
+            <dt>Drowsiness inference</dt><dd id="drowsiness-value">Not used</dd>
+            <dt>Support cue</dt><dd id="attention-warning-value">false</dd>
+            <dt>Summary</dt><dd id="behavior-summary-value">No support cue.</dd>
           </dl>
         </article>
 
