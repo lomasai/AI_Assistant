@@ -27,6 +27,179 @@ body {
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
 
+.student-shell {
+  min-height: 100vh;
+  padding: 18px;
+  color: #102033;
+  background: #f7fafc;
+}
+.student-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 auto 18px;
+  max-width: 1180px;
+}
+.student-header h1 {
+  margin: 0;
+  font-size: 32px;
+}
+.student-view {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.self-test-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.self-test-grid div,
+.lesson-board,
+.summary-board {
+  padding: 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+.self-test-grid span,
+.lesson-setup span,
+.question-panel span {
+  display: block;
+  color: #52677a;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.self-test-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 20px;
+}
+.lesson-setup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+.lesson-setup label {
+  display: grid;
+  gap: 7px;
+}
+.lesson-setup input,
+.answer-row input {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  background: white;
+  color: #102033;
+}
+.wide { grid-column: 1 / -1; }
+.lesson-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 16px;
+}
+.lesson-meta,
+.lesson-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lesson-board h2 {
+  margin: 18px 0 8px;
+  font-size: 30px;
+}
+#lesson-objective {
+  margin: 0 0 16px;
+  color: #52677a;
+  font-size: 18px;
+}
+#lesson-points {
+  margin: 0 0 18px;
+  padding-left: 22px;
+  font-size: 20px;
+  line-height: 1.45;
+}
+.question-panel {
+  padding: 14px;
+  border-radius: 8px;
+  background: #eef6ff;
+}
+.question-panel p {
+  margin: 8px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+.engagement-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #b7d8c7;
+  border-radius: 8px;
+  background: #eefaf3;
+}
+.engagement-panel strong {
+  color: #123525;
+  font-size: 18px;
+}
+.engagement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.answer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 10px;
+  margin: 16px 0;
+}
+progress {
+  width: 100%;
+  height: 18px;
+  margin-top: 16px;
+}
+.student-camera-panel {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #0b1220;
+}
+#student-browser-camera,
+#student-backend-camera {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+#student-browser-camera { transform: scaleX(-1); }
+#student-camera-message {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.88);
+  color: #102033;
+  font-weight: 800;
+}
+.summary-board p {
+  font-size: 20px;
+  line-height: 1.45;
+}
+
 .immersive-dashboard {
   position: relative;
   width: 100vw;
@@ -40,6 +213,9 @@ button { border: 0; cursor: pointer; }
 .camera-stage {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   background:
     linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
@@ -47,18 +223,28 @@ button { border: 0; cursor: pointer; }
     #070d16;
   background-size: 42px 42px;
 }
-#camera-preview, #vision-overlay {
+.camera-frame {
+  position: relative;
+  width: min(100vw, calc(100vh * 4 / 3));
+  aspect-ratio: 4 / 3;
+  max-height: 100vh;
+}
+#camera-preview, #backend-camera-preview, #vision-overlay {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
-#camera-preview {
-  object-fit: cover;
+#camera-preview, #backend-camera-preview {
+  object-fit: contain;
   opacity: 0;
   filter: none;
+  background: #050b14;
+}
+#camera-preview {
   transform: scaleX(-1);
 }
+#backend-camera-preview { transform: none; }
 #vision-overlay { pointer-events: none; }
 .camera-stage::after {
   content: "";
@@ -432,10 +618,161 @@ small { display: block; margin-top: 6px; color: var(--muted); }
   accent-color: var(--cyan);
 }
 
+.student-identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(9,17,31,0.34);
+}
+.student-identity-row strong {
+  font-size: 18px;
+}
+.student-identity-row select {
+  min-height: 40px;
+  max-width: 240px;
+}
+.registration-panel {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 4;
+  width: min(520px, calc(100vw - 48px));
+  display: grid;
+  gap: 16px;
+}
+.engagement-admin-panel {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 4;
+  width: min(360px, calc(100vw - 48px));
+  display: grid;
+  gap: 10px;
+}
+.hardware-admin-panel {
+  position: absolute;
+  left: 24px;
+  top: 154px;
+  z-index: 4;
+  width: min(360px, calc(100vw - 48px));
+  display: grid;
+  gap: 10px;
+}
+.hardware-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.danger-button {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #dc2626;
+  color: white;
+  font-weight: 900;
+}
+.engagement-history {
+  display: grid;
+  gap: 8px;
+  min-height: 30px;
+  color: var(--muted);
+}
+.engagement-history-row {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  font-size: 13px;
+}
+.registration-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.registration-form label,
+.registration-capture {
+  display: grid;
+  gap: 6px;
+}
+.registration-form span,
+.registration-capture,
+.profile-list {
+  color: var(--muted);
+}
+.registration-form input,
+.student-identity-row select {
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--text);
+  background: rgba(7,11,20,0.52);
+}
+.voice-turn-panel {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(9,17,31,0.36);
+}
+.voice-turn-status,
+.voice-turn-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.voice-turn-status span,
+.voice-turn-panel p,
+.mute-row {
+  color: var(--muted);
+}
+.voice-turn-actions button {
+  min-width: 78px;
+}
+.mute-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+.registration-form .consent-row {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+}
+.registration-form button {
+  min-height: 42px;
+}
+.registration-actions,
+.profile-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.profile-list {
+  display: grid;
+  gap: 8px;
+  max-height: 160px;
+  overflow: auto;
+}
+.profile-row {
+  justify-content: space-between;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+}
+
 @media (max-width: 1100px) {
   html, body { overflow: auto; height: auto; }
   .immersive-dashboard { min-height: 100vh; height: auto; }
-  .hud-topbar, .camera-control-card, .vision-details-panel, .latest-chat-card {
+  .hud-topbar, .camera-control-card, .vision-details-panel, .latest-chat-card, .registration-panel, .engagement-admin-panel, .hardware-admin-panel {
     position: relative;
     top: auto;
     right: auto;
@@ -447,9 +784,20 @@ small { display: block; margin-top: 6px; color: var(--muted); }
   .camera-stage { position: fixed; }
   .vision-details-panel { grid-template-rows: auto; }
   .latest-chat-card { margin-top: 140px; }
+  .registration-form { grid-template-columns: 1fr; }
+  .registration-form .consent-row { grid-column: auto; }
 }
 
 @media (max-width: 640px) {
+  .student-shell { padding: 10px; }
+  .self-test-grid,
+  .lesson-setup,
+  .lesson-main,
+  .answer-row {
+    grid-template-columns: 1fr;
+  }
+  .student-header h1 { font-size: 24px; }
+  .lesson-board h2 { font-size: 24px; }
   .hud-topbar {
     align-items: flex-start;
     gap: 12px;
