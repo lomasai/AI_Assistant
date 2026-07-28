@@ -115,7 +115,13 @@ button { border: 0; cursor: pointer; }
   font-weight: 900;
   text-transform: uppercase;
 }
-.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
 .camera-control-card {
   position: absolute;
@@ -410,6 +416,21 @@ small { display: block; margin-top: 6px; color: var(--muted); }
   background: rgba(255,255,255,0.1);
 }
 .system-info { color: var(--muted); line-height: 1.7; }
+.settings-grid {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+.settings-grid label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 800;
+}
+.settings-grid input[type="range"] {
+  width: 100%;
+  accent-color: var(--cyan);
+}
 
 @media (max-width: 1100px) {
   html, body { overflow: auto; height: auto; }
@@ -426,4 +447,19 @@ small { display: block; margin-top: 6px; color: var(--muted); }
   .camera-stage { position: fixed; }
   .vision-details-panel { grid-template-rows: auto; }
   .latest-chat-card { margin-top: 140px; }
+}
+
+@media (max-width: 640px) {
+  .hud-topbar {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+  .topbar-actions .glass-button,
+  .topbar-actions .status-pill {
+    min-height: 36px;
+    font-size: 11px;
+  }
 }

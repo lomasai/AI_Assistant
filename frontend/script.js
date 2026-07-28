@@ -34,6 +34,12 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function requireElement(id) {
+  const element = $(id);
+  if (!element) throw new Error(`Missing required UI element: #${id}`);
+  return element;
+}
+
 function appendMessage(sender, html) {
   if (sender === 'user') {
     conversation.innerHTML = '';
@@ -93,6 +99,7 @@ function renderAssistantReply(data) {
 
 function addEvent(message, level = 'info') {
   const timeline = $('event-timeline');
+  if (!timeline) return;
   const item = document.createElement('div');
   item.className = `event-item ${level}`;
   item.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
@@ -144,9 +151,9 @@ function setCameraStatus(text, active = false) {
 }
 
 function setCameraPreviewVisible(visible) {
-  cameraEmptyState.classList.toggle('hidden', visible);
-  cameraPreview.style.opacity = visible ? '1' : '0';
-  visionOverlay.style.opacity = visible ? '1' : '0';
+  if (cameraEmptyState) cameraEmptyState.classList.toggle('hidden', visible);
+  if (cameraPreview) cameraPreview.style.opacity = visible ? '1' : '0';
+  if (visionOverlay) visionOverlay.style.opacity = visible ? '1' : '0';
 }
 
 function resetVisionStats(message = 'Start the camera to begin analysis.') {
@@ -197,14 +204,20 @@ function stopCamera() {
   stopFrameLoop();
   if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
   cameraStream = null;
-  cameraPreview.pause();
-  cameraPreview.srcObject = null;
-  cameraPreview.removeAttribute('src');
-  cameraPreview.load();
+  if (cameraPreview) {
+    cameraPreview.pause();
+    cameraPreview.srcObject = null;
+    cameraPreview.removeAttribute('src');
+    try {
+      cameraPreview.load();
+    } catch (err) {
+      addEvent(`Camera reset warning: ${err}`, 'warning');
+    }
+  }
   setCameraPreviewVisible(false);
   setCameraStatus('Camera stopped');
-  startCameraBtn.disabled = false;
-  stopCameraBtn.disabled = true;
+  if (startCameraBtn) startCameraBtn.disabled = false;
+  if (stopCameraBtn) stopCameraBtn.disabled = true;
   resetVisionStats('Camera stopped');
 }
 
@@ -420,7 +433,9 @@ function drawGaze(ctx, gaze, width, height, attention) {
 }
 
 function clearOverlay() {
+  if (!visionOverlay) return;
   const ctx = visionOverlay.getContext('2d');
+  if (!ctx) return;
   ctx.clearRect(0, 0, visionOverlay.width, visionOverlay.height);
 }
 
@@ -486,16 +501,7 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
-chatForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const text = userInput.value.trim();
-  if (text) {
-    sendMessage(text);
-    userInput.value = '';
-  }
-});
-
-recordBtn.addEventListener('click', async () => {
+async function handleRecordClick() {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
     if (speechRecognition) speechRecognition.stop();
@@ -563,7 +569,7 @@ recordBtn.addEventListener('click', async () => {
     setVoiceStatus('Mic blocked');
     alert(`Unable to access microphone: ${err}`);
   }
-});
+}
 
 async function fetchSystemInfo() {
   const container = $('system-info');
@@ -582,7 +588,25 @@ async function fetchSystemInfo() {
   }
 }
 
-function setText(id, value) { $(id).textContent = value; }
+function bindSettingsControls() {
+  const opacityControl = $('hud-opacity-control');
+  const contrastControl = $('hud-contrast-control');
+  if (opacityControl) {
+    opacityControl.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--hud-opacity', String(Number(opacityControl.value) / 100));
+    });
+  }
+  if (contrastControl) {
+    contrastControl.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--hud-strong-opacity', String(Number(contrastControl.value) / 100));
+    });
+  }
+}
+
+function setText(id, value) {
+  const element = $(id);
+  if (element) element.textContent = value;
+}
 function valueOrDash(value) { return value === null || value === undefined ? '-' : String(value); }
 function sensorValue(value, unit) { return value === null || value === undefined ? '-' : `${value}${unit}`; }
 function pct(value) { return typeof value === 'number' ? `${Math.round(value * 100)}%` : '0%'; }
@@ -596,21 +620,46 @@ function formatTime(value) {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleTimeString();
 }
 
-startCameraBtn.addEventListener('click', startCamera);
-stopCameraBtn.addEventListener('click', () => {
-  stopCamera();
-  addEvent('Camera stopped', 'info');
-});
-toggleVisionDetailsBtn.addEventListener('click', () => {
-  const collapsed = visionDetailsPanel.classList.toggle('is-collapsed');
-  toggleVisionDetailsBtn.textContent = collapsed ? 'Expand' : 'Collapse';
-});
-$('toggle-info').addEventListener('click', () => {
-  fetchSystemInfo();
-  $('info-panel').classList.remove('hidden');
-});
-$('close-info').addEventListener('click', () => $('info-panel').classList.add('hidden'));
-window.addEventListener('beforeunload', () => stopCamera());
+function bindUiEvents() {
+  requireElement('chat-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const text = userInput.value.trim();
+    if (text) {
+      sendMessage(text);
+      userInput.value = '';
+    }
+  });
 
-addEvent('Dashboard loaded', 'info');
-stopCamera();
+  requireElement('record-btn').addEventListener('click', handleRecordClick);
+  requireElement('start-camera').addEventListener('click', startCamera);
+  requireElement('stop-camera').addEventListener('click', () => {
+    stopCamera();
+    addEvent('Camera stopped', 'info');
+  });
+  requireElement('toggle-vision-details').addEventListener('click', () => {
+    const collapsed = visionDetailsPanel.classList.toggle('is-collapsed');
+    toggleVisionDetailsBtn.textContent = collapsed ? 'Expand' : 'Collapse';
+  });
+  requireElement('toggle-info').addEventListener('click', () => {
+    fetchSystemInfo();
+    requireElement('info-panel').classList.remove('hidden');
+  });
+  requireElement('close-info').addEventListener('click', () => requireElement('info-panel').classList.add('hidden'));
+  requireElement('toggle-settings').addEventListener('click', () => requireElement('settings-panel').classList.remove('hidden'));
+  requireElement('close-settings').addEventListener('click', () => requireElement('settings-panel').classList.add('hidden'));
+  bindSettingsControls();
+  window.addEventListener('beforeunload', () => stopCamera());
+}
+
+function initializeDashboard() {
+  bindUiEvents();
+  addEvent('Dashboard loaded', 'info');
+  stopCamera();
+}
+
+try {
+  initializeDashboard();
+} catch (err) {
+  console.error('Dashboard failed to initialize:', err);
+  setText('vision-decision', `Dashboard error: ${err.message || err}`);
+}

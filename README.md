@@ -103,6 +103,16 @@ Vision service status:
 curl http://127.0.0.1:8000/vision/status
 ```
 
+Track face position from one browser camera frame:
+
+```bash
+curl -X POST http://127.0.0.1:8000/vision/track ^
+  -H "Content-Type: application/json" ^
+  -d "{\"image_base64\":\"data:image/jpeg;base64,...\",\"context\":{}}"
+```
+
+The tracking endpoint also accepts frame aliases such as `imageBase64`, `frame_base64`, `frame`, `image`, `data_url`, and `dataUrl`.
+
 ## Existing API Endpoints
 
 - `GET /api/v1/health`
@@ -115,6 +125,7 @@ curl http://127.0.0.1:8000/vision/status
 - `POST /memory/store`
 - `POST /memory/retrieve`
 - `POST /vision/analyze`
+- `POST /vision/track`
 - `GET /vision/status`
 
 ## Dependencies

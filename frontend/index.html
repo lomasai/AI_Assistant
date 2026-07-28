@@ -23,6 +23,7 @@
       </div>
       <div class="topbar-actions">
         <span id="camera-status" class="status-pill">Camera stopped</span>
+        <button id="toggle-settings" class="glass-button" type="button">Settings</button>
         <button id="toggle-info" class="glass-button" type="button">Info</button>
       </div>
     </header>
@@ -169,6 +170,23 @@
     </div>
   </div>
 
-  <script src="/static/script.js"></script>
+  <div id="settings-panel" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-card">
+      <button id="close-settings" class="close-button" type="button">x</button>
+      <h2 id="settings-title">Settings</h2>
+      <div class="settings-grid">
+        <label>
+          <span>HUD opacity</span>
+          <input id="hud-opacity-control" type="range" min="18" max="70" value="32" />
+        </label>
+        <label>
+          <span>Panel contrast</span>
+          <input id="hud-contrast-control" type="range" min="25" max="80" value="46" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/script.js?v=20260612-settings-button"></script>
 </body>
 </html>
