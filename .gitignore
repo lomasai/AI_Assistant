@@ -5,6 +5,7 @@ __pycache__/
 
 # Virtual environments
 .venv/
+.venv*/
 venv/
 env/
 ENV/
@@ -28,6 +29,7 @@ htmlcov/
 .env
 .env.*
 !.env.example
+config/device.yaml
 
 # Runtime files and local databases
 *.log
@@ -46,4 +48,3 @@ server/memory/logs.db
 .DS_Store
 Thumbs.db
 desktop.ini
-
