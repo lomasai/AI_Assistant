@@ -5,6 +5,7 @@ const recordBtn = document.getElementById('record-btn');
 const voiceTranscript = document.getElementById('voice-transcript');
 const voiceStatus = document.getElementById('voice-status');
 const cameraPreview = document.getElementById('camera-preview');
+const backendCameraPreview = document.getElementById('backend-camera-preview');
 const cameraStatus = document.getElementById('camera-status');
 const cameraEmptyState = document.getElementById('camera-empty-state');
 const startCameraBtn = document.getElementById('start-camera');
@@ -12,6 +13,14 @@ const stopCameraBtn = document.getElementById('stop-camera');
 const visionOverlay = document.getElementById('vision-overlay');
 const visionDetailsPanel = document.getElementById('vision-details-panel');
 const toggleVisionDetailsBtn = document.getElementById('toggle-vision-details');
+const studentApp = document.getElementById('student-app');
+const debugDashboard = document.getElementById('debug-dashboard');
+const lessonSetupForm = document.getElementById('lesson-setup-form');
+const answerForm = document.getElementById('answer-form');
+const answerInput = document.getElementById('answer-input');
+const studentBrowserCamera = document.getElementById('student-browser-camera');
+const studentBackendCamera = document.getElementById('student-backend-camera');
+const manualStudentSelect = document.getElementById('manual-student-select');
 
 const FRAME_INTERVAL_MS = 700;
 const eventState = { face: null, attention: null, posture: null, decision: null };
@@ -29,6 +38,14 @@ let frameCaptureCanvas = null;
 let analyzedFrames = 0;
 let visionStartedAt = 0;
 let latestVisionState = null;
+let cameraRuntimeMode = 'browser';
+let backendCameraEvents = null;
+let activeTeachingSessionId = localStorage.getItem('active_teaching_session_id') || null;
+let studentCameraStream = null;
+let activeRegistrationId = null;
+let activeRegistrationSeed = null;
+let studentAudioMuted = false;
+let engagementPollTimer = null;
 
 function $(id) {
   return document.getElementById(id);
@@ -38,6 +55,26 @@ function requireElement(id) {
   const element = $(id);
   if (!element) throw new Error(`Missing required UI element: #${id}`);
   return element;
+}
+
+function showDebugDashboard() {
+  studentApp.classList.add('hidden');
+  debugDashboard.classList.remove('hidden');
+  loadStudentProfiles();
+  refreshEngagementAdmin();
+  refreshHardwareAdmin();
+}
+
+function showStudentApp() {
+  debugDashboard.classList.add('hidden');
+  studentApp.classList.remove('hidden');
+}
+
+function showStudentView(viewId) {
+  ['startup-view', 'setup-view', 'live-teaching-view', 'summary-view'].forEach((id) => {
+    const el = $(id);
+    if (el) el.classList.toggle('hidden', id !== viewId);
+  });
 }
 
 function appendMessage(sender, html) {
@@ -152,8 +189,577 @@ function setCameraStatus(text, active = false) {
 
 function setCameraPreviewVisible(visible) {
   if (cameraEmptyState) cameraEmptyState.classList.toggle('hidden', visible);
-  if (cameraPreview) cameraPreview.style.opacity = visible ? '1' : '0';
+  if (cameraPreview) cameraPreview.style.opacity = visible && cameraRuntimeMode === 'browser' ? '1' : '0';
+  if (backendCameraPreview) backendCameraPreview.style.opacity = visible && cameraRuntimeMode !== 'browser' ? '1' : '0';
   if (visionOverlay) visionOverlay.style.opacity = visible ? '1' : '0';
+}
+
+async function loadCameraRuntimeMode() {
+  try {
+    const res = await fetch('/camera/status');
+    if (!res.ok) return;
+    const status = await res.json();
+    cameraRuntimeMode = status.provider || 'browser';
+  } catch (err) {
+    cameraRuntimeMode = 'browser';
+  }
+}
+
+async function initializeStudentCameraPreview() {
+  await loadCameraRuntimeMode();
+  const msg = $('student-camera-message');
+  if (cameraRuntimeMode !== 'browser') {
+    if (studentBackendCamera) {
+      studentBackendCamera.src = `/camera/stream.mjpg?student=${Date.now()}`;
+      studentBackendCamera.classList.remove('hidden');
+    }
+    if (studentBrowserCamera) studentBrowserCamera.classList.add('hidden');
+    if (msg) msg.textContent = cameraRuntimeMode === 'disabled' ? 'Camera unavailable' : 'Camera preview';
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !studentBrowserCamera) {
+    if (msg) msg.textContent = 'Camera preview unavailable';
+    return;
+  }
+  try {
+    studentCameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    studentBrowserCamera.srcObject = studentCameraStream;
+    await studentBrowserCamera.play();
+    if (studentBackendCamera) studentBackendCamera.classList.add('hidden');
+    studentBrowserCamera.classList.remove('hidden');
+    if (msg) msg.textContent = 'Camera preview';
+  } catch (err) {
+    if (msg) msg.textContent = 'Camera permission needed';
+  }
+}
+
+function stopStudentCameraPreview() {
+  if (studentCameraStream) studentCameraStream.getTracks().forEach((track) => track.stop());
+  studentCameraStream = null;
+  if (studentBackendCamera) {
+    studentBackendCamera.removeAttribute('src');
+    studentBackendCamera.classList.add('hidden');
+  }
+}
+
+async function runSelfTest() {
+  try {
+    const health = await fetch('/api/v1/health');
+    const camera = await fetch('/camera/status');
+    setText('self-test-system', health.ok ? 'Ready' : 'Unavailable');
+    if (camera.ok) {
+      const status = await camera.json();
+      setText('self-test-camera', status.state || 'Ready');
+    } else {
+      setText('self-test-camera', 'Optional');
+    }
+  } catch (err) {
+    setText('self-test-system', 'Offline');
+    setText('self-test-camera', 'Optional');
+  }
+}
+
+function adminHeaders(extra = {}) {
+  const token = localStorage.getItem('admin_api_token') || '';
+  return { 'Content-Type': 'application/json', ...(token ? { 'X-Admin-Token': token } : {}), ...extra };
+}
+
+async function adminFetch(url, options = {}) {
+  let res = await fetch(url, { ...options, headers: adminHeaders(options.headers || {}) });
+  if (res.status === 403 && !localStorage.getItem('admin_api_token')) {
+    const token = window.prompt('Admin token');
+    if (token) {
+      localStorage.setItem('admin_api_token', token);
+      res = await fetch(url, { ...options, headers: adminHeaders(options.headers || {}) });
+    }
+  }
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function loadStudentProfiles() {
+  const list = $('student-profile-list');
+  try {
+    const data = await adminFetch('/api/v1/admin/students');
+    if (list) {
+      list.innerHTML = '';
+      data.students.forEach((student) => {
+        const row = document.createElement('div');
+        row.className = 'profile-row';
+        const label = document.createElement('span');
+        label.textContent = `${student.display_name} - ${student.registration_status}`;
+        const button = document.createElement('button');
+        button.className = 'secondary-button';
+        button.type = 'button';
+        button.textContent = 'Delete';
+        button.addEventListener('click', () => deleteStudentProfile(student.id, student.display_name));
+        row.append(label, button);
+        list.appendChild(row);
+      });
+    }
+  } catch (err) {
+    if (list) list.textContent = 'Profiles unavailable';
+  }
+}
+
+async function loadStudentOptions() {
+  if (!manualStudentSelect) return;
+  try {
+    const res = await fetch('/api/v1/student/profiles');
+    if (!res.ok) throw new Error('profiles unavailable');
+    const data = await res.json();
+    manualStudentSelect.innerHTML = '<option value="">Guest</option>';
+    data.students.forEach((student) => {
+      const option = document.createElement('option');
+      option.value = student.id;
+      option.textContent = student.display_name;
+      manualStudentSelect.appendChild(option);
+    });
+  } catch (err) {
+    manualStudentSelect.innerHTML = '<option value="">Guest</option>';
+  }
+}
+
+async function recognizeStudentForHome() {
+  try {
+    const res = await fetch('/api/v1/student/recognize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quality_override: 'ok' }),
+    });
+    if (!res.ok) throw new Error('recognition unavailable');
+    const result = await res.json();
+    setText('recognized-student-name', result.recognized ? result.display_name : 'Guest');
+  } catch (err) {
+    setText('recognized-student-name', 'Guest');
+  }
+}
+
+async function startRegistration(event) {
+  event.preventDefault();
+  try {
+    const payload = {
+      display_name: $('registration-name').value.trim(),
+      grade_level: $('registration-grade').value.trim() || null,
+      language: $('registration-language').value.trim() || null,
+      consent_given: $('registration-consent').checked,
+    };
+    const result = await adminFetch('/api/v1/admin/registrations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    activeRegistrationId = result.registration.id;
+    activeRegistrationSeed = `student:${result.student.id}`;
+    setText('registration-status', 'Capturing');
+    setText('registration-guidance', guidanceText(result.next_guidance));
+    setText('registration-feedback', 'Capture centre, left and right samples.');
+  } catch (err) {
+    setText('registration-status', 'Error');
+    setText('registration-feedback', 'Registration could not start.');
+  }
+}
+
+async function captureRegistrationSample() {
+  if (!activeRegistrationId) {
+    setText('registration-feedback', 'Start registration first.');
+    return;
+  }
+  try {
+    const result = await adminFetch(`/api/v1/admin/registrations/${activeRegistrationId}/samples`, {
+      method: 'POST',
+      body: JSON.stringify({
+        image_base64: captureRegistrationImage(),
+        embedding_seed: activeRegistrationSeed,
+        quality_override: 'ok',
+      }),
+    });
+    setText('registration-guidance', guidanceText(result.next_guidance));
+    setText('registration-feedback', result.accepted ? `Accepted ${result.registration.accepted_samples}/${result.registration.required_samples}` : qualityText(result.reason));
+    if (result.registration.status === 'ready_to_verify') setText('registration-status', 'Ready to verify');
+  } catch (err) {
+    setText('registration-feedback', 'Sample was rejected.');
+  }
+}
+
+function captureRegistrationImage() {
+  const source = cameraPreview && cameraPreview.videoWidth ? cameraPreview : studentBrowserCamera;
+  if (!source || !source.videoWidth || !source.videoHeight) return '';
+  const canvas = getFrameCaptureCanvas(source.videoWidth, source.videoHeight);
+  canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.75);
+}
+
+async function completeRegistration() {
+  if (!activeRegistrationId) return;
+  try {
+    const result = await adminFetch(`/api/v1/admin/registrations/${activeRegistrationId}/complete`, { method: 'POST' });
+    setText('registration-status', result.verified ? 'Registered' : 'Retry');
+    setText('registration-feedback', result.verified ? 'Verification passed.' : 'Verification failed.');
+    activeRegistrationId = null;
+    await loadStudentProfiles();
+    await loadStudentOptions();
+  } catch (err) {
+    setText('registration-feedback', 'Need more accepted samples before completion.');
+  }
+}
+
+async function cancelRegistration() {
+  if (!activeRegistrationId) return;
+  try {
+    await adminFetch(`/api/v1/admin/registrations/${activeRegistrationId}/cancel`, { method: 'POST' });
+  } catch (err) {
+    // Keep cancellation quiet in the UI; server state remains authoritative.
+  }
+  activeRegistrationId = null;
+  setText('registration-status', 'Cancelled');
+  setText('registration-feedback', 'Registration cancelled.');
+  await loadStudentProfiles();
+  await loadStudentOptions();
+}
+
+async function deleteStudentProfile(studentId, name) {
+  if (!window.confirm(`Delete ${name}?`)) return;
+  try {
+    await adminFetch(`/api/v1/admin/students/${studentId}?confirm=true`, { method: 'DELETE' });
+    await loadStudentProfiles();
+    await loadStudentOptions();
+  } catch (err) {
+    setText('registration-feedback', 'Profile deletion failed.');
+  }
+}
+
+function guidanceText(pose) {
+  const labels = { center: 'Look straight at the camera.', left: 'Turn slightly left.', right: 'Turn slightly right.' };
+  return labels[pose] || 'Hold still for capture.';
+}
+
+function qualityText(reason) {
+  const labels = {
+    dark_or_overexposed: 'Lighting is not suitable.',
+    blurry: 'Frame is blurry.',
+    no_face: 'No face detected.',
+    multi_face: 'Only one face should be visible.',
+  };
+  return labels[reason] || 'Sample rejected.';
+}
+
+async function createTeachingSession(event) {
+  event.preventDefault();
+  const payload = {
+    student_display_name: $('student-name-input').value.trim(),
+    grade_level: $('student-level-input').value.trim(),
+    topic: $('lesson-topic-input').value.trim(),
+    language: $('lesson-language-input').value.trim(),
+    objective: $('lesson-objective-input').value.trim(),
+  };
+  const created = await teachingFetch('/api/v1/teaching/sessions', { method: 'POST', body: JSON.stringify(payload) });
+  activeTeachingSessionId = created.session.id;
+  localStorage.setItem('active_teaching_session_id', activeTeachingSessionId);
+  const started = await teachingFetch(`/api/v1/teaching/sessions/${activeTeachingSessionId}/start`, { method: 'POST' });
+  renderTeachingSession(started.session);
+  showStudentView('live-teaching-view');
+  initializeStudentCameraPreview();
+  startEngagementPolling();
+}
+
+async function submitTeachingAnswer(event) {
+  event.preventDefault();
+  if (!activeTeachingSessionId || !answerInput.value.trim()) return;
+  const submit = $('answer-submit');
+  submit.disabled = true;
+  try {
+    const result = await teachingFetch(`/api/v1/teaching/sessions/${activeTeachingSessionId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ answer_text: answerInput.value.trim() }),
+    });
+    answerInput.value = '';
+    renderTeachingSession(result.session);
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function teachingCommand(command) {
+  if (!activeTeachingSessionId) return;
+  if (command === 'pause' || command === 'stop') await cancelStudentAudio();
+  const result = await teachingFetch(`/api/v1/teaching/sessions/${activeTeachingSessionId}/${command}`, { method: 'POST' });
+  renderTeachingSession(result.session);
+  if (command === 'stop') stopEngagementPolling();
+}
+
+async function teachingFetch(url, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function renderTeachingSession(session) {
+  const latestTutor = [...(session.turns || [])].reverse().find((turn) => turn.role === 'tutor' && turn.tutor_output);
+  const latestQuestion = [...(session.turns || [])].reverse().find((turn) => turn.state === 'asking_question');
+  const summary = session.summary;
+  setText('lesson-student-name', session.config.student_display_name);
+  setText('lesson-state-label', stateLabel(session.state));
+  setText('lesson-title', latestTutor?.tutor_output?.screen_title || session.config.topic);
+  setText('lesson-objective', session.config.objective);
+  const points = $('lesson-points');
+  if (points) {
+    points.innerHTML = '';
+    (latestTutor?.tutor_output?.screen_points || [session.config.objective]).forEach((point) => {
+      const li = document.createElement('li');
+      li.textContent = point;
+      points.appendChild(li);
+    });
+  }
+  setText('lesson-question', latestQuestion?.text || 'The lesson is complete.');
+  const progress = $('lesson-progress');
+  if (progress) {
+    progress.max = session.progress.max_turns;
+    progress.value = session.progress.completed_turns;
+  }
+  if (answerInput) answerInput.disabled = session.state !== 'waiting_for_answer';
+  if ($('answer-submit')) $('answer-submit').disabled = session.state !== 'waiting_for_answer';
+  if (summary || session.state === 'session_complete') {
+    setText('summary-text', summary?.recap || 'Session complete.');
+    stopEngagementPolling();
+    showStudentView('summary-view');
+  } else {
+    startEngagementPolling();
+  }
+}
+
+async function startStudentVoiceTurn() {
+  if (!activeTeachingSessionId) {
+    setText('student-audio-message', 'Start a lesson first.');
+    return;
+  }
+  setText('student-audio-state', 'Listening');
+  setText('student-audio-message', 'Speak your answer.');
+  try {
+    const result = await teachingFetch('/api/v1/audio/push-to-talk/start', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: activeTeachingSessionId }),
+    });
+    if (result.transcript) setText('student-transcript-preview', result.transcript);
+    if (result.session) renderTeachingSession(result.session);
+    setText('student-audio-state', result.ok ? 'Ready' : 'Audio unavailable');
+    setText('student-audio-message', audioStatusText(result.status));
+    if (result.ok && !studentAudioMuted) {
+      // Backend TTS is queued by the voice turn; the UI only reflects state.
+      pollStudentAudioState();
+    }
+  } catch (err) {
+    setText('student-audio-state', 'Audio unavailable');
+    setText('student-audio-message', 'Use text input instead.');
+  }
+}
+
+async function cancelStudentAudio() {
+  try {
+    await fetch('/api/v1/audio/push-to-talk/cancel', { method: 'POST' });
+  } catch (err) {
+    // Text input remains available if cancellation cannot reach the backend.
+  }
+  setText('student-audio-state', 'Ready');
+}
+
+async function pollStudentAudioState() {
+  try {
+    const res = await fetch('/api/v1/audio/state');
+    if (!res.ok) return;
+    const state = await res.json();
+    setText('student-audio-state', state.speaking ? 'Speaking' : state.listening ? 'Listening' : state.state);
+  } catch (err) {
+    setText('student-audio-state', 'Audio unavailable');
+  }
+}
+
+function audioStatusText(status) {
+  const labels = {
+    submitted: 'Answer submitted.',
+    transcribed: 'Transcript ready.',
+    stt_failed: 'Speech recognition failed. Use text input.',
+    timeout: 'No speech detected.',
+    too_short: 'Speech was too short.',
+    speaking: 'Wait until speaking finishes.',
+    duplicate_or_invalid: 'Answer already submitted or lesson not ready.',
+  };
+  return labels[status] || 'Text input remains available.';
+}
+
+function stateLabel(state) {
+  const labels = {
+    waiting_for_answer: 'Listening',
+    evaluating: 'Thinking',
+    explaining: 'Explaining',
+    paused: 'Paused',
+    session_complete: 'Complete',
+  };
+  return labels[state] || state.replace(/_/g, ' ');
+}
+
+async function recoverTeachingSession() {
+  await runSelfTest();
+  if (!activeTeachingSessionId) {
+    showStudentView('setup-view');
+    return;
+  }
+  try {
+    const result = await teachingFetch(`/api/v1/teaching/sessions/${activeTeachingSessionId}`);
+    renderTeachingSession(result.session);
+    if (result.session.state !== 'session_complete') {
+      showStudentView('live-teaching-view');
+      initializeStudentCameraPreview();
+      startEngagementPolling();
+    }
+  } catch (err) {
+    localStorage.removeItem('active_teaching_session_id');
+    activeTeachingSessionId = null;
+    showStudentView('setup-view');
+  }
+}
+
+function startEngagementPolling() {
+  if (!activeTeachingSessionId || engagementPollTimer) return;
+  pollEngagementState();
+  engagementPollTimer = window.setInterval(pollEngagementState, 2500);
+}
+
+function stopEngagementPolling() {
+  if (engagementPollTimer) window.clearInterval(engagementPollTimer);
+  engagementPollTimer = null;
+  const panel = $('engagement-panel');
+  if (panel) panel.classList.add('hidden');
+}
+
+async function pollEngagementState() {
+  if (!activeTeachingSessionId) return;
+  try {
+    const res = await fetch(`/api/v1/engagement/sessions/${activeTeachingSessionId}/state`);
+    if (!res.ok) return;
+    renderEngagementState(await res.json());
+  } catch (err) {
+    const panel = $('engagement-panel');
+    if (panel) panel.classList.add('hidden');
+  }
+}
+
+function renderEngagementState(state) {
+  const panel = $('engagement-panel');
+  if (!panel) return;
+  const show = Boolean(state.enabled && state.message && state.state !== 'normal' && state.state !== 'disabled');
+  panel.classList.toggle('hidden', !show);
+  if (show) setText('engagement-message', state.message);
+}
+
+async function sendEngagementChoice(choice) {
+  if (!activeTeachingSessionId) return;
+  try {
+    const res = await fetch(`/api/v1/engagement/sessions/${activeTeachingSessionId}/choice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choice }),
+    });
+    if (res.ok) renderEngagementState(await res.json());
+    if (choice === 'pause') {
+      const result = await teachingFetch(`/api/v1/teaching/sessions/${activeTeachingSessionId}`);
+      renderTeachingSession(result.session);
+    }
+    if (choice === 'use_text' && answerInput) answerInput.focus();
+  } catch (err) {
+    renderEngagementState({ enabled: false });
+  }
+}
+
+async function refreshEngagementAdmin() {
+  const status = $('engagement-admin-status');
+  const history = $('engagement-admin-history');
+  try {
+    const health = await fetch('/api/v1/engagement/health');
+    if (health.ok) {
+      const data = await health.json();
+      if (status) status.textContent = data.enabled ? (data.running ? 'Running' : 'Configured') : 'Disabled';
+    }
+    if (history && activeTeachingSessionId) {
+      const data = await adminFetch(`/api/v1/engagement/sessions/${activeTeachingSessionId}/history`);
+      history.innerHTML = '';
+      (data.events || []).slice(-6).forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'engagement-history-row';
+        row.textContent = `${formatTime(item.timestamp_utc)} - ${item.message}`;
+        history.appendChild(row);
+      });
+      if (!history.children.length) history.textContent = 'No support events.';
+    }
+  } catch (err) {
+    if (status) status.textContent = 'Unavailable';
+    if (history) history.textContent = 'Engagement support unavailable.';
+  }
+}
+
+async function refreshHardwareAdmin() {
+  const status = $('hardware-admin-status');
+  const mode = $('hardware-mode');
+  const limits = $('hardware-limits');
+  const history = $('hardware-history');
+  try {
+    const health = await adminFetch('/api/v1/hardware/health', { method: 'GET' });
+    if (status) status.textContent = health.state || 'Unavailable';
+    if (mode) {
+      mode.textContent = `${health.provider || 'mock'} mode. Physical output ${health.physical_output_enabled ? 'enabled' : 'disabled'}.`;
+    }
+    const safeLimits = health.limits || {};
+    if (limits) {
+      limits.textContent = `Servo ${safeLimits.servo_min_angle_deg}..${safeLimits.servo_max_angle_deg} deg, cooldown ${safeLimits.motion_cooldown_seconds}s, max motion ${safeLimits.max_continuous_motion_seconds}s.`;
+    }
+    if (history) {
+      const result = await adminFetch('/api/v1/hardware/history', { method: 'GET' });
+      history.innerHTML = '';
+      (result.history || []).slice(-6).forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'engagement-history-row';
+        row.textContent = `${formatTime(item.timestamp_utc)} - ${item.action}: ${item.status}`;
+        history.appendChild(row);
+      });
+      if (!history.children.length) history.textContent = 'No commands.';
+    }
+  } catch (err) {
+    if (status) status.textContent = 'Unavailable';
+    if (mode) mode.textContent = 'Hardware controls unavailable.';
+    if (limits) limits.textContent = 'Safety limits unavailable.';
+  }
+}
+
+async function submitHardwareAction(action) {
+  try {
+    await adminFetch('/api/v1/hardware/actions', {
+      method: 'POST',
+      body: JSON.stringify({ action, params: {} }),
+    });
+  } catch (err) {
+    // The backend owns safety decisions; rejected commands are reflected in health/history.
+  }
+  await refreshHardwareAdmin();
+}
+
+async function cancelHardwareMotion() {
+  try {
+    await adminFetch('/api/v1/hardware/cancel', { method: 'POST' });
+  } catch (err) {
+    // Keep the UI quiet; the backend state remains authoritative.
+  }
+  await refreshHardwareAdmin();
+}
+
+async function emergencyStopHardware() {
+  try {
+    await adminFetch('/api/v1/hardware/emergency-stop', { method: 'POST' });
+  } catch (err) {
+    // Emergency stop failures are surfaced through backend health.
+  }
+  await refreshHardwareAdmin();
 }
 
 function resetVisionStats(message = 'Start the camera to begin analysis.') {
@@ -169,6 +775,11 @@ function resetVisionStats(message = 'Start the camera to begin analysis.') {
 }
 
 async function startCamera() {
+  await loadCameraRuntimeMode();
+  if (cameraRuntimeMode !== 'browser') {
+    startBackendCameraPreview();
+    return;
+  }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setCameraStatus('Camera unavailable');
     setText('vision-decision', 'This browser does not support camera access.');
@@ -200,7 +811,37 @@ async function startCamera() {
   }
 }
 
+function startBackendCameraPreview() {
+  stopCamera();
+  if (cameraRuntimeMode === 'disabled') {
+    setCameraStatus('Camera disabled');
+    setText('vision-decision', 'Backend camera is disabled by configuration.');
+    addEvent('Backend camera disabled', 'warning');
+    return;
+  }
+  if (!backendCameraPreview) return;
+  backendCameraPreview.src = `/camera/stream.mjpg?ts=${Date.now()}`;
+  backendCameraPreview.classList.remove('hidden');
+  cameraPreview.classList.add('hidden');
+  setCameraPreviewVisible(true);
+  setCameraStatus('Backend camera active', true);
+  startCameraBtn.disabled = true;
+  stopCameraBtn.disabled = false;
+  setText('vision-decision', 'Backend camera preview is active.');
+  addEvent('Backend camera preview started', 'info');
+  bindBackendCameraEvents();
+}
+
 function stopCamera() {
+  if (backendCameraEvents) {
+    backendCameraEvents.close();
+    backendCameraEvents = null;
+  }
+  if (backendCameraPreview) {
+    backendCameraPreview.removeAttribute('src');
+    backendCameraPreview.classList.add('hidden');
+  }
+  if (cameraPreview) cameraPreview.classList.remove('hidden');
   stopFrameLoop();
   if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
   cameraStream = null;
@@ -219,6 +860,23 @@ function stopCamera() {
   if (startCameraBtn) startCameraBtn.disabled = false;
   if (stopCameraBtn) stopCameraBtn.disabled = true;
   resetVisionStats('Camera stopped');
+}
+
+function bindBackendCameraEvents() {
+  if (!window.EventSource || backendCameraEvents) return;
+  backendCameraEvents = new EventSource('/camera/events');
+  backendCameraEvents.addEventListener('camera_status', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.state === 'error' || data.state === 'disabled') {
+        setCameraStatus(data.state === 'disabled' ? 'Camera disabled' : 'Camera unavailable');
+        setText('vision-decision', data.error || 'Backend camera unavailable.');
+        addEvent('Backend camera unavailable', 'warning');
+      }
+    } catch (err) {
+      addEvent(`Camera status event warning: ${err}`, 'warning');
+    }
+  });
 }
 
 function startFrameLoop() {
@@ -294,17 +952,17 @@ function renderVisionResult(result, sourceWidth, sourceHeight) {
   setText('face-detected-value', String(Boolean(face.detected)));
   setText('face-count-value', String(face.count || 0));
   setText('face-confidence-value', pct(face.confidence));
-  setText('gender-value', estimateText(face.apparent_gender_estimate));
-  setText('age-value', estimateText(face.estimated_age_range));
-  setText('expression-value', estimateText(face.expression));
+  setText('gender-value', 'Not used');
+  setText('age-value', 'Not used');
+  setText('expression-value', 'Not used');
   setText('face-center-value', coords(face.center_x, face.center_y));
 
   setText('eyes-visible-value', String(Boolean(attention.eyes_visible)));
   setText('eye-contact-value', attention.eye_contact || 'unknown');
-  setText('attention-value', attention.attention_state || 'unknown');
+  setText('attention-value', 'observable only');
   setText('blink-value', String(Boolean(attention.blink_detected)));
   setText('ear-value', attention.eye_aspect_ratio ?? '-');
-  setText('distraction-value', attention.distraction_reason || 'none');
+  setText('distraction-value', 'No diagnostic label');
 
   setText('person-value', String(Boolean(body.person_detected)));
   setText('body-posture-value', body.posture || 'unknown');
@@ -323,10 +981,10 @@ function renderVisionResult(result, sourceWidth, sourceHeight) {
   setText('sitting-warning-value', String(Boolean(health.sitting_time_warning)));
   setText('water-value', health.water_reminder_status || 'ok');
   setText('medicine-value', health.medicine_reminder_status || 'ok');
-  setText('fatigue-value', String(Boolean(health.fatigue_warning)));
-  setText('drowsiness-value', String(Boolean(health.drowsiness_warning)));
+  setText('fatigue-value', 'Not used');
+  setText('drowsiness-value', 'Not used');
   setText('attention-warning-value', String(Boolean(health.attention_warning)));
-  setText('behavior-summary-value', health.behavior_summary || 'No alert.');
+  setText('behavior-summary-value', 'No support cue.');
 
   setText('temperature-value', sensorValue(sensors.temperature, ' C'));
   setText('humidity-value', sensorValue(sensors.humidity, '%'));
@@ -353,9 +1011,9 @@ function emitVisionEvents(face, attention, body, decision) {
     addEvent(face.detected ? 'Face detected' : 'Face lost', face.detected ? 'info' : 'warning');
     eventState.face = faceState;
   }
-  if (eventState.attention !== attention.attention_state) {
-    addEvent(`Attention changed: ${attention.attention_state || 'unknown'}`, attention.attention_state === 'distracted' ? 'warning' : 'info');
-    eventState.attention = attention.attention_state;
+  if (eventState.attention !== attention.eyes_visible) {
+    addEvent(`Eyes visible: ${Boolean(attention.eyes_visible)}`, 'info');
+    eventState.attention = attention.eyes_visible;
   }
   if (eventState.posture !== body.posture) {
     addEvent(`Posture changed: ${body.posture || 'unknown'}`, 'info');
@@ -442,25 +1100,14 @@ function clearOverlay() {
 function latestVisionContext() {
   if (!latestVisionState) return {};
   const face = latestVisionState.face || {};
-  const attention = latestVisionState.eyes_attention || {};
   const body = latestVisionState.body_posture || {};
   const tracking = latestVisionState.tracking || {};
-  const health = latestVisionState.health_behavior || {};
-  const alerts = [];
-  if (health.sitting_time_warning) alerts.push('sitting_time_warning');
-  if (health.attention_warning) alerts.push('attention_warning');
-  if (health.drowsiness_warning) alerts.push('drowsiness_warning');
   return {
     vision: {
       face_detected: Boolean(face.detected),
-      apparent_gender_estimate: face.apparent_gender_estimate || { label: 'unknown', confidence: 0 },
-      estimated_age_range: face.estimated_age_range || { label: 'unknown', confidence: 0 },
-      expression: face.expression || { label: 'unknown', confidence: 0 },
-      attention_state: attention.attention_state || 'unknown',
-      eye_contact: attention.eye_contact || 'unknown',
-      posture: body.posture || 'unknown',
+      face_count: Number(face.count || 0),
       tracking_direction: tracking.direction || 'center',
-      health_alerts: alerts,
+      body_position: body.body_position || 'unknown',
     },
   };
 }
@@ -621,6 +1268,58 @@ function formatTime(value) {
 }
 
 function bindUiEvents() {
+  const debugRequested = window.location.search.includes('admin') || window.location.hash === '#admin';
+  if (debugRequested) showDebugDashboard();
+  else showStudentApp();
+
+  const openDebug = $('open-debug-view');
+  if (openDebug) openDebug.addEventListener('click', showDebugDashboard);
+  if (lessonSetupForm) lessonSetupForm.addEventListener('submit', createTeachingSession);
+  if (manualStudentSelect) {
+    manualStudentSelect.addEventListener('change', () => {
+      const selected = manualStudentSelect.options[manualStudentSelect.selectedIndex];
+      const name = selected && selected.value ? selected.textContent : 'Guest';
+      setText('recognized-student-name', name);
+      if ($('student-name-input')) $('student-name-input').value = name;
+    });
+  }
+  if (answerForm) answerForm.addEventListener('submit', submitTeachingAnswer);
+  if ($('student-mic-button')) $('student-mic-button').addEventListener('click', startStudentVoiceTurn);
+  if ($('student-audio-cancel')) $('student-audio-cancel').addEventListener('click', cancelStudentAudio);
+  if ($('student-audio-retry')) $('student-audio-retry').addEventListener('click', startStudentVoiceTurn);
+  if ($('student-mute-tts')) {
+    $('student-mute-tts').addEventListener('change', () => {
+      studentAudioMuted = $('student-mute-tts').checked;
+      if (studentAudioMuted) cancelStudentAudio();
+    });
+  }
+  if ($('registration-form')) $('registration-form').addEventListener('submit', startRegistration);
+  if ($('capture-registration-sample')) $('capture-registration-sample').addEventListener('click', captureRegistrationSample);
+  if ($('complete-registration')) $('complete-registration').addEventListener('click', completeRegistration);
+  if ($('cancel-registration')) $('cancel-registration').addEventListener('click', cancelRegistration);
+  if ($('pause-lesson')) $('pause-lesson').addEventListener('click', () => teachingCommand('pause'));
+  if ($('resume-lesson')) $('resume-lesson').addEventListener('click', () => teachingCommand('resume'));
+  if ($('stop-lesson')) $('stop-lesson').addEventListener('click', () => teachingCommand('stop'));
+  if ($('engagement-continue')) $('engagement-continue').addEventListener('click', () => sendEngagementChoice('continue'));
+  if ($('engagement-repeat')) $('engagement-repeat').addEventListener('click', () => sendEngagementChoice('repeat'));
+  if ($('engagement-pause')) $('engagement-pause').addEventListener('click', () => sendEngagementChoice('pause'));
+  if ($('engagement-use-text')) $('engagement-use-text').addEventListener('click', () => sendEngagementChoice('use_text'));
+  if ($('hardware-neutral')) $('hardware-neutral').addEventListener('click', () => submitHardwareAction('neutral'));
+  if ($('hardware-nod')) $('hardware-nod').addEventListener('click', () => submitHardwareAction('small_nod'));
+  if ($('hardware-turn')) $('hardware-turn').addEventListener('click', () => submitHardwareAction('small_head_turn'));
+  if ($('hardware-reset')) $('hardware-reset').addEventListener('click', () => submitHardwareAction('reset_position'));
+  if ($('hardware-cancel')) $('hardware-cancel').addEventListener('click', cancelHardwareMotion);
+  if ($('hardware-estop')) $('hardware-estop').addEventListener('click', emergencyStopHardware);
+  if ($('new-lesson')) {
+    $('new-lesson').addEventListener('click', () => {
+      localStorage.removeItem('active_teaching_session_id');
+      activeTeachingSessionId = null;
+      stopStudentCameraPreview();
+      stopEngagementPolling();
+      showStudentView('setup-view');
+    });
+  }
+
   requireElement('chat-form').addEventListener('submit', (event) => {
     event.preventDefault();
     const text = userInput.value.trim();
@@ -653,6 +1352,10 @@ function bindUiEvents() {
 
 function initializeDashboard() {
   bindUiEvents();
+  loadCameraRuntimeMode();
+  loadStudentOptions();
+  recognizeStudentForHome();
+  recoverTeachingSession();
   addEvent('Dashboard loaded', 'info');
   stopCamera();
 }
