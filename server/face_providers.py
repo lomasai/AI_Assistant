@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,13 +49,8 @@ class MockFaceEmbeddingProvider:
         return self._health.safe_dict()
 
     def embed_seed(self, seed: str) -> list[float]:
-        raw = np.frombuffer(seed.encode("utf-8"), dtype=np.uint8)
-        if raw.size == 0:
-            raw = np.array([1], dtype=np.uint8)
-        values = []
-        for index in range(32):
-            byte = int(raw[index % raw.size])
-            values.append(1.0 if byte % 2 else -1.0)
+        digest = hashlib.blake2b(seed.encode("utf-8") or b"\x00", digest_size=32).digest()
+        values = [(byte - 127.5) / 127.5 for byte in digest]
         return normalize_embedding(values)
 
     def embed_image(self, image_base64: str) -> list[float]:
