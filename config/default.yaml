@@ -1,0 +1,246 @@
+environment: development
+bind_host: 127.0.0.1
+bind_port: 8000
+
+llm:
+  active_provider: mock
+  profiles:
+    mock:
+      provider: mock
+      model: mock-teacher
+      timeout_seconds: 5
+      temperature: 0.2
+      max_tokens: 512
+      supports_tools: false
+      supports_vision: false
+    openai:
+      provider: openai_compatible
+      base_url: https://api.openai.com/v1
+      model: gpt-4.1-mini
+      api_key_env: OPENAI_API_KEY
+      timeout_seconds: 60
+      temperature: 0.2
+      max_tokens: 800
+      supports_tools: true
+      supports_vision: true
+    groq:
+      provider: openai_compatible
+      base_url: https://api.groq.com/openai/v1
+      model: llama-3.1-8b-instant
+      api_key_env: GROQ_API_KEY
+      timeout_seconds: 60
+      temperature: 0.2
+      max_tokens: 512
+      supports_tools: true
+      supports_vision: false
+    deepseek:
+      provider: openai_compatible
+      base_url: https://api.deepseek.com/v1
+      model: deepseek-reasoner
+      api_key_env: DEEPSEEK_API_KEY
+      timeout_seconds: 120
+      temperature: 0.2
+      max_tokens: 1024
+      supports_tools: false
+      supports_vision: false
+    xai:
+      provider: openai_compatible
+      base_url: https://api.x.ai/v1
+      model: grok-3-mini
+      api_key_env: XAI_API_KEY
+      timeout_seconds: 60
+      temperature: 0.2
+      max_tokens: 800
+      supports_tools: true
+      supports_vision: false
+    generic_openai_compatible:
+      provider: openai_compatible
+      base_url: http://127.0.0.1:8080/v1
+      model: local-compatible-model
+      api_key_env: GENERIC_OPENAI_COMPATIBLE_API_KEY
+      timeout_seconds: 60
+      temperature: 0.2
+      max_tokens: 800
+      supports_tools: false
+      supports_vision: false
+
+camera:
+  provider: browser
+  device_index: 0
+  width: 640
+  height: 480
+  preview_fps: 12
+  analysis_fps: 5
+  rotation_degrees: 0
+  flip_horizontal: false
+  flip_vertical: false
+  jpeg_quality: 75
+  warmup_timeout_seconds: 5
+  browser_fallback: true
+
+audio:
+  input_provider: browser
+  output_provider: browser
+  input_device: ""
+  output_device: ""
+  sample_rate: 16000
+  channels: 1
+  chunk_duration_ms: 30
+  buffer_max_chunks: 16
+  max_recording_seconds: 8
+  min_recording_ms: 250
+  half_duplex: true
+  barge_in_enabled: false
+  retain_temporary_audio: false
+
+wake_word:
+  provider: mock
+  model_path: ""
+  phrase: hey tutor
+  sensitivity: 0.5
+  cooldown_seconds: 2
+  activation_timeout_seconds: 5
+
+vad:
+  provider: mock
+  speech_threshold: 0.01
+  silence_timeout_ms: 800
+  max_recording_seconds: 8
+  min_recording_ms: 250
+  noise_floor: 0.005
+
+stt:
+  provider: mock
+  model_path: ""
+  executable_path: ""
+  language: en
+  timeout_seconds: 20
+  mock_transcript: A fraction is part of a whole.
+
+tts:
+  provider: mock
+  model_path: ""
+  executable_path: ""
+  voice: default
+  language: en
+  speed: 1
+  volume: 1
+  timeout_seconds: 20
+
+recognition:
+  face_detection_provider: mock
+  face_recognition_provider: mock
+  face_detection_model_path: ""
+  face_recognition_model_path: ""
+  embedding_model_path: ""
+  face_match_threshold: 0.72
+  unknown_label: Guest
+  registration_sample_count: 3
+  blur_threshold: 20
+  brightness_min: 20
+  brightness_max: 240
+  recognition_interval_seconds: 1
+  retain_temporary_media: false
+
+database:
+  sqlite_path: memory/app.db
+
+attention:
+  observation_window_seconds: 8
+  confidence_threshold: 0.65
+  cooldown_seconds: 30
+
+engagement:
+  enabled: false
+  provider: mock
+  model_path: ""
+  analysis_fps: 2
+  rolling_window_seconds: 10
+  absence_duration_seconds: 8
+  response_inactivity_seconds: 20
+  intervention_cooldown_seconds: 15
+  max_interventions_per_lesson: 4
+  abnormal_sample_ratio: 0.6
+  minimum_samples: 3
+  event_retention: 100
+  retain_raw_frames: false
+
+hardware:
+  enabled: false
+  provider: mock
+  transport: mock
+  physical_output_enabled: false
+  hardware_profile_approved: false
+  esp32_board: ""
+  communication_method: ""
+  serial_port: ""
+  baud_rate: 115200
+  power_supply: ""
+  driver_board: ""
+  emergency_stop_method: ""
+  command_timeout_seconds: 1
+  heartbeat_interval_seconds: 2
+  heartbeat_timeout_seconds: 5
+  retry_limit: 1
+  stale_command_seconds: 5
+  duplicate_retention: 100
+  audit_history_limit: 100
+  motion_cooldown_seconds: 0.5
+  max_continuous_motion_seconds: 1
+  unsafe_operating_zone_clear: false
+  emergency_stop_on_lost_connection: true
+  neutral_on_startup: true
+  neutral_on_shutdown: true
+  permitted_actions:
+    - neutral
+    - small_nod
+    - small_head_turn
+    - reset_position
+  servo_limits:
+    min_angle_deg: -20
+    max_angle_deg: 20
+    max_speed_deg_per_second: 30
+    max_duration_seconds: 1
+  motor_limits:
+    max_speed_percent: 0
+    max_duration_seconds: 0
+
+servo:
+  enabled: false
+  serial_port: ""
+  pan_min_deg: -45
+  pan_max_deg: 45
+  tilt_min_deg: -20
+  tilt_max_deg: 30
+  deadband: 0.08
+  rate_limit_hz: 5
+
+sensors:
+  provider: mock
+
+teaching:
+  language: en
+  level: middle_school
+  prompt_version: teaching_v1
+  max_remediation_attempts: 2
+  max_lesson_turns: 8
+  provider_timeout_seconds: 20
+  structured_output_retries: 1
+  session_inactivity_timeout_seconds: 900
+
+feature_flags:
+  browser_camera: true
+  backend_camera_stream: false
+  student_registration: false
+  wake_word: false
+  servo_motion: false
+  student_ui: false
+  text_input: true
+  stt_input: false
+  tts_output: false
+  face_recognition: false
+  push_to_talk: true
+  voice_turns: false
+  barge_in: false
+  engagement_analysis: false
+  hardware_control: false
