@@ -18,10 +18,19 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.admin import build_admin_router, build_student_identity_router
+from api.audio import build_audio_router
+from api.camera import build_camera_router
+from api.engagement import build_engagement_router
+from api.hardware import build_hardware_router
+from api.teaching import build_teaching_router
 from api.vision import build_vision_router
 from server.decision_engine import DecisionEngineError, decision_engine
+from server.config import ConfigurationError
+from server.face_providers import FaceProviderError
 from server.memory.vector_db import MemoryError, memory_service
 from server.pipeline import PipelineError, pipeline_engine
+from server.runtime import ApplicationRuntime, build_application_runtime
 from server.router import intent_router
 from server.stt import STTError, stt_service
 from server.tts import TTSError, tts_service
@@ -37,9 +46,59 @@ STARTED_AT = datetime.now(timezone.utc)
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Run startup and shutdown hooks for the API service."""
     logger.info("Starting AI Robot API server")
+    try:
+        runtime = app.state.runtime
+    except AttributeError:
+        runtime = build_application_runtime()
+        app.state.runtime = runtime
+
+    for warning in runtime.startup_warnings:
+        logger.warning("Runtime configuration warning: %s", warning)
+
+    _wire_runtime_llms(runtime)
+
+    try:
+        await runtime.student_store.initialize()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Student database initialization failed: %s", exc.__class__.__name__)
+
+    try:
+        await runtime.registration.initialize()
+    except FaceProviderError as exc:
+        logger.error("Face provider startup failed: %s", exc.__class__.__name__)
+        raise RuntimeError("Configured face provider is unavailable.") from exc
+
+    try:
+        recovered = await runtime.teaching.recover_active_sessions()
+        if recovered:
+            logger.info("Recovered active teaching sessions count=%s", len(recovered))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Teaching session recovery failed: %s", exc.__class__.__name__)
+
+    try:
+        await runtime.camera_pipeline.start()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Camera pipeline did not start: %s", exc.__class__.__name__)
+
+    try:
+        await runtime.audio.start()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Audio pipeline did not start: %s", exc.__class__.__name__)
+
+    try:
+        await runtime.engagement.start()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Engagement pipeline startup failed: %s", exc.__class__.__name__)
+        raise RuntimeError("Configured engagement provider is unavailable.") from exc
+
+    try:
+        await runtime.hardware.start()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Hardware controller did not start: %s", exc.__class__.__name__)
+
     try:
         await memory_service.initialize()
         logger.info("Memory service initialized")
@@ -47,6 +106,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         logger.warning("Memory service initialization failed: %s", exc)
 
     yield
+
+    try:
+        runtime = getattr(app.state, "runtime", None)
+        if runtime is not None:
+            await runtime.hardware.stop()
+            await runtime.engagement.stop()
+            await runtime.audio.stop()
+            await runtime.camera_pipeline.stop()
+    except Exception:  # noqa: BLE001
+        pass
 
     try:
         await stt_service.close()
@@ -63,10 +132,22 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             await decision_engine.groq_client.close()
         if decision_engine.deepseek_client and hasattr(decision_engine.deepseek_client, "close"):
             await decision_engine.deepseek_client.close()
+        runtime = getattr(app.state, "runtime", None)
+        if runtime is not None:
+            await runtime.llms.close_all()
     except Exception:  # noqa: BLE001
         pass
 
     logger.info("Shutting down AI Robot API server")
+
+
+def _wire_runtime_llms(runtime: ApplicationRuntime) -> None:
+    """Use configured providers for existing Groq/DeepSeek-compatible routes."""
+    profiles = runtime.config.llm.profiles
+    if "groq" in profiles and profiles["groq"].api_key_present:
+        decision_engine.groq_client = runtime.llms.get("groq")
+    if "deepseek" in profiles and profiles["deepseek"].api_key_present:
+        decision_engine.deepseek_client = runtime.llms.get("deepseek")
 
 
 class STTRequest(BaseModel):
@@ -224,11 +305,13 @@ def build_health_router() -> APIRouter:
     router = APIRouter(prefix="/health", tags=["health"])
 
     @router.get("", summary="Health check")
-    async def health_check() -> dict[str, str]:
+    async def health_check(request: Request) -> dict[str, Any]:
+        runtime: ApplicationRuntime | None = getattr(request.app.state, "runtime", None)
         return {
             "status": "ok",
             "service": "ai-robot-api",
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "runtime": runtime.health() if runtime else {"config_loaded": False},
         }
 
     return router
@@ -239,12 +322,14 @@ def build_system_router() -> APIRouter:
     router = APIRouter(prefix="/system", tags=["system"])
 
     @router.get("/info", summary="Service metadata")
-    async def system_info() -> dict[str, str]:
+    async def system_info(request: Request) -> dict[str, Any]:
         uptime_seconds = int((datetime.now(timezone.utc) - STARTED_AT).total_seconds())
+        runtime: ApplicationRuntime | None = getattr(request.app.state, "runtime", None)
         return {
             "name": "ai-robot-api",
             "version": "0.1.0",
             "uptime_seconds": str(uptime_seconds),
+            "runtime": runtime.health() if runtime else {"config_loaded": False},
         }
 
     return router
@@ -457,21 +542,35 @@ def build_memory_router() -> APIRouter:
     return router
 
 
-def create_app() -> FastAPI:
+def create_app(runtime: ApplicationRuntime | None = None) -> FastAPI:
     """Create and configure the FastAPI application."""
+    try:
+        resolved_runtime = runtime or build_application_runtime()
+    except ConfigurationError:
+        logger.exception("Application configuration is invalid")
+        raise
+
     app = FastAPI(
         title="AI Robot API",
         version="0.1.0",
         description="Backend API for modular AI robot services",
         lifespan=lifespan,
     )
+    app.state.runtime = resolved_runtime
 
     api_v1 = APIRouter(prefix="/api/v1")
     api_v1.include_router(build_health_router())
     api_v1.include_router(build_system_router())
+    api_v1.include_router(build_teaching_router())
+    api_v1.include_router(build_admin_router())
+    api_v1.include_router(build_student_identity_router())
+    api_v1.include_router(build_audio_router())
+    api_v1.include_router(build_engagement_router())
+    api_v1.include_router(build_hardware_router())
     app.include_router(api_v1)
     app.include_router(build_core_router())
     app.include_router(build_memory_router())
+    app.include_router(build_camera_router())
     app.include_router(build_vision_router())
 
     # ------------------------------------------------------------------
