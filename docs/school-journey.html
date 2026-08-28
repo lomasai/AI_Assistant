@@ -1,0 +1,236 @@
+<title>A Term With Lomas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#F1F3F1; --surface:#FFFFFF; --surface-2:#E7EBE8;
+  --ink:#16211F; --ink-2:#47564F; --ink-3:#6E7D75;
+  --line:#D2DAD5; --line-strong:#B9C4BE;
+  --teal:#0F6F66; --teal-soft:#DCEBE8;
+  --copper:#A25730;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 8px 24px -16px rgba(22,33,31,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#101715; --surface:#17201D; --surface-2:#1E2925;
+    --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+    --line:#2B3934; --line-strong:#3B4C45;
+    --teal:#54C4B2; --teal-soft:#152B28;
+    --copper:#DB8F62;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101715; --surface:#17201D; --surface-2:#1E2925;
+  --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+  --line:#2B3934; --line-strong:#3B4C45;
+  --teal:#54C4B2; --teal-soft:#152B28;
+  --copper:#DB8F62;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.sheet{max-width:960px; margin:0 auto; padding:56px 26px 72px}
+
+.head{margin-bottom:36px; padding-bottom:26px; border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.15em;
+  text-transform:uppercase; color:var(--teal); margin:0 0 14px;
+}
+h1{
+  font-family:"Fraunces",Georgia,serif; font-weight:600;
+  font-size:clamp(2rem,5vw,2.9rem); line-height:1.06; letter-spacing:-.02em;
+  margin:0 0 14px; text-wrap:balance;
+}
+.sub{font-size:1.05rem; color:var(--ink-2); max-width:62ch; margin:0}
+
+.beat{
+  display:grid; grid-template-columns:1fr; gap:4px;
+  padding:22px 0; border-bottom:1px solid var(--line);
+}
+@media(min-width:760px){
+  .beat{grid-template-columns:132px minmax(0,1fr); gap:28px; align-items:baseline}
+}
+.when{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--teal); padding-top:5px;
+}
+.beat h2{
+  font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:1.24rem;
+  line-height:1.25; margin:0 0 8px; letter-spacing:-.008em;
+}
+.beat p{margin:0 0 11px; max-width:66ch; color:var(--ink-2)}
+.beat p:last-child{margin-bottom:0}
+.beat p.lead{color:var(--ink)}
+.beat strong{color:var(--ink); font-weight:600}
+
+.said{
+  border-left:2px solid var(--teal); padding:2px 0 2px 15px; margin:0 0 11px;
+  font-family:"Fraunces",Georgia,serif; font-size:1.03rem; line-height:1.45;
+  color:var(--ink); max-width:56ch;
+}
+.said .who{
+  display:block; font-family:"IBM Plex Mono",monospace; font-size:10px;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); margin-top:6px;
+}
+
+.lenses{display:grid; grid-template-columns:1fr; gap:12px; margin:34px 0 0}
+@media(min-width:700px){.lenses{grid-template-columns:repeat(3,1fr)}}
+.lens{
+  background:var(--surface); border:1px solid var(--line);
+  border-top:3px solid var(--teal); border-radius:4px; padding:16px 18px; box-shadow:var(--shadow);
+}
+.lens .r{
+  font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--teal); margin-bottom:9px;
+}
+.lens .q{font-family:"Fraunces",Georgia,serif; font-size:1.06rem; line-height:1.3; margin-bottom:9px}
+.lens .a{font-size:.86rem; color:var(--ink-2); line-height:1.55}
+.lens:nth-child(2){border-top-color:var(--copper)}
+.lens:nth-child(2) .r{color:var(--copper)}
+.lens:nth-child(3){border-top-color:var(--ink-3)}
+.lens:nth-child(3) .r{color:var(--ink-3)}
+
+.assume{
+  margin-top:34px; padding:18px 20px; background:var(--surface-2);
+  border:1px solid var(--line); border-radius:4px;
+}
+.assume .t{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:10px;
+}
+.assume ol{margin:0; padding-left:18px; font-size:.85rem; color:var(--ink-2); max-width:none}
+.assume li{margin-bottom:5px}
+.assume li:last-child{margin-bottom:0}
+.assume b{color:var(--ink); font-weight:600}
+</style>
+
+<div class="sheet">
+
+<header class="head">
+  <p class="eyebrow">LomasAI &middot; Phase 1 &middot; One page, before we build anything</p>
+  <h1>A Term With Lomas</h1>
+  <p class="sub">What a school actually experiences, from the day the box arrives to the day they decide whether to renew. If this story is right, the software is right. If any beat feels wrong to you, say so now &mdash; it is far cheaper to fix here than in code.</p>
+</header>
+
+<div class="beat">
+  <div class="when">Before</div>
+  <div>
+    <h2>The problem, as the school describes it</h2>
+    <p class="lead">Sunrise Public School, Nashik. Grade 6 has four sections and one science teacher who is genuinely good. Two sections get her full attention; the other two get whichever teacher is free. The principal knows the difference shows up in the results, and knows parents have started to notice.</p>
+    <p>She is not looking for a robot. She is looking for the fourth section to get the same lesson as the first.</p>
+  </div>
+</div>
+
+<div class="beat">
+  <div class="when">Day 0 &middot; 20 min</div>
+  <div>
+    <h2>It arrives and it works</h2>
+    <p>Two people wheel it into the science room. It plugs into a wall socket. Someone from LomasAI joins the school WiFi, or hands over a phone hotspot if the WiFi is unreliable &mdash; which it often is.</p>
+    <p><strong>Nothing is installed on a school computer.</strong> The teacher's dashboard is a web page on any laptop or phone on the same network. That matters more than it sounds: school IT permission is where most edtech pilots die.</p>
+    <p>It powers on, blinks, looks around the room, and says hello. That first thirty seconds is the entire sales demo, and it happens before anyone has configured anything.</p>
+  </div>
+</div>
+
+<div class="beat">
+  <div class="when">Day 0 &middot; 10 min</div>
+  <div>
+    <h2>The school sets itself up</h2>
+    <p>The coordinator opens the dashboard and creates the school, then Grade 6-B, then the subject. Consent forms for the class go home in bags that evening &mdash; the software will not let a student be enrolled without one recorded against their name.</p>
+    <p>If the school will not do face recognition at all, that is a switch. Everything else still works. The robot simply teaches a room instead of teaching Ananya.</p>
+  </div>
+</div>
+
+<div class="beat">
+  <div class="when">Day 1 &middot; 15 min</div>
+  <div>
+    <h2>The students introduce themselves</h2>
+    <p class="lead">This is the moment the children decide whether they like it. One at a time they stand about five feet away. The robot asks their name, then asks them to slowly turn their head left and right while it watches for four seconds.</p>
+    <p>The screen shows a friendly progress ring, not a scanner. When it is done, it says their name back to them. <strong>Thirty students take about fifteen minutes</strong>, and they queue up voluntarily, which is not something you can say about most school software.</p>
+    <p>The photographs are deleted the moment the maths is done. Only a set of numbers is kept, on the robot, and it cannot be turned back into a face.</p>
+  </div>
+</div>
+
+<div class="beat">
+  <div class="when">Every day &middot; 35 min</div>
+  <div>
+    <h2>The lesson</h2>
+    <p>The teacher wheels it to the front, taps her class on the dashboard, and steps to the side. She is in the room the whole time. She is not replaced; she is given a second pair of hands that never gets tired of explaining the same thing.</p>
+    <div class="said">&ldquo;Hey Lomas.&rdquo;<span class="who">Any student</span></div>
+    <p>The eyes turn toward whoever spoke. It greets the class as a class &mdash; no roll of names at the door, which would only single a few children out and leave the rest waiting. Names are held back for when they mean something: when it asks someone a question directly.</p>
+    <div class="said">&ldquo;Good morning, Grade 6-B. What are we learning today?&rdquo;<span class="who">Lomas</span></div>
+    <p>The teacher picks the topic, or the class shouts one. It teaches in short segments &mdash; a sentence on screen, a longer explanation aloud, then a pause. Between segments it asks the room a question and waits for an actual answer.</p>
+    <p>A child raises a hand and asks something off-script. It answers at Grade 6 level, and if the question wanders far from the syllabus it says so and offers to come back to it after class. <strong>The teacher can pause it mid-sentence at any time</strong> and take the room back &mdash; the single most important button in the product.</p>
+    <p>Halfway through, Meera has been looking out of the window for a while. Lomas does not announce this. It turns toward her and asks:</p>
+    <div class="said">&ldquo;Meera, what do you think the plant does with the sunlight?&rdquo;<span class="who">Lomas</span></div>
+    <p>She looks up. That is the whole feature. It is a nudge dressed as curiosity, and it never says the word &ldquo;distracted&rdquo; out loud.</p>
+    <p>It ends with six quick questions. Children answer by voice or hands; the teacher taps who answered. Then it thanks the class and goes quiet.</p>
+  </div>
+</div>
+
+<div class="beat">
+  <div class="when">After the bell</div>
+  <div>
+    <h2>What the teacher gets</h2>
+    <p>One page, ready before she reaches the staff room. Who was present. What was covered and what was not. The questions children asked &mdash; which is the part she actually reads, because it tells her what they did not understand. Quiz results per student, and the two or three names who got the same thing wrong.</p>
+    <p>No engagement scores. No ranking. Nothing a parent could read as a judgement about their child.</p>
+  </div>
+</div>
+
+<div class="beat">
+  <div class="when">End of term</div>
+  <div>
+    <h2>What the principal gets</h2>
+    <p>Coverage across all four sections of Grade 6, side by side. That is the number she bought this for: did 6-D get the same lessons as 6-A. Plus how often each teacher used it, which tells her whether the money is working or sitting in a corner.</p>
+    <p>And a science fair where the robot did the demo and two parents asked where it came from. She will not put that on the invoice, but it is why she renews.</p>
+  </div>
+</div>
+
+<div class="beat">
+  <div class="when">A year on</div>
+  <div>
+    <h2>What they actually bought</h2>
+    <p class="lead">Not a robot. <strong>A guarantee that the weakest section gets the same lesson as the strongest one</strong> &mdash; delivered by something children want to talk to, with a teacher still holding the room.</p>
+    <p>The robot is how it gets attention. The consistency is what gets renewed.</p>
+  </div>
+</div>
+
+<div class="lenses">
+  <div class="lens">
+    <div class="r">Principal &middot; buys it</div>
+    <div class="q">&ldquo;Will every section get the same quality?&rdquo;</div>
+    <div class="a">Judges it on coverage across sections, on parents noticing, and on whether teachers actually use it after month two. Renews on consistency, not novelty.</div>
+  </div>
+  <div class="lens">
+    <div class="r">Teacher &middot; decides its fate</div>
+    <div class="q">&ldquo;Does this help me, or watch me?&rdquo;</div>
+    <div class="a">Needs the pause button, needs it to never undermine her in front of the class, and needs the after-class page to be genuinely useful. If it feels like surveillance of her teaching, it stays switched off.</div>
+  </div>
+  <div class="lens">
+    <div class="r">Student &middot; makes it work</div>
+    <div class="q">&ldquo;Does it know who I am?&rdquo;</div>
+    <div class="a">Being asked a question by name, in front of friends, is most of the magic &mdash; it means the robot saw them specifically, not the room. Being told off by a machine would end it instantly.</div>
+  </div>
+</div>
+
+<div class="assume">
+  <div class="t">What is fixed, and what is a setting</div>
+  <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 12px;max-width:none">The story above uses Grade 6 science in English as a worked example. Grade, subject, language and display are all settings &mdash; the same robot runs a Grade 4 Hindi storytelling session by changing config, with no code touched.</p>
+  <ol>
+    <li><b>Configurable:</b> grade band and vocabulary level, subject, language, whether content goes to a projector or stays on the robot's face, whether face recognition is on at all, and every timing and threshold in the lesson.</li>
+    <li><b>Multilingual by construction.</b> Every string, lesson, quiz and prompt is keyed by language from the first commit. Adding Marathi is content work, never code work.</li>
+    <li><b>A teacher is always in the room.</b> The robot never runs a class alone &mdash; this shapes the safety story, the liability and the tone of the whole product.</li>
+    <li><b>Four to six students recognised at a time</b>, at 1.5&ndash;2 m, one camera. The full class of thirty is present and taught; only those in view are named. More cameras raise this number later without changing the design.</li>
+    <li><b>Consent is recorded per student</b>, collected by the school, before enrolment is allowed.</li>
+    <li><b>Everything stays on the robot.</b> No student data leaves the device; only the AI question-and-answer goes to the internet, and it degrades to a working offline mode without it.</li>
+  </ol>
+</div>
+
+</div>

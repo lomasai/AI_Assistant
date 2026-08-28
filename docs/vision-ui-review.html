@@ -1,0 +1,552 @@
+<title>Camera, Screens and the Rebuild</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#F1F3F1; --surface:#FFFFFF; --surface-2:#E7EBE8;
+  --ink:#16211F; --ink-2:#47564F; --ink-3:#6E7D75;
+  --line:#D2DAD5; --line-strong:#B9C4BE;
+  --teal:#0F6F66; --teal-soft:#DCEBE8;
+  --copper:#A25730; --copper-soft:#F5E7DF;
+  --good:#2E7D5B; --good-soft:#DFEFE7;
+  --warn:#8A6716; --warn-soft:#F5EBD6;
+  --crit:#A8433C; --crit-soft:#F7E3E1;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 8px 24px -16px rgba(22,33,31,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#101715; --surface:#17201D; --surface-2:#1E2925;
+    --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+    --line:#2B3934; --line-strong:#3B4C45;
+    --teal:#54C4B2; --teal-soft:#152B28;
+    --copper:#DB8F62; --copper-soft:#2C201A;
+    --good:#5CBA8C; --good-soft:#142621;
+    --warn:#D4A648; --warn-soft:#2A2314;
+    --crit:#E2776D; --crit-soft:#2E1B19;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101715; --surface:#17201D; --surface-2:#1E2925;
+  --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+  --line:#2B3934; --line-strong:#3B4C45;
+  --teal:#54C4B2; --teal-soft:#152B28;
+  --copper:#DB8F62; --copper-soft:#2C201A;
+  --good:#5CBA8C; --good-soft:#142621;
+  --warn:#D4A648; --warn-soft:#2A2314;
+  --crit:#E2776D; --crit-soft:#2E1B19;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 24px 96px}
+.layout{display:grid; grid-template-columns:1fr}
+@media(min-width:1080px){
+  .layout{grid-template-columns:206px minmax(0,1fr); gap:56px; align-items:start}
+}
+.mast{padding:60px 0 34px; border-bottom:1px solid var(--line)}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--teal); margin:0 0 18px;
+}
+h1{
+  font-family:"Fraunces",Georgia,serif; font-weight:600;
+  font-size:clamp(2rem,4.4vw,3.15rem); line-height:1.08; letter-spacing:-.018em;
+  margin:0 0 18px; text-wrap:balance; max-width:22ch;
+}
+.standfirst{font-size:1.1rem; color:var(--ink-2); max-width:66ch; margin:0}
+
+nav.rail{display:none}
+@media(min-width:1080px){
+  nav.rail{display:block; position:sticky; top:32px; padding-top:50px; font-size:13.5px; line-height:1.5}
+  nav.rail ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px}
+  nav.rail a{display:flex; gap:10px; padding:5px 0; color:var(--ink-3); text-decoration:none}
+  nav.rail a:hover{color:var(--teal)}
+  nav.rail a:focus-visible{outline:2px solid var(--teal); outline-offset:3px; border-radius:2px}
+  nav.rail .n{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--line-strong); padding-top:2px}
+}
+
+section{padding-top:52px; scroll-margin-top:24px}
+h2{
+  font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:1.72rem;
+  line-height:1.2; letter-spacing:-.012em; margin:0 0 6px; text-wrap:balance;
+}
+.sectag{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); margin:0 0 22px;
+  padding-bottom:14px; border-bottom:1px solid var(--line);
+}
+h3{font-weight:600; font-size:1.02rem; margin:30px 0 10px}
+p{margin:0 0 16px; max-width:70ch}
+ul,ol{margin:0 0 16px; padding-left:20px; max-width:70ch}
+li{margin-bottom:7px}
+strong{font-weight:600}
+em{font-style:italic}
+code{
+  font-family:"IBM Plex Mono",monospace; font-size:.855em;
+  background:var(--surface-2); padding:1.5px 5px; border-radius:3px; color:var(--ink);
+}
+
+.note{
+  background:var(--surface); border:1px solid var(--line);
+  border-left:3px solid var(--copper); border-radius:0 4px 4px 0;
+  padding:18px 20px; margin:0 0 22px; box-shadow:var(--shadow);
+}
+.note .lbl{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--copper); display:block; margin-bottom:7px;
+}
+.note p:last-child,.note ul:last-child{margin-bottom:0}
+.note.teal{border-left-color:var(--teal)} .note.teal .lbl{color:var(--teal)}
+.note.crit{border-left-color:var(--crit)} .note.crit .lbl{color:var(--crit)}
+
+.tw{overflow-x:auto; margin:0 0 20px; border:1px solid var(--line); border-radius:4px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:.875rem; min-width:560px}
+th{
+  text-align:left; font-family:"IBM Plex Mono",monospace; font-weight:500;
+  font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+  padding:11px 15px; border-bottom:1px solid var(--line-strong); background:var(--surface-2); white-space:nowrap;
+}
+td{padding:11px 15px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.5}
+tr:last-child td{border-bottom:none}
+td code{background:var(--surface-2); font-size:.83em; white-space:nowrap}
+.num{font-variant-numeric:tabular-nums; white-space:nowrap}
+tr.hi td{background:var(--good-soft)}
+
+.tag{
+  display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:9.5px;
+  letter-spacing:.07em; padding:2px 7px; border-radius:99px; border:1px solid currentColor;
+  text-transform:uppercase; white-space:nowrap;
+}
+.t-keep{color:var(--good)} .t-fix{color:var(--warn)} .t-bin{color:var(--crit)} .t-new{color:var(--teal)}
+
+.pipe{display:flex; flex-direction:column; gap:4px; margin:0 0 8px}
+.pr{
+  display:grid; grid-template-columns:120px minmax(0,1fr) 92px; gap:0; align-items:stretch;
+  border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--surface); font-size:.86rem;
+}
+.pr .s{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.06em;
+  padding:11px 12px; background:var(--surface-2); color:var(--ink-2); border-right:1px solid var(--line);
+  display:flex; align-items:center;
+}
+.pr .d{padding:11px 14px; color:var(--ink-2); line-height:1.5}
+.pr .c{
+  font-family:"IBM Plex Mono",monospace; font-size:10px; padding:11px 10px;
+  border-left:1px solid var(--line); display:flex; align-items:center; justify-content:center; text-align:center;
+}
+.c-free{color:var(--good); background:var(--good-soft)}
+.c-cheap{color:var(--teal); background:var(--teal-soft)}
+.c-exp{color:var(--copper); background:var(--copper-soft)}
+.pipedn{text-align:center; color:var(--line-strong); font-family:"IBM Plex Mono",monospace; font-size:12px; margin:0; line-height:1}
+
+.screens{display:grid; grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:10px; margin:0 0 20px}
+.sc{background:var(--surface); border:1px solid var(--line); border-top:3px solid var(--teal); border-radius:4px; padding:13px 15px}
+.sc .k{font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--ink-3); letter-spacing:.08em; display:block; margin-bottom:5px}
+.sc .t{font-weight:600; font-size:.9rem; margin-bottom:5px}
+.sc .d{font-size:.81rem; color:var(--ink-2); line-height:1.5}
+.sc.adm{border-top-color:var(--copper)} .sc.adm .k{color:var(--copper)}
+.sc.dbg{border-top-color:var(--ink-3)}
+
+.mock{
+  border:1px solid var(--line-strong); border-radius:6px; background:var(--surface);
+  padding:14px; margin:0 0 10px; box-shadow:var(--shadow);
+}
+.mock .bar{
+  display:flex; justify-content:space-between; align-items:center; font-family:"IBM Plex Mono",monospace;
+  font-size:10px; color:var(--ink-3); letter-spacing:.06em; padding-bottom:10px; margin-bottom:12px;
+  border-bottom:1px solid var(--line);
+}
+.mock .body{display:grid; grid-template-columns:1fr; gap:12px}
+@media(min-width:620px){.mock .body{grid-template-columns:150px minmax(0,1fr)}}
+.face{
+  background:var(--teal-soft); border:1px solid var(--line); border-radius:6px;
+  min-height:130px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:11px;
+}
+.eyes{display:flex; gap:20px}
+.eye{width:19px; height:19px; border-radius:50%; background:var(--teal)}
+.mouth{width:42px; height:9px; border-radius:0 0 22px 22px; background:var(--teal)}
+.content .kick{font-family:"IBM Plex Mono",monospace; font-size:9.5px; letter-spacing:.1em; color:var(--teal); text-transform:uppercase; margin-bottom:7px}
+.content .big{font-family:"Fraunces",Georgia,serif; font-size:1.35rem; line-height:1.22; margin-bottom:9px; color:var(--ink)}
+.content .sub{font-size:.83rem; color:var(--ink-2); line-height:1.5}
+.ribbon{display:flex; gap:6px; flex-wrap:wrap; margin-top:13px; padding-top:12px; border-top:1px solid var(--line)}
+.stu{
+  display:flex; align-items:center; gap:6px; font-size:11px; padding:4px 9px;
+  border:1px solid var(--line); border-radius:99px; background:var(--surface-2); color:var(--ink-2);
+}
+.dot{width:7px; height:7px; border-radius:50%; background:var(--good); flex:none}
+.dot.aw{background:var(--warn)} .dot.off{background:var(--line-strong)}
+.cap{font-size:.79rem; color:var(--ink-3); margin:0 0 22px; max-width:70ch}
+
+.ms{display:flex; flex-direction:column; margin:0 0 20px}
+.msi{display:grid; grid-template-columns:46px minmax(0,1fr); gap:16px; padding:15px 0; border-bottom:1px solid var(--line)}
+.msi:last-child{border-bottom:none}
+.msi .id{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:500; color:var(--teal); padding-top:2px}
+.msi .ti{font-weight:600; font-size:.94rem; margin-bottom:3px}
+.msi .bd{font-size:.865rem; color:var(--ink-2); line-height:1.55; max-width:66ch}
+
+footer{margin-top:60px; padding-top:24px; border-top:1px solid var(--line); font-size:.83rem; color:var(--ink-3); max-width:70ch}
+@media(prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">LomasAI &middot; Review of AI_Assistant &amp; Phase 1 direction</p>
+  <h1>Camera, Screens and the Rebuild</h1>
+  <p class="standfirst">My read on what you have, the one structural thing I think is causing the gap between what you built and what you wanted, hard numbers for where to stand the robot, and a screen-by-screen proposal for the teaching UI.</p>
+</header>
+
+<div class="layout">
+
+<nav class="rail" aria-label="Contents">
+  <ol>
+    <li><a href="#inversion"><span class="n">01</span><span>The inversion</span></a></li>
+    <li><a href="#audit"><span class="n">02</span><span>Keep / fix / bin</span></a></li>
+    <li><a href="#camera"><span class="n">03</span><span>Camera distance</span></a></li>
+    <li><a href="#audio"><span class="n">04</span><span>Audio warning</span></a></li>
+    <li><a href="#recog"><span class="n">05</span><span>Who is who</span></a></li>
+    <li><a href="#attention"><span class="n">06</span><span>Attention</span></a></li>
+    <li><a href="#privacy"><span class="n">07</span><span>Children's data</span></a></li>
+    <li><a href="#screen7"><span class="n">08</span><span>The 7-inch problem</span></a></li>
+    <li><a href="#screens"><span class="n">09</span><span>The screens</span></a></li>
+    <li><a href="#ui"><span class="n">10</span><span>UI direction</span></a></li>
+    <li><a href="#plug"><span class="n">11</span><span>Pluggable code</span></a></li>
+    <li><a href="#budget"><span class="n">12</span><span>Pi 4 budget</span></a></li>
+    <li><a href="#first"><span class="n">13</span><span>What I'd build</span></a></li>
+    <li><a href="#ask"><span class="n">14</span><span>Back to you</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="inversion">
+  <h2>The one thing that explains the gap</h2>
+  <p class="sectag">Structural &middot; read this first</p>
+  <p>Your app doesn't feel like a robot because, architecturally, <strong>it isn't one</strong>. It is a web page that borrows your laptop's camera.</p>
+  <p>Look at what actually runs: <code>frontend/script.js</code> grabs a webcam frame in the browser, JPEG-encodes it, base64s it, and POSTs it to <code>/vision/analyze</code> roughly every 750&nbsp;ms. The backend decodes it and runs a Haar cascade. Meanwhile <code>edge/camera.py</code> &mdash; the module that would actually open the Pi's camera &mdash; is never called by the running application. It's dead code.</p>
+  <p>So the Pi is not seeing anything. The browser is. And every frame takes a round trip through JPEG encode, base64 (which inflates it by a third), HTTP, decode, and back &mdash; to achieve about 1.3 frames per second of blurry awareness.</p>
+  <p>That is why it feels like a chatbot with a webcam bolted on, rather than a robot that is looking at you. <strong>The camera has to live in the Pi process, and the browser should only ever receive a video stream and a list of coordinates to draw.</strong> Everything else in this document depends on making that one change.</p>
+  <div class="note teal">
+    <span class="lbl">What replaces it</span>
+    <p>One capture thread in the Pi process owns the camera and writes into a ring buffer. Vision consumers read from that buffer. The UI gets an MJPEG stream for pixels and a WebSocket for JSON boxes, and draws the boxes as positioned <code>&lt;div&gt;</code> elements <em>on top of</em> the video. No frame ever gets encoded twice, and drawing overlays costs the Pi nothing at all.</p>
+  </div>
+</section>
+
+<section id="audit">
+  <h2>Keep, fix, bin</h2>
+  <p class="sectag">Honest audit of the 5,900 lines</p>
+  <p>There is genuinely good work in here. The problem is not quality, it's that roughly half of it is solving a different product's problem &mdash; this reads like an eldercare companion that was pointed at a classroom.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th></th><th>Module</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><span class="tag t-keep">keep</span></td><td><code>server/router.py</code> + complexity scoring</td><td>The route-to-one-model idea is right and saves real money. Keep it, move the thresholds into config.</td></tr>
+      <tr class="hi"><td><span class="tag t-keep">keep</span></td><td><code>server/llm/*</code>, <code>cache.py</code></td><td>Clean client separation and a working cache. This becomes the provider layer almost unchanged.</td></tr>
+      <tr class="hi"><td><span class="tag t-keep">keep</span></td><td><code>edge/tracking.py</code> smoothing</td><td>The EMA smoothing and largest-face selection are correct. Keep the maths, change the detector.</td></tr>
+      <tr><td><span class="tag t-fix">fix</span></td><td><code>edge/camera.py</code></td><td>Right shape, wrong library. <code>cv2.VideoCapture</code> is unreliable on Pi OS Bookworm's libcamera stack. Needs a picamera2 backend behind the same interface.</td></tr>
+      <tr><td><span class="tag t-fix">fix</span></td><td>Haar cascade detection</td><td>Fails the moment a child turns their head more than about 20&deg;. In a classroom that is most of the time. Replace with a light DNN detector.</td></tr>
+      <tr><td><span class="tag t-fix">fix</span></td><td><code>.env</code> config</td><td>Flat strings, no schema, no per-mode layering. Becomes the YAML config you asked for.</td></tr>
+      <tr><td><span class="tag t-bin">bin</span></td><td><code>server/reminders.py</code>, health engine</td><td>Sitting too long, drink water, did you take your medicine. This is eldercare. It has no place in a classroom product and it is 250 lines of maintenance.</td></tr>
+      <tr><td><span class="tag t-bin">bin</span></td><td><code>edge/posture.py</code>, <code>sensors.py</code></td><td>Standing / sitting / falling detection costs real CPU and answers no question a teacher has. Bring back later if a use case appears.</td></tr>
+      <tr><td><span class="tag t-bin">bin</span></td><td><code>server/vision_analyzer.py</code></td><td>Apparent gender, age range and expression estimation on children. Delete the file. I'll explain why in the data section &mdash; this one is not just clutter, it's a liability.</td></tr>
+      <tr><td><span class="tag t-bin">bin</span></td><td>Duplicate vision stacks</td><td><code>server/vision.py</code> (447 lines) and <code>edge/tracking.py</code> (219) both do detection. Two implementations of one job means two sets of bugs.</td></tr>
+      <tr><td><span class="tag t-bin">bin</span></td><td>The dashboard UI as product UI</td><td>Face / Attention / Body / Tracking / Health / Sensors cards is a debugging console. Perfect for debug mode, wrong for a child.</td></tr>
+      <tr><td><span class="tag t-new">new</span></td><td>Identity, enrolment, wake word</td><td>None of this exists yet. Your README even states the system deliberately does not identify people by name &mdash; which is now the opposite of what you want.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>edge/motor_control.py</code> is a zero-byte file, by the way. Worth deleting or filling before someone assumes it works.</p>
+</section>
+
+<section id="camera">
+  <h2>Where to stand the robot</h2>
+  <p class="sectag">Camera &middot; real numbers for your 8MP module</p>
+  <p>Your BOM camera is the 8MP module (IMX219), which has a <strong>62.2&deg; horizontal field of view</strong>. That single number answers your question. The width the camera sees is almost exactly 1.2&times; the distance:</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Distance</th><th>Scene width</th><th>Fits</th><th>Face width @720p</th><th>Recognition</th></tr></thead>
+    <tbody>
+      <tr><td class="num">0.6 m (2 ft)</td><td class="num">0.72 m</td><td>Head fills the frame</td><td class="num">280 px</td><td>Works, but far too close</td></tr>
+      <tr><td class="num">1.0 m</td><td class="num">1.21 m</td><td>1&ndash;2 people</td><td class="num">169 px</td><td>Excellent</td></tr>
+      <tr class="hi"><td class="num">1.5 m</td><td class="num">1.81 m</td><td>2&ndash;3 people</td><td class="num">113 px</td><td>Excellent &mdash; the sweet spot</td></tr>
+      <tr class="hi"><td class="num">2.0 m</td><td class="num">2.41 m</td><td>3&ndash;4 people</td><td class="num">85 px</td><td>Good &mdash; usable limit</td></tr>
+      <tr><td class="num">2.5 m</td><td class="num">3.02 m</td><td>4&ndash;5 people</td><td class="num">68 px</td><td>Unreliable at 720p</td></tr>
+      <tr><td class="num">3.0 m</td><td class="num">3.62 m</td><td>5&ndash;6 people</td><td class="num">57 px</td><td>Detection only, no names</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>So: 1.5 to 2 metres, and capture at 1280&times;720.</strong> You are currently at 0.6&nbsp;m, which is why your face fills the screen. Nothing is wrong with the camera &mdash; you are simply three times too close. Step back to about five feet and it will look right.</p>
+  <p>The floor for face <em>recognition</em> is roughly 80 pixels of face width, because the embedding models want a 112&times;112 crop. Detection alone survives down to about 40&nbsp;px. That threshold is what caps you at 2&nbsp;m rather than 3&nbsp;m.</p>
+
+  <h3>On zoom</h3>
+  <p>The module has no optical zoom, so there is no lens to adjust. But the sensor is 3280&times;2464 and you are only reading 1280&times;720 out of it, which means <strong>digital zoom is genuinely free</strong> &mdash; you crop a rectangle of the sensor and still have real pixels, not interpolation. In picamera2 that is the <code>ScalerCrop</code> control.</p>
+  <p>So expose <code>camera.zoom</code> in config as a 1.0&ndash;2.5 multiplier that maps to a centred sensor rectangle. Useful later for pushing in on whoever is speaking. It will not help your current problem though &mdash; zooming in at 0.6&nbsp;m makes it worse. Distance first.</p>
+
+  <h3>Two things about mounting</h3>
+  <ul>
+    <li><strong>Put the camera at head height, not on the chest.</strong> Your robot is five feet. A chest-mounted camera at ~1.2&nbsp;m looks at a standing adult's stomach and a seated child's forehead. Head height with a slight downward tilt sees faces at both heights.</li>
+    <li><strong>Consider a wide lens only after recognition works.</strong> A 102&ndash;120&deg; module covers a whole class from 1.5&nbsp;m, but it shrinks every face below the recognition floor and adds barrel distortion. Standard 62&deg; for Phase 1 is the right call.</li>
+  </ul>
+</section>
+
+<section id="audio">
+  <h2>The Bluetooth trap</h2>
+  <p class="sectag">Audio &middot; worth knowing before you debug it for a week</p>
+  <div class="note crit">
+    <span class="lbl">This will bite you</span>
+    <p>Bluetooth earphones cannot do good playback and microphone capture at the same time. The moment the mic opens, the profile drops from A2DP (stereo, full bandwidth) to HFP &mdash; <strong>8 or 16&nbsp;kHz, mono, both directions</strong>, plus 100&ndash;300&nbsp;ms of extra latency. Your speech recognition accuracy will fall off a cliff and the robot's voice will sound like a phone call from 2004.</p>
+    <p>If your wake word starts missing or transcription gets worse when the robot is speaking, this is why &mdash; not your code.</p>
+  </div>
+  <p>Fine for today's testing. But your BOM already has the right answer: the ₹250 USB desktop microphone for input, and a separate speaker for output. <strong>Never route both directions through one Bluetooth device.</strong> Wire the speaker if you can.</p>
+  <h3>Also plan for barge-in now</h3>
+  <p>The mic will hear the robot's own voice and try to transcribe it, or trigger its own wake word. Proper acoustic echo cancellation is real work. The cheap fix that works: <strong>mute the microphone while TTS is playing</strong>, half-duplex, with a short tail delay. Put it in config as <code>audio.half_duplex: true</code> and revisit only if teachers complain they cannot interrupt.</p>
+  <h3>Wake word</h3>
+  <p>Two sensible options, both config-selectable: <strong>openWakeWord</strong> (open source, ONNX, no API key, about 10% of one core) or <strong>Porcupine</strong> (free tier needs a key, lighter and more accurate, easy custom phrases). I'd default to openWakeWord so the robot has no key dependency, and keep Porcupine available for when you want <em>"Hey Lomas"</em> trained properly.</p>
+</section>
+
+<section id="recog">
+  <h2>Knowing who is who, cheaply</h2>
+  <p class="sectag">Recognition &middot; the one design decision that makes this run on a Pi 4</p>
+  <p>The instinct is to run face recognition on every frame. That will melt a Pi 4 &mdash; embedding a face costs 30&ndash;80&nbsp;ms, so five students at 15&nbsp;fps is roughly six cores of work you do not have.</p>
+  <p><strong>Recognise once, then track.</strong> Identity does not change between frames, so you only pay for recognition when a <em>new</em> face appears:</p>
+
+  <div class="pipe">
+    <div class="pr"><div class="s">CAPTURE</div><div class="d">720p at 15 fps into a ring buffer, one thread, drop-oldest</div><div class="c c-cheap">0.4 core</div></div>
+    <p class="pipedn">&darr;</p>
+    <div class="pr"><div class="s">DETECT</div><div class="d">Downscale to 640&times;360, run the face detector at 10 fps</div><div class="c c-cheap">0.5 core</div></div>
+    <p class="pipedn">&darr;</p>
+    <div class="pr"><div class="s">TRACK</div><div class="d">Match each box to an existing track by overlap. Identity rides along</div><div class="c c-free">free</div></div>
+    <p class="pipedn">&darr;</p>
+    <div class="pr"><div class="s">IDENTIFY</div><div class="d">Only for a <em>new</em> track: crop from the full 720p frame, embed, match against enrolled students</div><div class="c c-exp">burst</div></div>
+    <p class="pipedn">&darr;</p>
+    <div class="pr"><div class="s">RE-VERIFY</div><div class="d">Re-check each track every N seconds so a swap or mis-ID self-corrects</div><div class="c c-cheap">rare</div></div>
+    <p class="pipedn">&darr;</p>
+    <div class="pr"><div class="s">POSE</div><div class="d">Yaw and pitch from five landmarks &mdash; enough to know if they're facing you</div><div class="c c-free">free</div></div>
+  </div>
+  <p class="cap">Recognition ends up running one or two times per student per minute instead of fifteen times a second. That is the whole trick.</p>
+
+  <p>For the model, skip <code>face_recognition</code>/dlib &mdash; it is 1&ndash;2 seconds per face on a Pi 4. Use a MobileFaceNet or ArcFace-lite ONNX model through onnxruntime, or InsightFace's small bundle. Both land in the 30&ndash;80&nbsp;ms range.</p>
+
+  <h3>Your enrolment video is a good idea</h3>
+  <p>Three to four seconds of the student turning their head left and right is exactly right, and better than a single photo. Sample about 10&ndash;15 frames across the sweep, embed each, discard the blurry and extreme-angle ones, and store the <strong>average embedding plus the two or three best variants</strong>. Multiple angles is what makes recognition survive a child who is looking at their friend rather than the robot.</p>
+  <p>Store the vectors. <strong>Do not store the video or the frames</strong> once embedding is done &mdash; see the next-but-one section.</p>
+</section>
+
+<section id="attention">
+  <h2>Attention, and how not to build a snitch</h2>
+  <p class="sectag">The nudge feature &middot; technically easy, socially delicate</p>
+  <p>Technically this is simple once tracking works. Head pose gives you yaw and pitch per student. Define an attention cone in config, score each student as a moving average over ~10 seconds, and when someone sits below threshold for longer than a configured duration, emit an event. The agent decides whether and how to speak.</p>
+  <p>Every number is config: cone angle, window length, threshold, minimum duration, per-student cooldown, maximum nudges per session. You will tune all of them against real children and none of it should require a code change.</p>
+  <div class="note">
+    <span class="lbl">The part I'd think hard about</span>
+    <p>A robot that announces a child is not paying attention will be hated &mdash; by the child, and faster than that, by the teacher. Classroom management is the teacher's authority, and a device that undermines it in front of thirty students will be switched off and never switched on again. This is a product-adoption risk, not just an ethics one.</p>
+    <p>What works instead: phrase it as <em>curiosity, never correction</em>. &ldquo;Rahul, what do you think happens next?&rdquo; is an invitation. &ldquo;Rahul, you seem distracted&rdquo; is a reprimand from a machine. Same trigger, completely different product.</p>
+  </div>
+  <p>Three rules I'd bake in from the start: never rank students by attention on any visible screen; never let a low attention score persist into a report a parent sees; and give the teacher a switch that turns nudging off entirely for a session. Make the last one prominent &mdash; teachers trusting they can silence it is what makes them willing to leave it on.</p>
+</section>
+
+<section id="privacy">
+  <h2>Children's biometric data</h2>
+  <p class="sectag">Compliance &middot; flagging early because it shapes the design</p>
+  <p>You are about to store face biometrics of minors and monitor their behaviour, in Indian schools, as a commercial product. I'm not a lawyer and you should get a real one before your first paid pilot, but the specific provision to look at is <strong>Section 9 of the Digital Personal Data Protection Act, 2023</strong>. Two things in it matter to you:</p>
+  <ul>
+    <li>Processing a child's personal data requires <strong>verifiable parental consent</strong>.</li>
+    <li>It restricts <strong>tracking and behavioural monitoring of children</strong> &mdash; which is a fair description of an attention-scoring feature.</li>
+  </ul>
+  <p>The Act allows certain classes of data fiduciary to be exempted by notification, and education may well be treated favourably. But &ldquo;we assumed it would be fine&rdquo; is not a position you want to be in when a school's legal team asks, or when a competitor raises it during a tender.</p>
+  <h3>Design choices that make this much easier</h3>
+  <ul>
+    <li><strong>Store embeddings, never images.</strong> A face vector cannot be reconstructed into a recognisable photo. Delete enrolment frames the moment the vector is computed.</li>
+    <li><strong>Keep it on the robot.</strong> Local SQLite, no cloud sync of biometrics. This also happens to be what offline government schools need anyway.</li>
+    <li><strong>Consent as a first-class record.</strong> Enrolment should not complete without a consent reference against that student. Make the software refuse, rather than relying on the school to remember.</li>
+    <li><strong>One-tap deletion</strong> per student, and automatic purge at end of term.</li>
+    <li><strong>Attention data is ephemeral.</strong> Aggregate it for the session, then discard the per-second detail. You lose nothing pedagogically and shed most of the risk.</li>
+    <li><strong>Run the robot nameless when asked.</strong> A config flag that disables recognition entirely, so a school that will not consent still gets a working teaching assistant.</li>
+  </ul>
+  <p>This is also why I'd delete <code>vision_analyzer.py</code> rather than leave the stubs. Apparent-gender and age estimation on children is a headline waiting to happen, it adds nothing to teaching, and having the function names sitting in your repo is enough for a diligence process to ask about it.</p>
+</section>
+
+<section id="screen7">
+  <h2>The 7-inch screen will not work for a class</h2>
+  <p class="sectag">Something to decide before the UI is built</p>
+  <p>A 7-inch display at 1024&times;600 is about 15&nbsp;cm wide. At your 1.5&ndash;2&nbsp;m teaching distance, readable body text needs to be roughly 28&ndash;32&nbsp;px &mdash; which leaves room for perhaps eight or nine words on a line. For a child in the third row of a class of thirty, it is simply invisible.</p>
+  <p>So the 7-inch screen cannot be where the lesson content lives. It has exactly one good job: <strong>be the robot's face</strong>. Expression, name of who it is talking to, current state. That is legible at distance because it is large shapes, not text.</p>
+  <div class="note teal">
+    <span class="lbl">The convenient part</span>
+    <p>The Pi 4 has <em>two</em> HDMI outputs. Face on the 7-inch chest screen, lesson content on a classroom TV or projector through the second port &mdash; two different pages, same event stream, no extra hardware. If a school has no projector, the robot degrades to a one-to-few tutor at 1&nbsp;m, which is still a real product.</p>
+  </div>
+  <p>Worth confirming with your first pilot schools whether a display or projector exists in the room. It changes the pitch as much as the code.</p>
+</section>
+
+<section id="screens">
+  <h2>The screens</h2>
+  <p class="sectag">Five robot states, three admin views, one debug overlay</p>
+  <p>You asked how many screens. Fewer than you'd think &mdash; the robot face has five states, and most of what looks like separate screens is the same layout with different content.</p>
+
+  <h3>Robot face &mdash; 7-inch chest display</h3>
+  <div class="screens">
+    <div class="sc"><span class="k">STATE 01</span><div class="t">Sleeping</div><div class="d">Ambient. Eyes blink slowly, occasional look-around. A quiet line: &ldquo;Say Hey Lomas to begin.&rdquo; This is what a school sees between periods, so it should look alive, not like a screensaver.</div></div>
+    <div class="sc"><span class="k">STATE 02</span><div class="t">Listening</div><div class="d">Wake word fired. Eyes widen and orient toward the speaker. Live partial transcript in large type so the student can see they are being heard. The single most reassuring screen in the whole product.</div></div>
+    <div class="sc"><span class="k">STATE 03</span><div class="t">Thinking</div><div class="d">Between question and answer. Needs to exist, or a two-second pause reads as a crash. A breathing animation and a glance upward do the whole job.</div></div>
+    <div class="sc"><span class="k">STATE 04</span><div class="t">Speaking</div><div class="d">Mouth animates. Current sentence in very large text. Name badge of who is being addressed. This is where the robot spends most of the lesson.</div></div>
+    <div class="sc"><span class="k">STATE 05</span><div class="t">Asking</div><div class="d">Quiz or a question back to the room. Options as big numbered cards. Whose turn it is, shown by name.</div></div>
+  </div>
+  <p class="cap">Across all five, a persistent student ribbon along the bottom: name plus one coloured dot. That is your &ldquo;showing their name on the UI with boxes&rdquo; requirement, and it belongs in the frame permanently rather than as its own screen.</p>
+
+  <h3>Teacher and admin &mdash; laptop or tablet, over WiFi</h3>
+  <div class="screens">
+    <div class="sc adm"><span class="k">ADMIN A</span><div class="t">Enrolment</div><div class="d">Live camera, name and class fields, consent checkbox, record 3&ndash;4 seconds, quality feedback while the head turns, then confirm. Shows the embedding count, never the stored images.</div></div>
+    <div class="sc adm"><span class="k">ADMIN B</span><div class="t">Live control</div><div class="d">Camera with boxes, the roster with attention state, pause and resume, skip section, tap-to-attribute who is speaking, and the nudging on/off switch. The teacher's steering wheel.</div></div>
+    <div class="sc adm"><span class="k">ADMIN C</span><div class="t">Session report</div><div class="d">After class: who attended, what was covered, questions asked, quiz results per student, trend across sessions. This is the artefact that justifies the subscription.</div></div>
+  </div>
+
+  <h3>Debug &mdash; one overlay, not a screen</h3>
+  <div class="screens">
+    <div class="sc dbg"><span class="k">DEBUG</span><div class="t">Diagnostics overlay</div><div class="d">Your existing dashboard, essentially: FPS, detection count, recognition latency, CPU and temperature, audio levels, wake-word confidence, last serial frames, full LLM prompt and token count. Toggled by config, drawn over any view.</div></div>
+  </div>
+  <p>That is nine surfaces total, and only five of them are the robot. Your current app has roughly nine cards on one screen &mdash; the work is mostly redistribution, not new invention.</p>
+</section>
+
+<section id="ui">
+  <h2>What the teaching screen should feel like</h2>
+  <p class="sectag">UI direction &middot; a rough sketch of state 04</p>
+
+  <div class="mock">
+    <div class="bar"><span>LOMASAI &middot; GRADE 6-B &middot; PHOTOSYNTHESIS</span><span>14:32 &middot; SPEAKING</span></div>
+    <div class="body">
+      <div class="face">
+        <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+        <div class="mouth"></div>
+      </div>
+      <div class="content">
+        <div class="kick">Explaining to Ananya</div>
+        <div class="big">Leaves catch sunlight and turn it into food for the plant.</div>
+        <div class="sub">Next: what the plant needs besides sunlight &middot; 2 of 6</div>
+      </div>
+    </div>
+    <div class="ribbon">
+      <span class="stu"><span class="dot"></span>Ananya</span>
+      <span class="stu"><span class="dot"></span>Rahul</span>
+      <span class="stu"><span class="dot aw"></span>Meera</span>
+      <span class="stu"><span class="dot"></span>Kabir</span>
+      <span class="stu"><span class="dot off"></span>Zoya</span>
+    </div>
+  </div>
+  <p class="cap">Face left, one sentence right, students along the bottom. Green dot engaged, amber drifting, grey not in frame. No numbers, no percentages, no charts &mdash; nothing a child could read as a score about themselves.</p>
+
+  <h3>The principles behind that</h3>
+  <ul>
+    <li><strong>One idea on screen at a time.</strong> The current sentence, nothing else. Children read slowly and the robot is speaking anyway &mdash; text is reinforcement, not the channel.</li>
+    <li><strong>Type large enough to be wrong about.</strong> Start at 32&nbsp;px body on the 7-inch and go up. If it looks absurdly big on your laptop over VNC, it is probably right on the actual panel at 1.5&nbsp;m.</li>
+    <li><strong>The face is not decoration.</strong> It is the single cheapest thing you can build that makes children treat the machine as a participant. Eyes that track toward whoever is speaking are worth more than any other feature on this list, and cost almost nothing.</li>
+    <li><strong>Attention shown as colour, never as number.</strong> A dot changes gently. A percentage invites comparison and makes a child feel measured.</li>
+    <li><strong>Three colours, not nine.</strong> Your current UI has badges in every hue. Pick a ground, one accent, and semantic green/amber &mdash; and let size carry hierarchy instead of colour.</li>
+    <li><strong>Animate the face, never the layout.</strong> Blink, breathe, glance, mouth movement. But do not slide panels around &mdash; on a Pi driving Chromium, layout animation is where your frame rate goes to die.</li>
+  </ul>
+  <div class="note">
+    <span class="lbl">A cheap trick worth doing</span>
+    <p>Drive the mouth from TTS audio amplitude rather than trying to sync phonemes. Sample the output buffer, map loudness to mouth height, done in about twenty lines. Nobody can tell the difference, and it reads as genuinely alive.</p>
+  </div>
+</section>
+
+<section id="plug">
+  <h2>Making the camera module reusable</h2>
+  <p class="sectag">Pluggable code &middot; your specific request</p>
+  <p>You want a camera file you can drop into any project. That works if you enforce one rule: <strong>a capability package may import its own dependencies and nothing else of yours.</strong> No imports from siblings, no imports from the app, no shared config object passed in.</p>
+  <p>Concretely, <code>lomas_vision</code> becomes an installable package with its own config schema, its own registry, and a factory:</p>
+  <ul>
+    <li>A <code>CameraSource</code> protocol &mdash; <code>open</code>, <code>read</code>, <code>close</code>, <code>set_zoom</code>. That is the whole contract.</li>
+    <li>Implementations, one file each: <code>picamera2</code>, <code>usb</code> (OpenCV), <code>file</code> (a video, for testing without hardware), <code>folder</code> (still images, for deterministic tests), <code>mock</code>.</li>
+    <li>Callers do <code>camera = create_camera(cfg)</code> and never learn which one they got.</li>
+  </ul>
+  <p>The payoff is bigger than reuse. With a <code>file</code> backend, <strong>your whole vision pipeline becomes testable on a laptop with no Pi and no camera</strong> &mdash; you record one classroom video and replay it, and every recognition and attention change is reproducible. That single backend will save your interns more time than any other decision in this document.</p>
+  <p>Same pattern for <code>lomas_speech</code>, <code>lomas_llm</code>, <code>lomas_face</code>. Four small packages, each independently installable, each usable in your next product without dragging LomasAI along. The application becomes thin glue over them.</p>
+  <div class="note teal">
+    <span class="lbl">The rule that keeps it true</span>
+    <p>Add a test that walks each package's imports and fails if any of them reference a sibling package or the app. Without it, someone will import a config helper &ldquo;just this once&rdquo; in month two and the package stops being portable without anyone noticing.</p>
+  </div>
+</section>
+
+<section id="budget">
+  <h2>Will it fit on a Pi 4</h2>
+  <p class="sectag">Performance &middot; four cores, honestly accounted</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Component</th><th>Cost</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Camera capture, 720p @15</td><td class="num">0.4</td><td>picamera2, hardware ISP does the work</td></tr>
+      <tr><td>Face detection @10 fps</td><td class="num">0.5</td><td>On the 640&times;360 downscale, not full res</td></tr>
+      <tr><td>Recognition + pose</td><td class="num">0.3</td><td>Averaged &mdash; bursts on new faces only</td></tr>
+      <tr><td>Wake word</td><td class="num">0.15</td><td>Always on</td></tr>
+      <tr><td>STT</td><td class="num">0.1</td><td>Cloud. Local Vosk would be ~0.8 instead</td></tr>
+      <tr><td>TTS</td><td class="num">0.2</td><td>During speech only</td></tr>
+      <tr><td>Orchestration + web server</td><td class="num">0.3</td><td>FastAPI, event bus, SQLite</td></tr>
+      <tr class="hi"><td><strong>Chromium, kiosk mode</strong></td><td class="num">1.0&ndash;1.4</td><td><strong>Your largest single consumer</strong></td></tr>
+      <tr><td><strong>Total</strong></td><td class="num">~3.1&ndash;3.5</td><td>of 4 cores &mdash; workable, not roomy</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Two conclusions from that table. First, <strong>the browser costs more than all the vision work combined</strong>, so keep the page lean &mdash; no React, no chart libraries, CSS transitions only, and never redraw a canvas every frame. Second, <strong>keep the LLM in the cloud.</strong> A Pi 4 cannot run a useful model at conversational latency, and Groq's speed is genuinely the right pick for this; your existing router already does the sensible thing.</p>
+  <p>Add active cooling. Your BOM has the 4010 fans &mdash; sustained vision work will throttle a bare Pi 4 within about fifteen minutes, and a throttled Pi looks exactly like a software bug.</p>
+</section>
+
+<section id="first">
+  <h2>What I'd build, in order</h2>
+  <p class="sectag">Sequence &middot; each step visible on the screen before the next starts</p>
+  <div class="ms">
+    <div class="msi"><div class="id">01</div><div>
+      <div class="ti">Invert the camera</div>
+      <div class="bd">picamera2 capture in the Pi process, ring buffer, MJPEG stream to the browser, boxes as JSON over WebSocket drawn as HTML overlay. Nothing new functionally &mdash; but it is the foundation everything else sits on, and it will feel dramatically more responsive immediately.</div></div>
+    </div>
+    <div class="msi"><div class="id">02</div><div>
+      <div class="ti">Config and the four packages</div>
+      <div class="bd">Layered YAML with a typed schema, and the split into <code>lomas_vision</code> / <code>lomas_speech</code> / <code>lomas_llm</code> / <code>lomas_face</code> with the file-backend camera. Do this before the features, not after &mdash; retrofitting is where projects like this go to die.</div></div>
+    </div>
+    <div class="msi"><div class="id">03</div><div>
+      <div class="ti">Enrolment and names on screen</div>
+      <div class="bd">The admin enrolment screen, the 3-second sweep, embeddings in SQLite, then detect-track-identify running live with names in boxes. The first genuinely new capability, and the one that will convince you the product is real.</div></div>
+    </div>
+    <div class="msi"><div class="id">04</div><div>
+      <div class="ti">Wake word and the face</div>
+      <div class="bd">openWakeWord, half-duplex audio, and the five face states with animation. At the end of this step you can say &ldquo;Hey Lomas&rdquo;, be greeted by name, and hold a conversation with something that looks alive.</div></div>
+    </div>
+    <div class="msi"><div class="id">05</div><div>
+      <div class="ti">Teaching flow and attention</div>
+      <div class="bd">Topic selection, lesson segments, the Q&amp;A loop, then attention scoring and gentle nudges. This is where the session flow from the earlier plan finally connects to the vision work.</div></div>
+    </div>
+    <div class="msi"><div class="id">06</div><div>
+      <div class="ti">Teacher control and reports</div>
+      <div class="bd">Live control screen and the session report. The part that turns a demo into something a school will pay for annually.</div></div>
+    </div>
+  </div>
+  <p>Steps 1 and 2 are unglamorous and I would still not skip them. Everything after gets roughly twice as fast because of them.</p>
+</section>
+
+<section id="ask">
+  <h2>Back to you</h2>
+  <p class="sectag">What I need before building</p>
+  <ol>
+    <li><strong>Face content, projector content &mdash; or accept small groups?</strong> The 7-inch screen decision shapes the entire UI. Do your target schools have a TV or projector in the room?</li>
+    <li><strong>Is nameless mode a requirement?</strong> If some schools will refuse face recognition, the teaching flow has to work without identity from day one, not as a later patch.</li>
+    <li><strong>How many students in frame for Phase 1?</strong> Three or four at 1.5&ndash;2&nbsp;m is comfortable and recognisable. Thirty is a different camera and a different product. I'd start small deliberately.</li>
+    <li><strong>Keep Groq and DeepSeek?</strong> Your router and clients already work. I'd keep them behind the provider interface rather than rewrite, unless you want something else as default.</li>
+    <li><strong>Who owns consent?</strong> The enrolment screen needs to record something. School-level blanket consent, or per-student? Affects the schema.</li>
+  </ol>
+  <p>Answer those and I'll start on step 1.</p>
+</section>
+
+<footer>
+  <p>Review of <code>AI_Assistant-1</code> (52 files, ~5,900 lines) against the Phase 1 teaching product. No code changed. Camera figures calculated for the IMX219 8MP module at 62.2&deg; horizontal field of view; verify against your actual module if you switch to Camera Module 3.</p>
+</footer>
+
+</main>
+</div>
+</div>

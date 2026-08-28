@@ -1,0 +1,10 @@
+# Bench mode. Everything visible, nothing forgiven, scratch tenant only.
+
+runtime:
+  mode: debug
+  log_level: DEBUG
+  sinks:
+    - console
+    - jsonl
+  event_replay_size: 4096
+  raise_on_handler_error: true

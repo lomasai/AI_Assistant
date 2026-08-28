@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+data/
+config/site.yaml
+.pytest_cache/
+*.onnx

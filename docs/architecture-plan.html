@@ -1,0 +1,674 @@
+<title>LomasAI Flow Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#F1F3F1; --surface:#FFFFFF; --surface-2:#E7EBE8; --surface-3:#DDE3DF;
+  --ink:#16211F; --ink-2:#47564F; --ink-3:#6E7D75;
+  --line:#D2DAD5; --line-strong:#B9C4BE;
+  --teal:#0F6F66; --teal-soft:#DCEBE8;
+  --copper:#A25730; --copper-soft:#F2E4DC;
+  --good:#2E7D5B; --warn:#8A6716; --crit:#A8433C;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 8px 24px -16px rgba(22,33,31,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --surface-3:#26332E;
+    --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+    --line:#2B3934; --line-strong:#3B4C45;
+    --teal:#54C4B2; --teal-soft:#152B28;
+    --copper:#DB8F62; --copper-soft:#2C201A;
+    --good:#5CBA8C; --warn:#D4A648; --crit:#E2776D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --surface-3:#26332E;
+  --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+  --line:#2B3934; --line-strong:#3B4C45;
+  --teal:#54C4B2; --teal-soft:#152B28;
+  --copper:#DB8F62; --copper-soft:#2C201A;
+  --good:#5CBA8C; --warn:#D4A648; --crit:#E2776D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 24px 96px}
+.layout{display:grid; grid-template-columns:1fr; gap:0}
+@media(min-width:1080px){
+  .layout{grid-template-columns:212px minmax(0,1fr); gap:56px; align-items:start}
+}
+
+.mast{padding:64px 0 36px; border-bottom:1px solid var(--line)}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--teal); margin:0 0 18px;
+}
+h1{
+  font-family:"Fraunces",Georgia,serif; font-weight:600;
+  font-size:clamp(2.1rem,4.6vw,3.35rem); line-height:1.08; letter-spacing:-.018em;
+  margin:0 0 18px; text-wrap:balance; max-width:20ch;
+}
+.standfirst{font-size:1.115rem; color:var(--ink-2); max-width:64ch; margin:0 0 28px}
+.metarow{display:flex; flex-wrap:wrap; gap:8px}
+.chip{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.03em;
+  padding:5px 10px; border:1px solid var(--line-strong); border-radius:3px;
+  color:var(--ink-2); background:var(--surface);
+}
+.chip.on{border-color:var(--teal); color:var(--teal); background:var(--teal-soft)}
+
+nav.rail{display:none}
+@media(min-width:1080px){
+  nav.rail{
+    display:block; position:sticky; top:32px; padding-top:52px;
+    font-size:13.5px; line-height:1.5;
+  }
+  nav.rail ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px}
+  nav.rail a{
+    display:flex; gap:10px; padding:5px 0; color:var(--ink-3);
+    text-decoration:none; border-bottom:1px solid transparent;
+  }
+  nav.rail a:hover{color:var(--teal)}
+  nav.rail a:focus-visible{outline:2px solid var(--teal); outline-offset:3px; border-radius:2px}
+  nav.rail .n{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--line-strong); padding-top:2px}
+}
+
+section{padding-top:52px; scroll-margin-top:24px}
+h2{
+  font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:1.72rem;
+  line-height:1.2; letter-spacing:-.012em; margin:0 0 6px; text-wrap:balance;
+}
+.sectag{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); margin:0 0 22px;
+  padding-bottom:14px; border-bottom:1px solid var(--line);
+}
+h3{
+  font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:1.02rem;
+  margin:32px 0 10px; color:var(--ink);
+}
+p{margin:0 0 16px; max-width:70ch}
+ul,ol{margin:0 0 16px; padding-left:20px; max-width:70ch}
+li{margin-bottom:7px}
+a{color:var(--teal)}
+strong{font-weight:600}
+code{
+  font-family:"IBM Plex Mono",monospace; font-size:.855em;
+  background:var(--surface-2); padding:1.5px 5px; border-radius:3px; color:var(--ink);
+}
+
+.note{
+  background:var(--surface); border:1px solid var(--line);
+  border-left:3px solid var(--copper); border-radius:0 4px 4px 0;
+  padding:18px 20px; margin:0 0 22px; box-shadow:var(--shadow);
+}
+.note .lbl{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--copper); display:block; margin-bottom:7px;
+}
+.note p:last-child{margin-bottom:0}
+.note.teal{border-left-color:var(--teal)}
+.note.teal .lbl{color:var(--teal)}
+
+.stack{display:flex; flex-direction:column; gap:5px; margin:0 0 10px}
+.layer{
+  display:grid; grid-template-columns:78px minmax(0,1fr); gap:0;
+  border:1px solid var(--line); border-radius:4px; overflow:hidden;
+  background:var(--surface);
+}
+.layer .lv{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+  display:flex; align-items:center; justify-content:center; padding:12px 6px;
+  background:var(--surface-2); color:var(--ink-3); border-right:1px solid var(--line);
+  text-align:center;
+}
+.layer .lb{padding:12px 16px}
+.layer .nm{font-weight:600; font-size:.94rem; margin-bottom:2px}
+.layer .ds{font-size:.845rem; color:var(--ink-2); line-height:1.5}
+.layer.sw{border-left:3px solid var(--teal)}
+.layer.hw{border-left:3px solid var(--copper)}
+.arrowdn{
+  text-align:center; color:var(--line-strong); font-family:"IBM Plex Mono",monospace;
+  font-size:13px; line-height:1; margin:0;
+}
+
+.flow{display:flex; flex-wrap:wrap; gap:7px; align-items:stretch; margin:0 0 8px}
+.st{
+  flex:1 1 148px; min-width:132px; background:var(--surface);
+  border:1px solid var(--line); border-top:3px solid var(--teal);
+  border-radius:4px; padding:11px 13px;
+}
+.st .k{
+  font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--ink-3);
+  letter-spacing:.08em; display:block; margin-bottom:5px;
+}
+.st .t{font-weight:600; font-size:.875rem; line-height:1.3; margin-bottom:4px}
+.st .d{font-size:.79rem; color:var(--ink-2); line-height:1.45}
+.st.halt{border-top-color:var(--crit)}
+.st.halt .k{color:var(--crit)}
+
+.tw{overflow-x:auto; margin:0 0 20px; border:1px solid var(--line); border-radius:4px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:.875rem; min-width:560px}
+th{
+  text-align:left; font-family:"IBM Plex Mono",monospace; font-weight:500;
+  font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+  padding:11px 15px; border-bottom:1px solid var(--line-strong); background:var(--surface-2);
+  white-space:nowrap;
+}
+td{padding:11px 15px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.5}
+tr:last-child td{border-bottom:none}
+td code{background:var(--surface-2); font-size:.83em; white-space:nowrap}
+.num{font-variant-numeric:tabular-nums}
+
+.tree{
+  font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.72;
+  background:var(--surface); border:1px solid var(--line); border-radius:4px;
+  padding:20px 22px; overflow-x:auto; margin:0 0 20px; white-space:pre; color:var(--ink-2);
+}
+.tree b{color:var(--ink); font-weight:500}
+.tree i{color:var(--ink-3); font-style:normal}
+.tree u{color:var(--teal); text-decoration:none}
+.tree s{color:var(--copper); text-decoration:none}
+
+.pill{
+  display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10px;
+  letter-spacing:.06em; padding:2px 7px; border-radius:99px; white-space:nowrap;
+  border:1px solid currentColor;
+}
+.p-good{color:var(--good)} .p-warn{color:var(--warn)} .p-crit{color:var(--crit)}
+.p-teal{color:var(--teal)} .p-cop{color:var(--copper)}
+
+.ms{display:flex; flex-direction:column; gap:0; margin:0 0 20px}
+.msi{
+  display:grid; grid-template-columns:52px minmax(0,1fr); gap:18px;
+  padding:16px 0; border-bottom:1px solid var(--line);
+}
+.msi:last-child{border-bottom:none}
+.msi .id{
+  font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:500;
+  color:var(--teal); padding-top:2px;
+}
+.msi .ti{font-weight:600; font-size:.955rem; margin-bottom:3px}
+.msi .who{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.05em; margin-bottom:6px;
+}
+.msi .bd{font-size:.875rem; color:var(--ink-2); line-height:1.55; max-width:66ch}
+
+footer{
+  margin-top:64px; padding-top:26px; border-top:1px solid var(--line);
+  font-size:.83rem; color:var(--ink-3); max-width:70ch;
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">LomasAI &middot; Stage 1 &rarr; Stage 2 &middot; Software Architecture</p>
+  <h1>The Flow Harness</h1>
+  <p class="standfirst">One runnable Python program that walks the entire classroom session &mdash; open class, take attendance, greet, teach, answer questions, quiz, score, close &mdash; with the robot hardware simulated. Everything swappable from config. Nothing hardcoded.</p>
+  <div class="metarow">
+    <span class="chip on">Python 3.12</span>
+    <span class="chip">Runs with zero API keys</span>
+    <span class="chip">Sim + real hardware</span>
+    <span class="chip">Org &rarr; School &rarr; Class &rarr; Student</span>
+    <span class="chip">Plan &mdash; not yet built</span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="rail" aria-label="Contents">
+  <ol>
+    <li><a href="#goal"><span class="n">01</span><span>What this is</span></a></li>
+    <li><a href="#rules"><span class="n">02</span><span>Your four rules</span></a></li>
+    <li><a href="#layers"><span class="n">03</span><span>Layers</span></a></li>
+    <li><a href="#registry"><span class="n">04</span><span>Swap engine</span></a></li>
+    <li><a href="#tree"><span class="n">05</span><span>Folder layout</span></a></li>
+    <li><a href="#flow"><span class="n">06</span><span>The session flow</span></a></li>
+    <li><a href="#config"><span class="n">07</span><span>Config system</span></a></li>
+    <li><a href="#tenancy"><span class="n">08</span><span>Org separation</span></a></li>
+    <li><a href="#agents"><span class="n">09</span><span>Agents &amp; MCP</span></a></li>
+    <li><a href="#hal"><span class="n">10</span><span>Hardware layer</span></a></li>
+    <li><a href="#modes"><span class="n">11</span><span>Debug vs user</span></a></li>
+    <li><a href="#build"><span class="n">12</span><span>Build order</span></a></li>
+    <li><a href="#open"><span class="n">13</span><span>Open questions</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="goal">
+  <h2>What this is, and what it is not</h2>
+  <p class="sectag">Scope</p>
+  <p>You asked to test the whole flow before assembly. So this software's job is to be <strong>the complete classroom session, end to end, with the robot faked</strong>. Every subsystem you will eventually plug in &mdash; motors, mic, speaker, LLM, display &mdash; exists from day one as an interface with a working stand-in behind it. You run one command and watch a full class happen.</p>
+  <p>When a real part arrives, you change one line of config and that part becomes real. Nothing else moves. That is the entire design premise.</p>
+  <h3>In scope now</h3>
+  <ul>
+    <li>Session lifecycle: class open &rarr; attendance &rarr; greeting &rarr; lesson &rarr; Q&amp;A &rarr; quiz &rarr; wrap-up &rarr; close</li>
+    <li>Per-student tracking: attendance, participation, answers, scores, engagement signals</li>
+    <li>Teacher dashboard and a robot-display view, both in the browser</li>
+    <li>Two run modes: debug (raw hardware frames) and user (clean demo)</li>
+    <li>Multi-agent orchestration and an MCP context seam</li>
+    <li>Full org &rarr; school &rarr; class &rarr; student isolation</li>
+  </ul>
+  <h3>Explicitly not in scope now</h3>
+  <ul>
+    <li>ESP32 firmware beyond a protocol stub &mdash; the embedded intern owns that against a fixed wire contract</li>
+    <li>Real STT/TTS tuning for classroom noise &mdash; interface only, keyboard input stands in</li>
+    <li>Auth, billing, OTA updates, cloud sync</li>
+  </ul>
+</section>
+
+<section id="rules">
+  <h2>Your four rules, and how each is enforced</h2>
+  <p class="sectag">Constraints</p>
+  <p>You gave four non-negotiables. Each one needs a mechanism, not just good intentions, or it erodes by week three.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Your rule</th><th>The mechanism</th><th>How it fails loudly</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Any AI provider by changing config</strong></td>
+        <td>Every provider implements one <code>LLMProvider</code> protocol and self-registers under a string key. Config names the key.</td>
+        <td>Provider code that imports anything outside <code>providers/</code> fails an import-boundary test.</td>
+      </tr>
+      <tr>
+        <td><strong>One file, one purpose</strong></td>
+        <td>Modules are single-responsibility and small. Each pluggable family lives in its own package; each implementation is one file.</td>
+        <td>A lint rule caps module length and flags files exporting more than one public class.</td>
+      </tr>
+      <tr>
+        <td><strong>Polymorphic object creation</strong></td>
+        <td>One generic <code>Registry[T]</code> reused by all eight pluggable families. A single container builds the whole system from config.</td>
+        <td>Any direct constructor call outside the container is caught in review &mdash; the container is the only place that knows concrete types.</td>
+      </tr>
+      <tr>
+        <td><strong>Nothing hardcoded</strong></td>
+        <td>Layered config with typed schema. Prompts, thresholds, timings, servo angles, pin maps, retry counts all live in YAML.</td>
+        <td>A test scans the source tree for bare numeric and string literals in decision positions and fails the build.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note teal">
+    <span class="lbl">The load-bearing idea</span>
+    <p>The last rule is the one that usually dies first. A hardcoded timeout gets added &ldquo;just for now&rdquo; during a demo panic and never leaves. The literal-scanner test is what keeps it honest &mdash; it is worth the hour it costs to write.</p>
+  </div>
+</section>
+
+<section id="layers">
+  <h2>Layers</h2>
+  <p class="sectag">Architecture &middot; dependencies point downward only</p>
+  <p>Each layer may call the layer below it and may not call the layer above. The orchestrator never imports a concrete provider, backend, or store &mdash; it only holds interfaces the container handed it.</p>
+
+  <div class="stack">
+    <div class="layer sw"><div class="lv">ENTRY</div><div class="lb">
+      <div class="nm">run.py</div>
+      <div class="ds">Parses mode and overrides, loads config, asks the container for a system, starts it. Roughly forty lines.</div>
+    </div></div>
+    <p class="arrowdn">&darr;</p>
+    <div class="layer sw"><div class="lv">WIRING</div><div class="lb">
+      <div class="nm">Config + Container</div>
+      <div class="ds">The only code that knows concrete class names. Reads config, resolves every registry key, injects dependencies. Swapping a provider happens entirely here.</div>
+    </div></div>
+    <p class="arrowdn">&darr;</p>
+    <div class="layer sw"><div class="lv">FLOW</div><div class="lb">
+      <div class="nm">Orchestrator + State Machine</div>
+      <div class="ds">Owns the session. Advances states, calls step handlers, emits events. Knows nothing about hardware, AI vendors, or the web.</div>
+    </div></div>
+    <p class="arrowdn">&darr;</p>
+    <div class="layer sw"><div class="lv">DOMAIN</div><div class="lb">
+      <div class="nm">Steps &middot; Agents &middot; Context</div>
+      <div class="ds">Attendance, greeting, lesson, interaction, quiz, wrap-up. Tutor, quizmaster, engagement, narrator, safety. MCP context assembly.</div>
+    </div></div>
+    <p class="arrowdn">&darr;</p>
+    <div class="layer sw"><div class="lv">PORTS</div><div class="lb">
+      <div class="nm">Provider &middot; Speech &middot; Store &middot; Hardware interfaces</div>
+      <div class="ds">Pure protocols. No implementation. This is the swap boundary &mdash; everything above is written against these and only these.</div>
+    </div></div>
+    <p class="arrowdn">&darr;</p>
+    <div class="layer hw"><div class="lv">ADAPTERS</div><div class="lb">
+      <div class="nm">offline &middot; anthropic &middot; openai &middot; sqlite &middot; simulator &middot; esp32</div>
+      <div class="ds">Concrete implementations, one file each, each self-registering. Adding one is dropping in a file. Deleting one breaks nothing else.</div>
+    </div></div>
+  </div>
+  <p style="font-size:.85rem;color:var(--ink-3);margin-top:14px">
+    <span class="pill p-teal">teal</span> software and teaching path &nbsp;&middot;&nbsp;
+    <span class="pill p-cop">copper</span> hardware and vendor edge
+  </p>
+</section>
+
+<section id="registry">
+  <h2>The swap engine</h2>
+  <p class="sectag">Polymorphism &middot; one pattern, eight families</p>
+  <p>You asked for polymorphic object creation wherever it fits. Rather than eight bespoke factories, there is <strong>one generic registry</strong> reused eight times. An implementation announces itself with a decorator; the package auto-imports its own modules at load; the container looks up the key config names and builds it.</p>
+  <p>The practical effect: to add an Ollama provider, you create <code>providers/ollama.py</code>, decorate the class, and set <code>llm.provider: ollama</code>. You touch no other file &mdash; no import list, no if-else chain, no registration table.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Family</th><th>Interface</th><th>Ships with</th><th>Config key</th></tr></thead>
+    <tbody>
+      <tr><td>AI provider</td><td><code>LLMProvider</code></td><td>offline &middot; anthropic &middot; openai</td><td><code>llm.provider</code></td></tr>
+      <tr><td>Speech in</td><td><code>SpeechToText</code></td><td>keyboard &middot; vosk &middot; whisper</td><td><code>speech.stt</code></td></tr>
+      <tr><td>Speech out</td><td><code>TextToSpeech</code></td><td>null &middot; pyttsx3 &middot; gtts</td><td><code>speech.tts</code></td></tr>
+      <tr><td>Hardware</td><td><code>HardwareBackend</code></td><td>simulator &middot; esp32_serial</td><td><code>hardware.backend</code></td></tr>
+      <tr><td>Storage</td><td><code>Store</code></td><td>memory &middot; sqlite</td><td><code>storage.backend</code></td></tr>
+      <tr><td>Agent</td><td><code>Agent</code></td><td>tutor &middot; quizmaster &middot; engagement &middot; narrator &middot; safety</td><td><code>agents.enabled[]</code></td></tr>
+      <tr><td>Flow step</td><td><code>FlowStep</code></td><td>attendance &middot; greeting &middot; lesson &middot; interaction &middot; quiz &middot; wrapup</td><td><code>flow.sequence[]</code></td></tr>
+      <tr><td>Event sink</td><td><code>EventSink</code></td><td>console &middot; jsonl &middot; sse</td><td><code>logging.sinks[]</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note teal">
+    <span class="lbl">Why this matters for your flow test</span>
+    <p><code>flow.sequence</code> being a config list means you can reorder or drop stages without code changes. Testing a five-minute demo that skips attendance and storytelling is a config edit, not a branch.</p>
+  </div>
+</section>
+
+<section id="tree">
+  <h2>Folder layout</h2>
+  <p class="sectag">Structure &middot; every file has one job</p>
+  <p>Roughly fifty small files rather than a dozen large ones. That is the cost of the plug-and-play requirement, and it pays for itself the first time two interns edit different subsystems in the same week.</p>
+
+<div class="tree"><b>LomasAI/</b>
+&#9500;&#9472;&#9472; <b>run.py</b>                      <i># the only entry point</i>
+&#9500;&#9472;&#9472; <b>config/</b>
+&#9474;   &#9500;&#9472;&#9472; default.yaml             <i># every tunable, with comments</i>
+&#9474;   &#9500;&#9472;&#9472; profiles/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; debug.yaml           <i># raw frames, sim latency, verbose</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; user.yaml            <i># clean demo output</i>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; pi.yaml              <i># real hardware on the robot</i>
+&#9474;   &#9500;&#9472;&#9472; prompts/                 <i># all model prompts live here, not in code</i>
+&#9474;   &#9500;&#9472;&#9472; hardware/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; servos.yaml          <i># channel map, angle limits, speeds</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; sensors.yaml         <i># pins, thresholds, poll rates</i>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; gestures.yaml        <i># namaste, wave, nod as keyframe lists</i>
+&#9474;   &#9492;&#9472;&#9472; content/
+&#9474;       &#9492;&#9472;&#9472; lessons/   quizzes/   stories/
+&#9500;&#9472;&#9472; <b>src/lomasai/</b>
+&#9474;   &#9500;&#9472;&#9472; core/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; <u>registry.py</u>          <i># generic Registry[T] &mdash; the swap engine</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; <u>container.py</u>         <i># builds the system from config</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; config.py            <i># layered loader + typed schema</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; events.py            <i># event bus</i>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; types.py   errors.py
+&#9474;   &#9500;&#9472;&#9472; tenancy/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; models.py            <i># Org School Class Student Session</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; <u>scope.py</u>             <i># TenantScope &mdash; carried by every query</i>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; repository.py        <i># scope-enforcing data access</i>
+&#9474;   &#9500;&#9472;&#9472; storage/
+&#9474;   &#9474;   &#9492;&#9472;&#9472; base.py   memory.py   sqlite.py   schema.sql
+&#9474;   &#9500;&#9472;&#9472; flow/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; states.py   machine.py   <u>orchestrator.py</u>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; steps/               <i># one file per stage &mdash; drop in to extend</i>
+&#9474;   &#9474;       &#9492;&#9472;&#9472; attendance.py   greeting.py   lesson.py
+&#9474;   &#9474;           interaction.py  quiz.py       wrapup.py
+&#9474;   &#9500;&#9472;&#9472; agents/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; base.py   tutor.py   quizmaster.py
+&#9474;   &#9474;   &#9492;&#9472;&#9472; engagement.py   narrator.py   safety.py
+&#9474;   &#9500;&#9472;&#9472; providers/               <i># AI vendors &mdash; one file each</i>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; base.py   offline.py   anthropic.py   openai.py
+&#9474;   &#9500;&#9472;&#9472; speech/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; stt_base.py   stt_keyboard.py   stt_vosk.py
+&#9474;   &#9474;   &#9492;&#9472;&#9472; tts_base.py   tts_null.py       tts_pyttsx3.py
+&#9474;   &#9500;&#9472;&#9472; <s>hal/</s>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; <s>base.py</s>              <i># HardwareBackend protocol</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; <s>protocol.py</s>          <i># wire frames &mdash; shared with firmware</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; <s>simulator.py</s>         <i># default: fake robot, real frame logs</i>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; <s>esp32.py</s>             <i># serial to the ESP32-S3</i>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; <s>devices.py</s>           <i># servo/sensor objects from BOM config</i>
+&#9474;   &#9500;&#9472;&#9472; context/
+&#9474;   &#9474;   &#9500;&#9472;&#9472; store.py             <i># assembles what agents may see</i>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; mcp_server.py        <i># exposes that context over MCP</i>
+&#9474;   &#9500;&#9472;&#9472; observability/
+&#9474;   &#9474;   &#9492;&#9472;&#9472; logging.py   sinks.py
+&#9474;   &#9492;&#9472;&#9472; web/
+&#9474;       &#9500;&#9472;&#9472; server.py   api.py   sse.py
+&#9474;       &#9492;&#9472;&#9472; ui/                  <i># robot display + teacher dashboard</i>
+&#9500;&#9472;&#9472; <s>firmware/esp32/</s>            <i># stub matching protocol.py</i>
+&#9500;&#9472;&#9472; data/                        <i># sqlite lives here, gitignored</i>
+&#9492;&#9472;&#9472; tests/
+</div>
+</section>
+
+<section id="flow">
+  <h2>The session flow</h2>
+  <p class="sectag">State machine &middot; this is the thing you want to watch run</p>
+  <p>This is the sequence you described. Each state is one file in <code>flow/steps/</code>, listed in <code>flow.sequence</code>. The orchestrator advances on completion, timeout, or teacher command &mdash; all three thresholds configurable.</p>
+
+  <div class="flow">
+    <div class="st"><span class="k">01</span><div class="t">Class open</div><div class="d">Teacher selects class. Scope is bound: org, school, class. Session row created.</div></div>
+    <div class="st"><span class="k">02</span><div class="t">Attendance</div><div class="d">Roll call by voice or dashboard tap. Present students become the session roster.</div></div>
+    <div class="st"><span class="k">03</span><div class="t">Greeting</div><div class="d">School-branded welcome. Namaste gesture fires; audio and motion sync here first.</div></div>
+    <div class="st"><span class="k">04</span><div class="t">Lesson</div><div class="d">Structured segments from content JSON. Display and speech advance together.</div></div>
+    <div class="st"><span class="k">05</span><div class="t">Interaction</div><div class="d">Open Q&amp;A loop. Question attributed to a student, routed to the tutor agent.</div></div>
+    <div class="st"><span class="k">06</span><div class="t">Quiz</div><div class="d">MCQ or oral. Answers scored per student, not per class.</div></div>
+    <div class="st"><span class="k">07</span><div class="t">Wrap-up</div><div class="d">Recap, participation summary, closing gesture.</div></div>
+    <div class="st"><span class="k">08</span><div class="t">Close</div><div class="d">Session sealed, metrics rolled up, dashboard updated.</div></div>
+  </div>
+  <div class="flow" style="margin-top:9px">
+    <div class="st halt"><span class="k">INTERRUPT</span><div class="t">Safety halt</div><div class="d">E-stop, obstacle, cliff, tilt, or over-current. Pre-empts any state, stops motion, holds until cleared. Sensor thresholds from config.</div></div>
+    <div class="st halt"><span class="k">INTERRUPT</span><div class="t">Teacher pause</div><div class="d">Freeze and resume from the dashboard at any point. The teacher is always able to take the room back.</div></div>
+  </div>
+
+  <h3>What gets recorded per student</h3>
+  <p>Every state emits events carrying a student id where one applies. That event stream is the only source the dashboard reads &mdash; which means the dashboard is correct by construction rather than by a second code path.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Signal</th><th>Captured at</th><th>Feeds</th></tr></thead>
+    <tbody>
+      <tr><td>Present / absent</td><td>Attendance</td><td>Attendance rate over time</td></tr>
+      <tr><td>Questions asked</td><td>Interaction</td><td>Curiosity and participation score</td></tr>
+      <tr><td>Answer + correctness + latency</td><td>Quiz</td><td>Topic mastery, per-student trend</td></tr>
+      <tr><td>Response to direct address</td><td>Lesson, Interaction</td><td>Engagement score</td></tr>
+      <tr><td>Session completion</td><td>Close</td><td>Lesson coverage reporting</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">
+    <span class="lbl">Judgement call you should make</span>
+    <p>Attributing a spoken question to a specific student is the hardest part of per-student tracking, and voice alone will not do it reliably in a noisy classroom. For the harness I will attribute via the teacher dashboard &mdash; the teacher taps who is speaking. Camera-based or wearable-tag attribution is a real project, not a detail, and should be its own decision later.</p>
+  </div>
+</section>
+
+<section id="config">
+  <h2>Config system</h2>
+  <p class="sectag">Nothing hardcoded &middot; four layers, last wins</p>
+  <p>Values resolve through four layers so you can change anything at any scope without editing another. Every key is validated against a typed schema at startup, so a typo fails immediately with a clear message rather than surfacing as odd behaviour mid-demo.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>#</th><th>Layer</th><th>Purpose</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td><code>default.yaml</code></td><td>Every key exists here with a documented default</td><td>the full surface</td></tr>
+      <tr><td class="num">2</td><td><code>profiles/&lt;mode&gt;.yaml</code></td><td>Mode overrides</td><td><code>--mode debug</code></td></tr>
+      <tr><td class="num">3</td><td><code>site.yaml</code></td><td>Per-school deployment, gitignored</td><td>school name, language</td></tr>
+      <tr><td class="num">4</td><td>env + CLI</td><td>Per-run overrides, no file edit</td><td><code>--set llm.provider=anthropic</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>The kinds of things that live in config, not code</h3>
+  <ul>
+    <li><strong>AI</strong> &mdash; provider, model id, temperature, max tokens, timeout, retries, streaming on/off, and every prompt as a named template file</li>
+    <li><strong>Flow</strong> &mdash; the stage sequence, per-stage timeout, advance policy, question limits, quiz length and pass mark</li>
+    <li><strong>Hardware</strong> &mdash; servo channel map, min/max angle per joint, movement speed, gesture keyframes, sensor pins, obstacle and cliff and tilt thresholds, serial port and baud</li>
+    <li><strong>Speech</strong> &mdash; engine, language, voice, speaking rate, wake word, silence timeout</li>
+    <li><strong>Runtime</strong> &mdash; log level, sink list, event retention, dashboard refresh rate, web host and port</li>
+  </ul>
+  <div class="note teal">
+    <span class="lbl">Direct answer to your ask</span>
+    <p>Switching AI vendor mid-test is <code>python run.py --mode user --set llm.provider=anthropic</code>. Nothing else changes, and the offline provider stays available as the fallback so the robot keeps working when a school's internet drops &mdash; which your own government-school requirement demands anyway.</p>
+  </div>
+</section>
+
+<section id="tenancy">
+  <h2>Org separation</h2>
+  <p class="sectag">Multi-tenancy &middot; enforced at the data layer, not by discipline</p>
+  <p>You chose full separation from day one, which is right &mdash; you are selling to school chains and CSR programmes, and retrofitting tenancy later means rewriting every query you have.</p>
+  <p>The model is <code>Org &rarr; School &rarr; Class &rarr; Student</code>, with sessions bound to a class. Every table carries <code>org_id</code>. The mechanism that makes this real: <strong>a <code>TenantScope</code> object is a required argument on every repository method</strong>. There is no way to call the data layer without saying which tenant you are, because the function signature will not let you.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Level</th><th>Holds</th><th>Real-world example</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Org</strong></td><td>Billing, branding, content library, feature flags</td><td>A school chain, or a CSR programme running 40 schools</td></tr>
+      <tr><td><strong>School</strong></td><td>Robots, teachers, timetable, language default</td><td>One campus</td></tr>
+      <tr><td><strong>Class</strong></td><td>Roster, grade, subject, session history</td><td>Grade 6-B</td></tr>
+      <tr><td><strong>Student</strong></td><td>Attendance, answers, scores, engagement</td><td>One child's record</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>A test seeds two orgs with deliberately colliding class and student names, runs a session in each, and asserts that neither org's queries can see the other's rows. That test is what makes the guarantee real.</p>
+</section>
+
+<section id="agents">
+  <h2>Agents and the MCP context seam</h2>
+  <p class="sectag">Multi-process AI &middot; separated by responsibility</p>
+  <p>You asked for AI agents across multiple processes. The useful split is by <strong>responsibility</strong>, so each agent has a narrow job, its own prompt, and can run on a different model &mdash; the safety check does not need the same model as the tutor, and paying top-tier rates for engagement scoring is waste.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Agent</th><th>Job</th><th>Runs</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Tutor</strong></td><td>Answers student questions at grade level, refuses off-syllabus drift</td><td>On demand, in Interaction</td></tr>
+      <tr><td><strong>Quizmaster</strong></td><td>Generates questions from lesson content, scores free-text answers</td><td>On demand, in Quiz</td></tr>
+      <tr><td><strong>Narrator</strong></td><td>Storytelling with display cue and gesture markers</td><td>On demand</td></tr>
+      <tr><td><strong>Engagement</strong></td><td>Watches the event stream, scores participation per student</td><td>Background, continuous</td></tr>
+      <tr><td><strong>Safety</strong></td><td>Content filter on anything spoken to children, plus hardware limit watch</td><td>Always, in the path</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Why MCP sits in the middle</h3>
+  <p>Agents do not reach into the database. They ask the context layer, which is exposed as an <strong>MCP server</strong> offering session state, the student profile, and the curriculum slice. Three reasons this is worth the indirection:</p>
+  <ul>
+    <li><strong>Tenant safety</strong> &mdash; context assembly is the one place scope is applied, so an agent cannot accidentally read another school's data</li>
+    <li><strong>Testability</strong> &mdash; you can snapshot exactly what an agent saw when it gave a bad answer</li>
+    <li><strong>Reuse</strong> &mdash; the same server serves your own tooling later without a second integration</li>
+  </ul>
+  <div class="note">
+    <span class="lbl">Honest caveat</span>
+    <p>MCP adds a hop you do not strictly need for a flow test. I am including it because you named it and because the tenant-safety argument holds on its own &mdash; but if the harness feels heavy when we run it, this is the first thing I would collapse into a plain in-process interface. It is a seam, so collapsing it is cheap.</p>
+  </div>
+</section>
+
+<section id="hal">
+  <h2>Hardware layer</h2>
+  <p class="sectag">HAL &middot; built against your actual BOM</p>
+  <div class="note">
+    <span class="lbl">Your spec and your BOM disagree &mdash; I am following the BOM</span>
+    <p>The tech spec describes <strong>7 stepper motors</strong> (NEMA 17/23 on A4988 / DRV8825 / TB6600). Your selected-components CSV describes a different machine: <strong>servos on a PCA9685</strong> &mdash; 2&times; OT5325M shoulders, 4&times; MG996R neck and elbows &mdash; plus <strong>2&times; Rhino 60RPM encoder DC motors on BTS7960B</strong> for drive, an <strong>ESP32-S3</strong> as motor controller, 6&times; HC-SR04, 4&times; VL53L0X cliff sensors, MPU6050, limit switches, e-stop and an ACS712 current sensor.</p>
+    <p>The servo build is the better call &mdash; lighter, cheaper, far simpler for gestures, and it matches your 7&ndash;8 kg target. But your spec document needs updating, because the embedded intern will otherwise buy stepper drivers you no longer need.</p>
+  </div>
+  <h3>Split of responsibility</h3>
+  <p>The Pi does not drive motors directly. The <strong>ESP32-S3 owns real-time motion and safety reflexes</strong>; the Pi sends intent and receives telemetry over one serial link. This matters: a Python garbage-collection pause must never become a servo glitch or a missed cliff sensor.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Runs on Pi 4</th><th>Runs on ESP32-S3</th></tr></thead>
+    <tbody>
+      <tr><td>Session flow, AI, speech, web UI, database</td><td>Servo PWM via PCA9685, drive motors and encoders</td></tr>
+      <tr><td>Gesture <em>intent</em> &mdash; &ldquo;namaste&rdquo;</td><td>Gesture <em>execution</em> &mdash; keyframe interpolation</td></tr>
+      <tr><td>Threshold policy from config</td><td>Sensor polling, e-stop, cliff and tilt cut-out in hard real time</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Two backends, one interface</h3>
+  <ul>
+    <li><span class="pill p-good">default</span> &nbsp;<strong>simulator</strong> &mdash; no hardware. Accepts every command, simulates travel time, emits fake sensor readings, and logs the exact bytes it <em>would</em> have sent. This is what you run this week.</li>
+    <li><span class="pill p-cop">later</span> &nbsp;<strong>esp32_serial</strong> &mdash; same interface, real serial link. Because the simulator logs real frames, the firmware can be developed and verified against captured traffic before the robot is assembled.</li>
+  </ul>
+  <p>The wire protocol lives in one file that is the shared contract between Python and firmware. Framing, command set, telemetry format and error codes are defined there once, and the embedded intern codes against it independently.</p>
+</section>
+
+<section id="modes">
+  <h2>Debug mode and user mode</h2>
+  <p class="sectag">Two ways to run the same system</p>
+  <p>Same code, same flow, different observability. Selected with <code>--mode</code>, which just picks a config profile &mdash; so you can also make your own.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th></th><th>debug</th><th>user</th></tr></thead>
+    <tbody>
+      <tr><td><strong>For</strong></td><td>You and the interns, at the bench</td><td>School demos, teacher trials</td></tr>
+      <tr><td><strong>Console</strong></td><td>Every event, timestamped, with state transitions</td><td>Human-readable narration only</td></tr>
+      <tr><td><strong>Hardware</strong></td><td>Raw frames both directions, with latency and checksum</td><td>Silent</td></tr>
+      <tr><td><strong>AI</strong></td><td>Full prompt, token counts, latency, cost estimate</td><td>Answer only</td></tr>
+      <tr><td><strong>Web UI</strong></td><td>Dashboard plus a live hardware and event panel</td><td>Robot display plus teacher controls</td></tr>
+      <tr><td><strong>On error</strong></td><td>Raise, with full trace &mdash; fail fast</td><td>Recover, log, keep the demo alive</td></tr>
+      <tr><td><strong>Session data</strong></td><td>Written to a scratch tenant</td><td>Written to the real school tenant</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>That last row is worth noticing: bench testing must not pollute a pilot school's dashboard with fake students. The mode selects the tenant, so it cannot.</p>
+</section>
+
+<section id="build">
+  <h2>Build order</h2>
+  <p class="sectag">Milestones &middot; mapped to the roles in your team plan</p>
+  <p>Sequenced so the flow runs end to end as early as possible, then gets progressively more real. After M1 you can watch a complete class happen &mdash; which is what you asked for.</p>
+
+  <div class="ms">
+    <div class="msi">
+      <div class="id">M0</div>
+      <div><div class="ti">Skeleton, config, registry, container</div>
+      <div class="who">PM + Python developer</div>
+      <div class="bd">The generic registry, the layered config loader with typed schema, the container, the event bus, and the literal-scanner test. Nothing visible runs yet, but every later piece plugs into this. Do not skip the scanner test.</div></div>
+    </div>
+    <div class="msi">
+      <div class="id">M1</div>
+      <div><div class="ti">Full flow, headless</div>
+      <div class="who">Python developer</div>
+      <div class="bd">State machine, all six step handlers, simulator backend, offline provider, keyboard STT, sqlite store, tenancy. One command walks a complete class in the terminal with two seeded orgs. <strong>This is the milestone that answers your question.</strong></div></div>
+    </div>
+    <div class="msi">
+      <div class="id">M2</div>
+      <div><div class="ti">Robot display and teacher dashboard</div>
+      <div class="who">Front-end + back-end interns</div>
+      <div class="bd">FastAPI serving two browser views off the same event stream &mdash; the chest display, and the teacher dashboard with pause, student attribution and per-student history. Works on the 7-inch screen at its real resolution.</div></div>
+    </div>
+    <div class="msi">
+      <div class="id">M3</div>
+      <div><div class="ti">Real AI, real voice</div>
+      <div class="who">Python developer</div>
+      <div class="bd">Live provider with streaming and prompt caching on the lesson context, structured outputs for quiz scoring, then Vosk in and pyttsx3 out. Latency measured against your 2-second target, with the offline path as the fallback.</div></div>
+    </div>
+    <div class="msi">
+      <div class="id">M4</div>
+      <div><div class="ti">Real hardware</div>
+      <div class="who">Embedded intern</div>
+      <div class="bd">ESP32-S3 firmware against the fixed protocol file, then the serial backend. Servo calibration and gesture keyframes tuned into config. Safety cut-outs verified before anything runs near children.</div></div>
+    </div>
+    <div class="msi">
+      <div class="id">M5</div>
+      <div><div class="ti">Pilot hardening</div>
+      <div class="who">Whole team</div>
+      <div class="bd">Tenant isolation tests, session reports for teachers, recovery from mid-session crash, and a demo that survives a full day of repeated runs without manual intervention &mdash; your own reliability criterion.</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="open">
+  <h2>Open questions</h2>
+  <p class="sectag">Decisions I need from you, in priority order</p>
+  <ol>
+    <li><strong>Update the spec to the servo BOM?</strong> The two documents describe different robots. Someone will build the wrong one otherwise.</li>
+    <li><strong>Student attribution during Q&amp;A.</strong> Teacher-taps is my default for the harness. Confirm that is acceptable for pilot, or attribution becomes its own workstream.</li>
+    <li><strong>Language.</strong> English only for the harness, or Hindi from the start? It affects the content schema and the speech engines, and it is cheaper to decide now than to retrofit.</li>
+    <li><strong>Where does data live?</strong> Robot-local sqlite is right for the harness and for offline schools. But a chain-wide dashboard eventually needs a sync story &mdash; worth knowing whether that is a Stage 3 or Stage 5 concern.</li>
+    <li><strong>Content authoring.</strong> Who writes the 5&ndash;10 sample lessons and quizzes, and in what format? The harness needs real content to be a real test, and placeholder text will hide problems.</li>
+  </ol>
+</section>
+
+<footer>
+  <p>Plan only &mdash; no code has been written yet. Python 3.12.10 is installed and ready. Next step on approval is M0 and M1, which together give you the runnable end-to-end flow.</p>
+</footer>
+
+</main>
+</div>
+</div>

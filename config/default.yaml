@@ -1,0 +1,39 @@
+# Every key the system understands lives here with a documented default.
+# Override per mode in profiles/, per school in site.yaml, per run with --set.
+# Nothing in the code may hardcode a value that belongs in this file.
+
+runtime:
+  # debug  - raw diagnostics, fail fast, writes to the scratch tenant
+  # user   - clean output, recover from errors, writes to the real tenant
+  mode: user
+
+  # Default language for the robot when a class does not specify one.
+  locale: en
+
+  log_level: INFO
+
+  # console  - human lines in user mode, structured lines in debug
+  # jsonl    - machine-readable file for after-the-fact analysis
+  sinks:
+    - console
+
+  log_dir: data/logs
+
+  # How many recent events the bus keeps for late subscribers and the
+  # debug overlay. Raise it if the diagnostics view looks truncated.
+  event_replay_size: 512
+
+  # Debug mode sets this true so a broken handler surfaces immediately.
+  # User mode sets it false so a demo survives one bad subscriber.
+  raise_on_handler_error: true
+
+tenancy:
+  # Which org, school and class this robot belongs to. A school chain or a
+  # CSR programme is one org; a campus is one school.
+  org_id: lomas-demo
+  school_id: sunrise-nashik
+  class_id: grade-6b
+
+  # Bench testing writes here instead, so fake students never appear in a
+  # pilot school's dashboard.
+  scratch_org_id: scratch

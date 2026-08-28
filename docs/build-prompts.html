@@ -1,0 +1,557 @@
+<title>LomasAI Build Prompts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#F1F3F1; --surface:#FFFFFF; --surface-2:#E7EBE8; --code-bg:#EDF1EF;
+  --ink:#16211F; --ink-2:#47564F; --ink-3:#6E7D75;
+  --line:#D2DAD5; --line-strong:#B9C4BE;
+  --teal:#0F6F66; --teal-soft:#DCEBE8;
+  --copper:#A25730; --good:#2E7D5B; --good-soft:#DFEFE7; --crit:#A8433C;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 8px 24px -16px rgba(22,33,31,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --code-bg:#131C19;
+    --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+    --line:#2B3934; --line-strong:#3B4C45;
+    --teal:#54C4B2; --teal-soft:#152B28;
+    --copper:#DB8F62; --good:#5CBA8C; --good-soft:#142621; --crit:#E2776D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --code-bg:#131C19;
+  --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+  --line:#2B3934; --line-strong:#3B4C45;
+  --teal:#54C4B2; --teal-soft:#152B28;
+  --copper:#DB8F62; --good:#5CBA8C; --good-soft:#142621; --crit:#E2776D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif; font-size:16px; line-height:1.6}
+.wrap{max-width:900px; margin:0 auto; padding:0 24px 90px}
+.mast{padding:56px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.15em;
+  text-transform:uppercase; color:var(--teal); margin:0 0 14px}
+h1{font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:clamp(1.95rem,4.4vw,2.85rem);
+  line-height:1.07; letter-spacing:-.02em; margin:0 0 15px; text-wrap:balance}
+.standfirst{font-size:1.06rem; color:var(--ink-2); max-width:64ch; margin:0}
+.howto{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--teal);
+  border-radius:0 4px 4px 0; padding:18px 20px; margin:30px 0 0; box-shadow:var(--shadow)}
+.howto .lbl{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--teal); display:block; margin-bottom:9px}
+.howto ol{margin:0; padding-left:19px; font-size:.9rem; color:var(--ink-2)}
+.howto li{margin-bottom:6px} .howto li:last-child{margin-bottom:0}
+.howto b{color:var(--ink)}
+.phase{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); margin:54px 0 16px; padding-bottom:11px;
+  border-bottom:1px solid var(--line-strong)}
+.p{margin:0 0 20px; border:1px solid var(--line); border-radius:5px; background:var(--surface);
+  overflow:hidden; box-shadow:var(--shadow)}
+.p > .hd{display:grid; grid-template-columns:52px minmax(0,1fr); align-items:center;
+  padding:14px 17px 14px 0; border-bottom:1px solid var(--line); background:var(--surface-2)}
+.p .id{font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:500; color:var(--teal); text-align:center}
+.p .ti{font-family:"Fraunces",Georgia,serif; font-size:1.16rem; font-weight:600; line-height:1.22}
+.p .meta{font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--ink-3);
+  letter-spacing:.05em; margin-top:4px}
+.p .bd{padding:16px 17px}
+.p h4{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 7px; font-weight:500}
+.p h4.g{color:var(--good)} .p h4.c{color:var(--crit)}
+.p p{margin:0 0 14px; font-size:.9rem; color:var(--ink-2); max-width:none}
+.p ul{margin:0 0 14px; padding-left:19px; font-size:.875rem; color:var(--ink-2); max-width:none}
+.p li{margin-bottom:4px}
+.p .last{margin-bottom:0}
+code{font-family:"IBM Plex Mono",monospace; font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:3px; color:var(--ink)}
+.prompt{background:var(--code-bg); border:1px solid var(--line); border-radius:4px;
+  padding:15px 17px; margin:0 0 14px; font-family:"IBM Plex Mono",monospace; font-size:12.5px;
+  line-height:1.62; color:var(--ink-2); white-space:pre-wrap; overflow-x:auto; user-select:all}
+.prompt b{color:var(--ink); font-weight:500}
+.acc{background:var(--good-soft); border:1px solid var(--line); border-radius:4px; padding:12px 15px;
+  font-size:.85rem; color:var(--ink-2); margin:0 0 14px}
+.acc b{color:var(--good); font-family:"IBM Plex Mono",monospace; font-size:10px;
+  letter-spacing:.11em; text-transform:uppercase; display:block; margin-bottom:6px; font-weight:500}
+.dont{font-size:.85rem; color:var(--ink-2)}
+.dont b{color:var(--crit)}
+.note{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--copper);
+  border-radius:0 4px 4px 0; padding:16px 19px; margin:0 0 22px}
+.note .lbl{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--copper); display:block; margin-bottom:7px}
+.note p{margin:0; font-size:.9rem; color:var(--ink-2)}
+footer{margin-top:56px; padding-top:22px; border-top:1px solid var(--line);
+  font-size:.83rem; color:var(--ink-3)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <p class="eyebrow">LomasAI &middot; Build sequence &middot; 14 prompts</p>
+  <h1>Build Prompts</h1>
+  <p class="standfirst">Run these in order, one at a time. Each produces something you can actually test before you move on, and each names what it must not touch &mdash; which is how the isolation rules survive contact with a deadline.</p>
+
+  <div class="howto">
+    <span class="lbl">How to use these</span>
+    <ol>
+      <li>Paste one prompt. Let it finish. <b>Run its acceptance check before starting the next.</b></li>
+      <li>If the check fails, fix it in that prompt's scope. Do not carry a broken step forward &mdash; every later prompt assumes the earlier ones hold.</li>
+      <li>Commit after each one. Fourteen commits, each a working system.</li>
+      <li>P0 to P4 need no hardware, no keys, no Pi. Work on the laptop.</li>
+    </ol>
+  </div>
+</header>
+
+<div class="phase">Phase A &middot; Foundation &mdash; laptop only, no hardware</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P0</div><div><div class="ti">Skeleton and core</div>
+  <div class="meta">packages/lomas_core &middot; ~9 files &middot; no dependencies</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Create the LomasAI repository skeleton and the <b>lomas_core</b> package only.
+
+Layout: <b>run.py</b> at root; <b>packages/</b> for capability packages; <b>app/</b> for the
+integrator; <b>config/</b>, <b>content/</b>, <b>tests/</b>. Python 3.12, no framework yet.
+
+Build lomas_core with exactly these modules, one job each:
+- <b>registry.py</b> — a generic Registry[T] with a @register(key) decorator and
+  auto-discovery that imports every module in a package directory so
+  implementations self-register on import.
+- <b>config.py</b> — four-layer loader: config/default.yaml, then
+  config/profiles/{mode}.yaml, then optional site.yaml, then env vars
+  prefixed LOMAS__ and --set key=value pairs. Last layer wins. Dotted access.
+- <b>schema.py</b> — typed config models (dataclasses or pydantic). This is the
+  ONLY file in the repo where a default value may be written.
+- <b>events.py</b> — an EventBus with publish, subscribe by event name or
+  wildcard, and a bounded replay buffer. Sync and async subscribers.
+- <b>contracts.py</b> — event name constants and payload dataclasses. Empty
+  for now apart from session.opened and session.closed.
+- <b>clock.py</b> — a Clock protocol with a real and a fake implementation, so
+  tests never sleep.
+- <b>logging.py</b> — logger factory that reads runtime.mode and emits
+  human lines in user mode, structured records in debug mode.
+- <b>errors.py</b> — the exception hierarchy.
+
+Write config/default.yaml with the runtime and tenancy sections only, every
+key commented with what it does.
+
+Also write the three architecture-enforcing tests now, before there is
+anything to enforce:
+- <b>test_imports.py</b> — walks the AST of every package; fails if a package
+  imports a sibling package or anything under app/.
+- <b>test_no_literals.py</b> — flags bare numeric or string literals used in
+  comparisons or as default arguments outside schema.py.
+- <b>test_config_layers.py</b> — proves each layer overrides the one below.
+
+Comments: sparse, only where the reason is not obvious from the code.
+No docstring on every function, no narration of obvious steps.</div>
+    <div class="acc"><b>Acceptance</b><code>pytest tests/</code> passes with three tests green, and <code>python run.py --mode debug --set runtime.log_level=DEBUG</code> prints the resolved config and exits cleanly.</div>
+    <p class="dont last"><b>Must not touch:</b> nothing exists yet. Do not create any other package, and do not add FastAPI, OpenCV or any AI library to requirements.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P1</div><div><div class="ti">Storage and tenancy</div>
+  <div class="meta">packages/lomas_store &middot; ~14 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build the <b>lomas_store</b> package. It may import lomas_core and stdlib only.
+
+- <b>store.py</b> — Store protocol: execute, query, transaction.
+- <b>backends/sqlite.py</b> and <b>backends/memory.py</b>, both registered.
+- <b>schema.sql</b> — orgs, schools, classes, students, consent, embeddings,
+  sessions, session_students, answers, events. Every table carries org_id.
+  There is deliberately no column anywhere for an image or a video.
+- <b>migrations.py</b> — versioned, forward-only.
+- <b>scope.py</b> — a TenantScope value object holding org, school, class.
+- <b>repos/</b> — one file per aggregate. <b>Every public method takes
+  TenantScope as its first argument</b> and applies it to the query. Not
+  optional, not defaulted.
+
+Add the storage and tenancy config sections.
+
+Tests: a tenancy isolation test that seeds two orgs with identical class
+and student names, writes a session in each, and asserts neither org's
+queries return the other's rows. Plus a test that the repo layer cannot be
+called without a scope.</div>
+    <div class="acc"><b>Acceptance</b>Tenancy test passes. Deleting the scope argument from any repo method makes the suite fail.</div>
+    <p class="dont last"><b>Must not touch:</b> lomas_core. If you need something from core that is missing, stop and say so rather than editing it.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P2</div><div><div class="ti">Camera sources and the frame bus</div>
+  <div class="meta">packages/lomas_vision &middot; ~11 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build <b>lomas_vision</b>. Frames only — this package must know nothing about
+faces, students or lessons.
+
+- <b>frame.py</b> — Frame dataclass: source_id, seq, timestamp, image array.
+- <b>source.py</b> — CameraSource protocol: open, read, set_zoom, close.
+- <b>sources/</b> one file each, all registered:
+  mock.py (synthetic frames), folder.py (still images, deterministic),
+  file.py (video replay), usb.py (OpenCV), picamera2.py (Pi, import
+  guarded so it does not break on a laptop), rtsp.py (stub that raises
+  NotImplemented with a clear message — the CCTV seam).
+- <b>bus.py</b> — FrameBus reading from N sources concurrently into a
+  per-source ring buffer, drop-oldest, with a subscribe API.
+- <b>zoom.py</b> — maps a 1.0–2.5 zoom factor to a centred sensor crop
+  rectangle for picamera2 ScalerCrop; a no-op for other sources.
+
+Config: <b>sources</b> is a LIST from day one, each entry with id, kind,
+zone, resolution, fps, zoom, rotation. Ship one entry.
+
+Tests run against mock and folder sources only, no hardware.</div>
+    <div class="acc"><b>Acceptance</b>A test opens three mock sources at once, pulls 100 frames, and asserts sequence numbers are monotonic per source with no cross-contamination. Nothing imports lomas_face.</div>
+    <p class="dont last"><b>Must not touch:</b> lomas_core, lomas_store.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P3</div><div><div class="ti">Detection, tracking, pose</div>
+  <div class="meta">packages/lomas_face &middot; ~13 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build <b>lomas_face</b>. It receives image arrays and returns data. It must
+never open a camera, and must not import lomas_vision.
+
+- <b>types.py</b> — FaceBox, Landmarks, Track, Pose, Identity.
+- <b>detector.py</b> + <b>detectors/</b>: yunet.py (OpenCV FaceDetectorYN, the
+  default), mediapipe.py, mock.py.
+- <b>tracker.py</b> — IoU-based track association with birth and death
+  thresholds. Tracks carry a stable id and an optional identity that
+  persists across frames.
+- <b>pose.py</b> — yaw and pitch from the five landmarks YuNet returns.
+  No extra model.
+- <b>attention.py</b> — per-track attention score as an EMA over a config
+  window, using the pose cone. Emits a disengagement signal after
+  min_duration below threshold, respecting a per-student cooldown.
+
+Config: the face and attention sections. Every threshold, window, cone
+angle and cooldown is a key. No numbers in the code.
+
+Tests use the mock detector and a scripted sequence of boxes so tracking
+and attention logic are tested without any model or image.</div>
+    <div class="acc"><b>Acceptance</b>Tracker test: a face moving across scripted frames keeps one track id; two faces crossing do not swap ids. Attention test: a scripted head-turn sequence triggers disengagement exactly once, then respects cooldown.</div>
+    <p class="dont last"><b>Must not touch:</b> any other package. Detection accuracy is not the goal here — the state machine around it is.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P4</div><div><div class="ti">Enrolment and recognition</div>
+  <div class="meta">lomas_face embedder + identity &middot; ~6 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Add recognition to lomas_face.
+
+- <b>embedder.py</b> + <b>embedders/arcface_onnx.py</b> (onnxruntime, 112x112
+  input) and <b>embedders/mock.py</b> (deterministic vectors for tests).
+- <b>identity.py</b> — matches an embedding against a set of enrolled
+  vectors using cosine distance and a config threshold. Implements the
+  recognise-once-then-track policy: identify only on NEW tracks, and
+  re-verify an existing track every reverify_seconds.
+- <b>enrolment.py</b> — takes a sequence of frames from a head-turn sweep,
+  scores each for blur and angle, keeps the best N, returns an averaged
+  vector plus the variant vectors. <b>It returns vectors and nothing else —
+  it must not write, cache or return any image.</b>
+
+Wire the embeddings repo from lomas_store through the app later, not here.
+
+Config: match_threshold, reverify_seconds, enrolment sample count,
+quality floors, privacy.recognition_enabled, privacy.require_consent.
+
+Test with the mock embedder: enrol three synthetic identities, assert
+correct matching, assert an unknown face returns no identity, and assert
+that recognition runs once per new track rather than per frame.</div>
+    <div class="acc"><b>Acceptance</b>The per-frame call count for the embedder in a 100-frame test with one stable track is <strong>1</strong>, not 100. That number is the whole design.</div>
+    <p class="dont last"><b>Must not touch:</b> lomas_vision, lomas_store.</p>
+  </div>
+</div>
+
+<div class="phase">Phase B &middot; Voice and reasoning</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P5</div><div><div class="ti">Speech in, speech out, wake word</div>
+  <div class="meta">packages/lomas_speech &middot; ~14 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build <b>lomas_speech</b>.
+
+- <b>wake.py</b> + <b>wakes/</b>: openwakeword.py (default), porcupine.py,
+  keyboard.py (press a key to simulate the wake word — this is what makes
+  the whole flow testable with no microphone).
+- <b>stt.py</b> + <b>stts/</b>: groq.py, vosk.py, keyboard.py (typed input).
+- <b>tts.py</b> + <b>ttss/</b>: piper.py (default), gtts.py, null.py.
+- <b>devices.py</b> — audio input is a LIST of devices, each with a zone id,
+  even though there is one today. This is the per-desk microphone seam.
+- <b>duplex.py</b> — a gate that mutes inputs while TTS is playing, with a
+  configurable tail delay.
+
+Every engine takes a language code. TTS voice is a per-language map in
+config, not a single voice string.
+
+Tests use keyboard and null implementations only. No audio device is
+touched in the test suite.</div>
+    <div class="acc"><b>Acceptance</b>With <code>speech.wake.engine=keyboard</code>, <code>stt.engine=keyboard</code> and <code>tts.engine=null</code>, a test drives a full wake &rarr; transcript &rarr; speak cycle with no sound hardware present.</div>
+    <p class="dont last"><b>Must not touch:</b> any other package.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P6</div><div><div class="ti">AI providers and routing</div>
+  <div class="meta">packages/lomas_llm &middot; ~9 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build <b>lomas_llm</b>.
+
+- <b>types.py</b> — Message, Completion, Usage.
+- <b>provider.py</b> — LLMProvider protocol: complete() and stream().
+- <b>providers/</b>: offline.py (rule-based and canned answers, the default
+  so the system runs with zero API keys), groq.py, anthropic.py, openai.py.
+- <b>router.py</b> — port the complexity scoring from the existing
+  AI_Assistant router. Scores route to exactly one model, never a chain.
+  Every weight and threshold from config.
+- <b>prompts.py</b> — loads templates from config/prompts/{language}/*.yaml.
+  <b>No prompt text may appear in any .py file.</b>
+
+Config: provider, model, fallback_provider, temperature, max_tokens,
+timeout, retries, stream, and the router thresholds.
+
+Tests use the offline provider. One test asserts that swapping
+llm.provider changes the class the container builds, with no other change.</div>
+    <div class="acc"><b>Acceptance</b>Full test suite passes with no API key set anywhere in the environment.</div>
+    <p class="dont last"><b>Must not touch:</b> any other package. Do not put prompt strings in code — the multilingual requirement dies the moment you do.</p>
+  </div>
+</div>
+
+<div class="phase">Phase C &middot; The product</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P7</div><div><div class="ti">Container, flow engine, the six steps</div>
+  <div class="meta">app/ &middot; the first integrator &middot; ~13 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build the <b>app/</b> integrator layer — the first code allowed to know all
+the packages exist.
+
+- <b>container.py</b> — reads config, resolves every registry key, constructs
+  and injects. The only file in the repo where concrete class names appear.
+- <b>flow/states.py</b>, <b>flow/machine.py</b> — the transition engine.
+- <b>flow/steps/</b> — attendance, greeting, lesson, interaction, quiz,
+  wrapup. Each a FlowStep with enter, tick, exit. Each in its own file,
+  each registered, the running order read from flow.sequence in config.
+- <b>orchestrator.py</b> — owns a session: opens it, drives the machine,
+  publishes events, closes it. Handles pause, resume and safety halt as
+  interrupts from any state.
+
+Steps communicate ONLY by publishing events. A step may not call another
+step or reach into the orchestrator.
+
+Greeting addresses the class as a whole and does not name individuals.
+Names are used only when a step or agent addresses one student directly.
+
+Content: content/{language}/{grade}/{subject}/ with lessons and quizzes as
+JSON. Write two real lessons and one quiz for Grade 6 science in English
+as the reference pack.
+
+Acceptance target: <b>python run.py --mode debug</b> walks a complete session
+headless with mock speech and the offline provider, printing every state
+transition, and writes the session to SQLite.</div>
+    <div class="acc"><b>Acceptance</b>A full class runs end to end in under a second with the fake clock. Removing any single step from <code>flow.sequence</code> still produces a valid session.</div>
+    <p class="dont last"><b>Must not touch:</b> the packages. If a package is missing something, note it and stop — do not reach in and edit.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P8</div><div><div class="ti">The vision pipeline</div>
+  <div class="meta">app/pipeline.py &middot; wires vision to face &middot; ~3 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Write <b>app/pipeline.py</b>, the integrator that joins lomas_vision to
+lomas_face. This is the only place those two packages meet.
+
+Flow: FrameBus → downscale to the configured detection size → detect at
+detect_fps (not capture fps) → track → identify new tracks only, cropping
+from the FULL resolution frame not the downscale → pose → attention.
+
+Publishes: vision.tracks, student.identified, student.left,
+student.disengaged. Nothing else in the system may read frames directly.
+
+Run it in its own thread with a drop-oldest queue so vision can never
+stall the session. If the queue backs up, log it in debug mode and drop.
+
+Test the whole pipeline against a recorded video through the file camera
+source, asserting a stable identity across the clip.</div>
+    <div class="acc"><b>Acceptance</b>Record a 30-second clip of two people. The pipeline holds both identities for the clip, and the embedder call count is in single digits.</div>
+    <p class="dont last"><b>Must not touch:</b> lomas_vision or lomas_face internals. All wiring lives here.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P9</div><div><div class="ti">Agents and the MCP context seam</div>
+  <div class="meta">app/agents, app/context &middot; ~9 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build the agents and the context layer.
+
+- <b>context/assembler.py</b> — builds exactly what an agent may see: session
+  state, the current lesson slice, and a student profile. Tenant scope is
+  applied HERE and nowhere else, so an agent cannot read another school.
+- <b>context/mcp_server.py</b> — exposes that context as MCP resources.
+- <b>agents/base.py</b> — Agent protocol: handle(event, context).
+- <b>agents/</b>: tutor (answers student questions at the configured grade
+  level, declines off-syllabus), quizmaster (generates and scores),
+  narrator (storytelling), engagement (subscribes to student.disengaged
+  and produces a nudge), safety (content filter on everything spoken).
+
+<b>The engagement agent phrases every nudge as a question, never as a
+correction.</b> It must never use words like distracted or attention. Put
+the phrasings in the prompt templates, per language, so they are tunable
+without code.
+
+Each agent has its own model and prompt in config, so the safety filter
+can run on a cheap model while the tutor runs on a good one.
+
+Agents subscribe to events. No step calls an agent directly.</div>
+    <div class="acc"><b>Acceptance</b>Disabling any agent in <code>agents.enabled</code> leaves a full session running. A test asserts the context assembler refuses a cross-org read.</div>
+    <p class="dont last"><b>Must not touch:</b> flow steps. If a step needs to trigger an agent, it publishes an event.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P10</div><div><div class="ti">The robot face and the board</div>
+  <div class="meta">app/web &middot; two of the four surfaces &middot; ~10 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build the web layer and the first two surfaces.
+
+- <b>server.py</b> — FastAPI. <b>stream.py</b> — MJPEG endpoint from the frame
+  bus. <b>ws.py</b> — the event stream to browsers. <b>api.py</b> — REST for the
+  teacher controls.
+
+<b>ui/face/</b> — the robot's 7-inch screen, 1024x600, five states: sleeping,
+listening, thinking, speaking, asking. An animated face: eyes that blink
+and orient toward the active speaker, a mouth driven by TTS output
+amplitude. Body text starts at 32px. A persistent student ribbon along the
+bottom showing name plus a green/amber/grey dot — never a number, never a
+ranking.
+
+<b>ui/board/</b> — the projector surface for lesson content, enabled by
+display.board_screen.enabled and served on the second HDMI output.
+
+Face boxes are absolutely positioned HTML over the video element, drawn
+from the vision.tracks event. <b>Never re-encode frames in Python to draw
+overlays.</b>
+
+No frontend framework. Vanilla JS, CSS transitions only, no canvas redraw
+loop — this runs in Chromium on a Pi 4 and that browser is already your
+largest CPU consumer.</div>
+    <div class="acc"><b>Acceptance</b>On the Pi, the face UI holds 25+ fps of video with boxes tracking correctly, and Chromium stays under about 1.4 cores.</div>
+    <p class="dont last"><b>Must not touch:</b> orchestrator or steps. The UI is a subscriber, and only a subscriber.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P11</div><div><div class="ti">Enrolment and teacher control</div>
+  <div class="meta">app/web/ui/teacher &middot; ~8 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build the teacher and admin surface.
+
+<b>Enrolment screen</b> — live camera, name and roll number, a consent
+checkbox that is REQUIRED and writes a consent row, a 3–4 second head-turn
+capture with a progress ring and live quality feedback, then confirm. It
+shows how many vectors were stored. It never displays or saves a captured
+image, and the frames are discarded in the same call that embeds them.
+
+<b>Live control screen</b> — video with named boxes, the class roster with
+attention state, pause and resume, skip section, tap-to-attribute which
+student is speaking, and a prominent switch that disables nudging for the
+session.
+
+<b>Session report</b> — attendance, coverage, the questions students asked,
+quiz results per student. No engagement scores, no ranking, nothing a
+parent could read as a judgement of their child.
+
+Pause must halt speech mid-sentence and freeze the flow within 300ms.
+That button is the teacher's trust in the product; treat its latency as a
+hard requirement.</div>
+    <div class="acc"><b>Acceptance</b>Enrol five people, run a lesson, pause and resume it, and read a report that matches what happened. Enrolment without consent is refused by the server, not just the UI.</div>
+    <p class="dont last"><b>Must not touch:</b> the face UI.</p>
+  </div>
+</div>
+
+<div class="phase">Phase D &middot; Hardening and hardware</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P12</div><div><div class="ti">Debug mode and diagnostics</div>
+  <div class="meta">app/web/ui/debug + observability &middot; ~5 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build debug mode as an overlay available on any surface, toggled by
+runtime.mode.
+
+Shows: capture and detect fps, queue depth and drops, detection count,
+recognition latency and call count, track table with ids and identities,
+attention scores, wake word confidence, STT and TTS latency, LLM prompt,
+token counts and cost estimate, CPU load and SoC temperature, and the last
+serial frames once hardware exists.
+
+Debug mode also: writes sessions to the scratch tenant so bench testing
+never pollutes a real school's data, raises on error instead of
+recovering, and logs structured JSONL alongside the console.
+
+User mode must show none of this and must recover from errors rather than
+raise. Confirm both by test.</div>
+    <div class="acc"><b>Acceptance</b>Same binary, same flow, two modes. A test boots both and asserts the event sink sets and the target tenant differ.</div>
+    <p class="dont last"><b>Must not touch:</b> feature logic. Diagnostics are subscribers.</p>
+  </div>
+</div>
+
+<div class="p">
+  <div class="hd"><div class="id">P13</div><div><div class="ti">Hardware layer and ESP32 protocol</div>
+  <div class="meta">packages/lomas_hal + firmware &middot; ~8 files</div></div></div>
+  <div class="bd">
+    <h4>Prompt</h4>
+    <div class="prompt">Build <b>lomas_hal</b> against the actual BOM: servos on a PCA9685 (2x
+OT5325M shoulders, 4x MG996R neck and elbows), 2x Rhino encoder DC motors
+on BTS7960B for drive, ESP32-S3 as the motor controller, HC-SR04 x6,
+VL53L0X x4 cliff, MPU6050, limit switches, e-stop, ACS712.
+
+Note this differs from the older spec document, which describes stepper
+motors. The BOM is correct; the spec is stale.
+
+- <b>protocol.py</b> — the wire format, framing, command set, telemetry and
+  error codes. This file is the shared contract with the firmware.
+- <b>backends/simulator.py</b> — the default. Accepts every command,
+  simulates travel time, emits plausible sensor readings, and logs the
+  exact bytes it would have sent.
+- <b>backends/esp32.py</b> — pyserial against the same protocol.
+- <b>gestures.py</b> — namaste, wave, nod played from keyframes in
+  config/hardware/gestures.yaml. No angle in code.
+
+The Pi sends intent; the ESP32 owns real-time motion and the safety
+reflexes. A Python pause must never become a servo glitch.
+
+Also write the firmware stub in firmware/esp32/ implementing the same
+protocol so the embedded intern has a fixed target.</div>
+    <div class="acc"><b>Acceptance</b>A full lesson runs on the simulator with gesture frames logged. Swapping to <code>esp32</code> requires only the config change.</div>
+    <p class="dont last"><b>Must not touch:</b> anything else. Safety cut-outs are verified on the bench before this goes near children.</p>
+  </div>
+</div>
+
+<div class="note">
+  <span class="lbl">One rule for every prompt</span>
+  <p>If a prompt cannot be completed without editing a file outside its scope, that is a signal the architecture is wrong somewhere &mdash; stop and say so rather than reaching across. Every such reach is a future breakage, and they are far cheaper to catch at the moment they are proposed.</p>
+</div>
+
+<footer>
+  <p>Fourteen prompts, four phases. P0&ndash;P6 need no hardware and no API keys. P7 is the first moment you can watch a full class run. P10 is the first moment it looks like a product. Companion documents: the school journey and the system architecture.</p>
+</footer>
+
+</div>

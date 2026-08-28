@@ -1,0 +1,460 @@
+<title>LomasAI System Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#F1F3F1; --surface:#FFFFFF; --surface-2:#E7EBE8;
+  --ink:#16211F; --ink-2:#47564F; --ink-3:#6E7D75;
+  --line:#D2DAD5; --line-strong:#B9C4BE;
+  --teal:#0F6F66; --teal-soft:#DCEBE8;
+  --copper:#A25730; --copper-soft:#F5E7DF;
+  --good:#2E7D5B; --good-soft:#DFEFE7;
+  --warn:#8A6716; --crit:#A8433C; --crit-soft:#F7E3E1;
+  --shadow:0 1px 2px rgba(22,33,31,.06), 0 8px 24px -16px rgba(22,33,31,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#101715; --surface:#17201D; --surface-2:#1E2925;
+    --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+    --line:#2B3934; --line-strong:#3B4C45;
+    --teal:#54C4B2; --teal-soft:#152B28;
+    --copper:#DB8F62; --copper-soft:#2C201A;
+    --good:#5CBA8C; --good-soft:#142621;
+    --warn:#D4A648; --crit:#E2776D; --crit-soft:#2E1B19;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101715; --surface:#17201D; --surface-2:#1E2925;
+  --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
+  --line:#2B3934; --line-strong:#3B4C45;
+  --teal:#54C4B2; --teal-soft:#152B28;
+  --copper:#DB8F62; --copper-soft:#2C201A;
+  --good:#5CBA8C; --good-soft:#142621;
+  --warn:#D4A648; --crit:#E2776D; --crit-soft:#2E1B19;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif; font-size:16px; line-height:1.6}
+.wrap{max-width:1200px; margin:0 auto; padding:0 24px 96px}
+.layout{display:grid; grid-template-columns:1fr}
+@media(min-width:1120px){.layout{grid-template-columns:198px minmax(0,1fr); gap:52px; align-items:start}}
+.mast{padding:58px 0 32px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.15em;
+  text-transform:uppercase; color:var(--teal); margin:0 0 14px}
+h1{font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:clamp(2rem,4.4vw,3rem);
+  line-height:1.07; letter-spacing:-.02em; margin:0 0 16px; text-wrap:balance; max-width:20ch}
+.standfirst{font-size:1.08rem; color:var(--ink-2); max-width:66ch; margin:0}
+nav.rail{display:none}
+@media(min-width:1120px){
+  nav.rail{display:block; position:sticky; top:28px; padding-top:48px; font-size:13px; line-height:1.45}
+  nav.rail ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px}
+  nav.rail a{display:flex; gap:9px; padding:4px 0; color:var(--ink-3); text-decoration:none}
+  nav.rail a:hover{color:var(--teal)}
+  nav.rail a:focus-visible{outline:2px solid var(--teal); outline-offset:3px; border-radius:2px}
+  nav.rail .n{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--line-strong); padding-top:2px}
+}
+section{padding-top:50px; scroll-margin-top:22px}
+h2{font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:1.68rem; line-height:1.2;
+  letter-spacing:-.012em; margin:0 0 6px; text-wrap:balance}
+.sectag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); margin:0 0 20px; padding-bottom:13px; border-bottom:1px solid var(--line)}
+h3{font-weight:600; font-size:1rem; margin:28px 0 9px}
+h4{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--teal); margin:24px 0 8px; font-weight:500}
+p{margin:0 0 15px; max-width:70ch}
+ul,ol{margin:0 0 15px; padding-left:20px; max-width:70ch}
+li{margin-bottom:6px}
+strong{font-weight:600}
+code{font-family:"IBM Plex Mono",monospace; font-size:.85em; background:var(--surface-2);
+  padding:1.5px 5px; border-radius:3px}
+.note{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--copper);
+  border-radius:0 4px 4px 0; padding:17px 19px; margin:0 0 20px; box-shadow:var(--shadow)}
+.note .lbl{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--copper); display:block; margin-bottom:7px}
+.note p:last-child,.note ul:last-child{margin-bottom:0}
+.note.teal{border-left-color:var(--teal)} .note.teal .lbl{color:var(--teal)}
+.note.crit{border-left-color:var(--crit)} .note.crit .lbl{color:var(--crit)}
+.tw{overflow-x:auto; margin:0 0 18px; border:1px solid var(--line); border-radius:4px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:.855rem; min-width:540px}
+th{text-align:left; font-family:"IBM Plex Mono",monospace; font-weight:500; font-size:10px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); padding:10px 14px;
+  border-bottom:1px solid var(--line-strong); background:var(--surface-2); white-space:nowrap}
+td{padding:9px 14px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.48}
+tr:last-child td{border-bottom:none}
+td code{background:var(--surface-2); font-size:.85em; white-space:nowrap}
+td:first-child code{color:var(--teal)}
+.num{font-variant-numeric:tabular-nums; white-space:nowrap}
+pre{font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.65; background:var(--surface);
+  border:1px solid var(--line); border-radius:4px; padding:17px 19px; overflow-x:auto; margin:0 0 18px;
+  color:var(--ink-2); white-space:pre}
+pre b{color:var(--ink); font-weight:500}
+pre i{color:var(--ink-3); font-style:normal}
+pre u{color:var(--teal); text-decoration:none}
+pre s{color:var(--copper); text-decoration:none}
+.rules{display:flex; flex-direction:column; gap:9px; margin:0 0 20px}
+.rule{display:grid; grid-template-columns:38px minmax(0,1fr); gap:14px; background:var(--surface);
+  border:1px solid var(--line); border-left:3px solid var(--teal); border-radius:0 4px 4px 0; padding:14px 16px}
+.rule .n{font-family:"IBM Plex Mono",monospace; font-size:15px; color:var(--teal); font-weight:500}
+.rule .t{font-weight:600; font-size:.93rem; margin-bottom:4px}
+.rule .d{font-size:.855rem; color:var(--ink-2); line-height:1.5}
+.rule .d em{color:var(--copper); font-style:normal; font-family:"IBM Plex Mono",monospace; font-size:.9em}
+.dep{display:flex; flex-direction:column; gap:4px; margin:0 0 8px}
+.dl{display:grid; grid-template-columns:112px minmax(0,1fr); border:1px solid var(--line);
+  border-radius:4px; overflow:hidden; background:var(--surface); font-size:.855rem}
+.dl .a{font-family:"IBM Plex Mono",monospace; font-size:11px; padding:10px 12px; background:var(--surface-2);
+  border-right:1px solid var(--line); display:flex; align-items:center; color:var(--ink-2)}
+.dl .b{padding:10px 13px; color:var(--ink-2)}
+.dl.core{border-left:3px solid var(--ink-3)}
+.dl.pkg{border-left:3px solid var(--teal)}
+.dl.app{border-left:3px solid var(--copper)}
+.updn{text-align:center; color:var(--line-strong); font-family:"IBM Plex Mono",monospace; font-size:12px; margin:0; line-height:1}
+footer{margin-top:58px; padding-top:24px; border-top:1px solid var(--line); font-size:.83rem; color:var(--ink-3); max-width:70ch}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <p class="eyebrow">LomasAI &middot; Technical Architecture &middot; v1</p>
+  <h1>How the system is put together</h1>
+  <p class="standfirst">Six portable packages, one thin application that wires them, and a set of isolation rules that make &ldquo;change it in one place&rdquo; a property the code enforces rather than a habit the team has to remember.</p>
+</header>
+
+<div class="layout">
+<nav class="rail" aria-label="Contents">
+  <ol>
+    <li><a href="#contract"><span class="n">01</span><span>Isolation contract</span></a></li>
+    <li><a href="#map"><span class="n">02</span><span>Package map</span></a></li>
+    <li><a href="#files"><span class="n">03</span><span>Every file</span></a></li>
+    <li><a href="#ports"><span class="n">04</span><span>The interfaces</span></a></li>
+    <li><a href="#events"><span class="n">05</span><span>Event contracts</span></a></li>
+    <li><a href="#config"><span class="n">06</span><span>Config surface</span></a></li>
+    <li><a href="#data"><span class="n">07</span><span>Data schema</span></a></li>
+    <li><a href="#adding"><span class="n">08</span><span>Adding a feature</span></a></li>
+    <li><a href="#hw"><span class="n">09</span><span>Hardware &amp; models</span></a></li>
+    <li><a href="#test"><span class="n">10</span><span>Testing</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="contract">
+  <h2>The isolation contract</h2>
+  <p class="sectag">Five rules &middot; everything else follows from these</p>
+  <p>You asked that touching one thing never breaks another, and that every feature be testable on its own. That is not a folder-structure problem, it is a dependency problem. These five rules are what actually deliver it, and each one is enforced by a test rather than by review.</p>
+
+  <div class="rules">
+    <div class="rule"><div class="n">1</div><div>
+      <div class="t">Packages never import siblings</div>
+      <div class="d">A capability package may import <code>lomas_core</code> and third-party libraries. Nothing else of ours. <code>lomas_face</code> cannot import <code>lomas_vision</code> &mdash; it receives frames as plain arrays. <em>test_imports.py walks the AST of every package and fails on a lateral edge.</em></div>
+    </div></div>
+    <div class="rule"><div class="n">2</div><div>
+      <div class="t">Packages never import the app</div>
+      <div class="d">Dependencies point one way: app &rarr; packages &rarr; core. This is what makes a package droppable into your next product. <em>Same test.</em></div>
+    </div></div>
+    <div class="rule"><div class="n">3</div><div>
+      <div class="t">Features talk through events, not calls</div>
+      <div class="d">Attention scoring publishes <code>student.disengaged</code>. The nudge agent subscribes. Neither knows the other exists. Delete either one and the system still runs. <strong>This is the rule that actually buys you independence</strong> &mdash; direct calls between features are what create the breakage you want to avoid.</div>
+    </div></div>
+    <div class="rule"><div class="n">4</div><div>
+      <div class="t">Every feature can be switched off</div>
+      <div class="d">Each has <code>enabled: true|false</code> in config, and the system must start and run a full lesson with any combination off. <em>A test boots the app once per feature with that feature disabled.</em></div>
+    </div></div>
+    <div class="rule"><div class="n">5</div><div>
+      <div class="t">No literal in a decision position</div>
+      <div class="d">Thresholds, timings, angles, model names, ports, prompts &mdash; all from config. <em>A scanner test flags bare numbers and strings in comparisons and defaults outside the schema file.</em></div>
+    </div></div>
+  </div>
+
+  <div class="note teal">
+    <span class="lbl">What this buys, concretely</span>
+    <p>An intern working on face recognition cannot break the quiz. A change to the wake word cannot affect the dashboard. You can run the entire teaching flow on a laptop with no camera, no microphone and no internet, because every port has a stand-in. And when you build your next robot, you copy four folders and they work.</p>
+  </div>
+</section>
+
+<section id="map">
+  <h2>Package map</h2>
+  <p class="sectag">Six packages, one application, one direction</p>
+
+  <div class="dep">
+    <div class="dl app"><div class="a">app/</div><div class="b"><strong>The integrator.</strong> The only code that knows all six packages exist. Wires them from config, runs the session, serves the web UI. Deliberately thin.</div></div>
+    <p class="updn">&darr; may import &darr;</p>
+    <div class="dl pkg"><div class="a">lomas_vision</div><div class="b">Frames from any source. Knows nothing about faces.</div></div>
+    <div class="dl pkg"><div class="a">lomas_face</div><div class="b">Detection, tracking, identity, pose, attention. Receives arrays, returns data. Never opens a camera.</div></div>
+    <div class="dl pkg"><div class="a">lomas_speech</div><div class="b">Wake word, speech in, speech out, duplex control.</div></div>
+    <div class="dl pkg"><div class="a">lomas_llm</div><div class="b">Providers, routing, language-keyed prompts.</div></div>
+    <div class="dl pkg"><div class="a">lomas_store</div><div class="b">Tenancy, repositories, schema, migrations.</div></div>
+    <div class="dl pkg"><div class="a">lomas_hal</div><div class="b">Servos, sensors, the ESP32 wire protocol, and a simulator.</div></div>
+    <p class="updn">&darr; all may import &darr;</p>
+    <div class="dl core"><div class="a">lomas_core</div><div class="b"><strong>Foundation only.</strong> Registry, config loader, event bus, clock, errors, logging. Zero domain knowledge &mdash; it would make equal sense in a warehouse robot.</div></div>
+  </div>
+  <p style="margin-top:14px">The split that matters most is <strong>vision and face being separate</strong>. Vision produces frames; face consumes arrays. That is why the same recognition code runs against a live Pi camera, a recorded video, or a folder of test images without knowing the difference &mdash; and why classroom CCTV later is a new file in <code>lomas_vision</code> and nothing else.</p>
+</section>
+
+<section id="files">
+  <h2>Every file and its one job</h2>
+  <p class="sectag">Structure &middot; roughly 90 files, none of them large</p>
+
+<pre><b>LomasAI/</b>
+├── <b>run.py</b>                        <i>parse args, load config, hand to container, start</i>
+├── <b>packages/</b>
+│   ├── <u>lomas_core/</u>
+│   │   ├── registry.py              <i>Registry[T] + @register + package auto-discovery</i>
+│   │   ├── config.py                <i>four-layer loader, --set overrides</i>
+│   │   ├── schema.py                <i>typed config models, the one place defaults live</i>
+│   │   ├── events.py                <i>EventBus: publish, subscribe, replay</i>
+│   │   ├── contracts.py             <i>canonical event names + payload shapes</i>
+│   │   ├── clock.py                 <i>injectable time so tests are deterministic</i>
+│   │   ├── logging.py               <i>mode-aware logger factory</i>
+│   │   └── errors.py
+│   ├── <u>lomas_vision/</u>
+│   │   ├── source.py                <i>CameraSource protocol</i>
+│   │   ├── frame.py                 <i>Frame: source_id, seq, ts, image</i>
+│   │   ├── bus.py                   <i>FrameBus: N sources, ring buffer, drop-oldest</i>
+│   │   ├── zoom.py                  <i>zoom factor to sensor crop rectangle</i>
+│   │   └── sources/
+│   │       ├── picamera2.py  usb.py  rtsp.py     <i>rtsp = CCTV, later</i>
+│   │       └── file.py  folder.py  mock.py       <i>the testing backends</i>
+│   ├── <u>lomas_face/</u>
+│   │   ├── types.py                 <i>FaceBox, Track, Identity, Pose</i>
+│   │   ├── detector.py              <i>FaceDetector protocol</i>
+│   │   ├── detectors/yunet.py  mediapipe.py  mock.py
+│   │   ├── embedder.py              <i>FaceEmbedder protocol</i>
+│   │   ├── embedders/arcface_onnx.py  mock.py
+│   │   ├── tracker.py               <i>IoU matching, track birth and death</i>
+│   │   ├── identity.py              <i>embedding to student, thresholds, re-verify</i>
+│   │   ├── pose.py                  <i>yaw and pitch from five landmarks</i>
+│   │   └── attention.py             <i>EMA score, disengagement detection</i>
+│   ├── <u>lomas_speech/</u>
+│   │   ├── wake.py                  <i>WakeWord protocol</i>
+│   │   ├── wakes/openwakeword.py  porcupine.py  keyboard.py
+│   │   ├── stt.py                   <i>SpeechToText protocol</i>
+│   │   ├── stts/groq.py  vosk.py  keyboard.py
+│   │   ├── tts.py                   <i>TextToSpeech protocol</i>
+│   │   ├── ttss/piper.py  gtts.py  null.py
+│   │   ├── devices.py               <i>N audio inputs, each with a zone id</i>
+│   │   └── duplex.py                <i>mute the mic while speaking</i>
+│   ├── <u>lomas_llm/</u>
+│   │   ├── provider.py              <i>LLMProvider protocol: complete, stream</i>
+│   │   ├── providers/groq.py  anthropic.py  openai.py  offline.py
+│   │   ├── router.py                <i>complexity scoring to model choice</i>
+│   │   ├── prompts.py               <i>language-keyed template loader</i>
+│   │   └── types.py
+│   ├── <u>lomas_store/</u>
+│   │   ├── store.py                 <i>Store protocol</i>
+│   │   ├── backends/sqlite.py  memory.py
+│   │   ├── schema.sql  migrations.py
+│   │   ├── scope.py                 <i>TenantScope, required by every repo method</i>
+│   │   └── repos/orgs.py  schools.py  classes.py  students.py
+│   │       consent.py  embeddings.py  sessions.py  answers.py  events.py
+│   └── <s>lomas_hal/</s>
+│       ├── <s>backend.py</s>              <i>HardwareBackend protocol</i>
+│       ├── <s>protocol.py</s>             <i>wire frames, shared with firmware</i>
+│       ├── <s>backends/simulator.py  esp32.py</s>
+│       └── <s>gestures.py</s>             <i>keyframe playback from config</i>
+├── <b>app/</b>                          <i>the integrator files</i>
+│   ├── container.py                 <i>builds every object from config. the only place concrete names appear</i>
+│   ├── orchestrator.py              <i>owns the session, drives the state machine</i>
+│   ├── pipeline.py                  <i>frames to faces to events. wires vision and face together</i>
+│   ├── flow/states.py  machine.py
+│   ├── flow/steps/                  <i>one file per stage, listed in config</i>
+│   │   └── attendance.py  greeting.py  lesson.py  interaction.py  quiz.py  wrapup.py
+│   ├── agents/base.py  tutor.py  quizmaster.py  narrator.py  engagement.py  safety.py
+│   ├── context/assembler.py         <i>what an agent is allowed to see, scoped</i>
+│   ├── context/mcp_server.py        <i>exposes that over MCP</i>
+│   └── web/server.py  api.py  stream.py  ws.py
+│       └── ui/face/  board/  teacher/  debug/     <i>four surfaces, one event stream</i>
+├── <b>config/</b>
+│   ├── default.yaml                 <i>every key, documented</i>
+│   ├── profiles/debug.yaml  user.yaml  pi.yaml  laptop.yaml
+│   ├── prompts/&lt;lang&gt;/*.yaml
+│   └── hardware/servos.yaml  sensors.yaml  gestures.yaml
+├── <b>content/</b>&lt;lang&gt;/&lt;grade&gt;/&lt;subject&gt;/   <i>lessons, quizzes, stories</i>
+├── <s>firmware/esp32/</s>
+└── tests/
+</pre>
+  <p><strong>The three integrator files are <code>container.py</code>, <code>orchestrator.py</code> and <code>pipeline.py</code>.</strong> Everything else is either a package that knows nothing about the product, or a step or agent that plugs into the flow. If you understand those three files you understand the system.</p>
+</section>
+
+<section id="ports">
+  <h2>The interfaces</h2>
+  <p class="sectag">Ports &middot; the swap boundary, kept deliberately small</p>
+  <p>Every interface below is a Python <code>Protocol</code> with three or four methods. Small interfaces are what make alternative implementations cheap; a fat interface is a swap that never happens.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Protocol</th><th>Methods</th><th>Implementations at v1</th></tr></thead>
+    <tbody>
+      <tr><td><code>CameraSource</code></td><td>open, read, set_zoom, close</td><td>picamera2, usb, rtsp, file, folder, mock</td></tr>
+      <tr><td><code>FaceDetector</code></td><td>detect(image) &rarr; boxes+landmarks</td><td>yunet, mediapipe, mock</td></tr>
+      <tr><td><code>FaceEmbedder</code></td><td>embed(crop) &rarr; vector</td><td>arcface_onnx, mock</td></tr>
+      <tr><td><code>WakeWord</code></td><td>start, poll, stop</td><td>openwakeword, porcupine, keyboard</td></tr>
+      <tr><td><code>SpeechToText</code></td><td>transcribe(audio, lang)</td><td>groq, vosk, keyboard</td></tr>
+      <tr><td><code>TextToSpeech</code></td><td>speak(text, lang), stop</td><td>piper, gtts, null</td></tr>
+      <tr><td><code>LLMProvider</code></td><td>complete, stream</td><td>groq, anthropic, openai, offline</td></tr>
+      <tr><td><code>Store</code></td><td>execute, query, transaction</td><td>sqlite, memory</td></tr>
+      <tr><td><code>HardwareBackend</code></td><td>gesture, move, read_sensors, halt</td><td>simulator, esp32</td></tr>
+      <tr><td><code>FlowStep</code></td><td>enter, tick, exit</td><td>the six lesson stages</td></tr>
+      <tr><td><code>Agent</code></td><td>handle(event, context)</td><td>tutor, quizmaster, narrator, engagement, safety</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Every one of these has a <code>mock</code> or <code>null</code> implementation, and that is not padding &mdash; it is what lets the whole product run on a laptop in CI with no hardware and no API keys.</p>
+</section>
+
+<section id="events">
+  <h2>Event contracts</h2>
+  <p class="sectag">The spine &middot; the only way features reach each other</p>
+  <p>Names live in <code>lomas_core/contracts.py</code> and are the stable API between features. Changing a payload is a breaking change and should feel like one; adding a new event is free.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Event</th><th>Published by</th><th>Consumed by</th></tr></thead>
+    <tbody>
+      <tr><td><code>session.opened</code> / <code>closed</code></td><td>orchestrator</td><td>store, all UIs, agents</td></tr>
+      <tr><td><code>session.paused</code> / <code>resumed</code></td><td>teacher dashboard</td><td>orchestrator, speech, hal</td></tr>
+      <tr><td><code>vision.tracks</code></td><td>pipeline</td><td>face UI, teacher UI, attention</td></tr>
+      <tr><td><code>student.identified</code> / <code>left</code></td><td>identity</td><td>attendance, agents, UIs</td></tr>
+      <tr><td><code>student.disengaged</code></td><td>attention</td><td>engagement agent</td></tr>
+      <tr><td><code>speech.wake</code></td><td>wake word</td><td>orchestrator</td></tr>
+      <tr><td><code>speech.transcript</code></td><td>stt</td><td>orchestrator, face UI</td></tr>
+      <tr><td><code>robot.say</code></td><td>agents, steps</td><td>tts, face UI, board UI</td></tr>
+      <tr><td><code>robot.state</code></td><td>orchestrator</td><td>face UI, hal</td></tr>
+      <tr><td><code>lesson.segment</code></td><td>lesson step</td><td>board UI, store</td></tr>
+      <tr><td><code>question.asked</code> / <code>answered</code></td><td>interaction step</td><td>tutor agent, store</td></tr>
+      <tr><td><code>quiz.posed</code> / <code>recorded</code></td><td>quiz step</td><td>store, teacher UI</td></tr>
+      <tr><td><code>safety.halt</code> / <code>cleared</code></td><td>hal, safety agent</td><td>everything</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note teal">
+    <span class="lbl">Why every UI reads the same stream</span>
+    <p>The robot face, the projector view, the teacher dashboard and the debug overlay are four subscribers to one event stream. There is no second code path assembling data for the dashboard, so the dashboard cannot disagree with what happened. It also means adding a fifth surface later &mdash; a parent app, a principal report &mdash; is a subscriber, not a feature.</p>
+  </div>
+</section>
+
+<section id="config">
+  <h2>Config surface</h2>
+  <p class="sectag">One tree &middot; four layers &middot; schema-validated at boot</p>
+  <p>Layers resolve last-wins: <code>default.yaml</code> &rarr; <code>profiles/&lt;mode&gt;.yaml</code> &rarr; <code>site.yaml</code> (per school, gitignored) &rarr; environment and <code>--set</code>. A typo fails at startup with the key path, never silently at 11am in a classroom.</p>
+<pre><b>runtime:</b>    mode, locale, log_level, sinks
+<b>tenancy:</b>    org_id, school_id, class_id, scratch_tenant_for_debug
+<b>sources:</b>    <i># a list from day one, even with one entry</i>
+  - id: head        kind: picamera2   zone: front   resolution, fps, zoom, rotation
+  <i># later: - id: cctv_1  kind: rtsp  url: ...  zone: back</i>
+<b>face:</b>       enabled, detector, embedder, detect_fps, downscale,
+             match_threshold, reverify_seconds, max_tracks
+<b>attention:</b>  enabled, cone_yaw, cone_pitch, window_seconds, threshold,
+             min_duration, cooldown_per_student, max_nudges_per_session
+<b>speech:</b>
+  wake:      enabled, engine, phrase, sensitivity
+  stt:       engine, language, silence_timeout, fallback_engine
+  tts:       engine, voice_per_language, rate
+  audio:     inputs[] (each with zone), output, half_duplex
+<b>llm:</b>        provider, model, fallback_provider, temperature, max_tokens,
+             timeout, retries, stream, router.thresholds
+<b>flow:</b>       sequence[], per_stage_timeout, advance_policy,
+             questions_per_lesson, quiz_length, pass_mark
+<b>content:</b>    language, grade, subject, vocabulary_level, pack_path
+<b>display:</b>    face_screen (resolution, scale), board_screen (enabled, output)
+<b>agents:</b>     enabled[], per-agent model and prompt overrides
+<b>storage:</b>    backend, path, retention_days, purge_on_term_end
+<b>privacy:</b>    recognition_enabled, require_consent, store_images (false),
+             attention_detail_retention
+<b>hardware:</b>   backend, port, baud, servo map, gesture set, safety thresholds
+<b>web:</b>        host, port, surfaces_enabled[]
+</pre>
+  <p><strong>Two keys deserve attention.</strong> <code>sources</code> is a list even though you have one camera &mdash; that single decision is what makes classroom CCTV and multi-angle capture additive later rather than a rewrite. And <code>speech.audio.inputs</code> is a list with zone ids for the same reason: per-desk microphones become config entries, not a redesign.</p>
+</section>
+
+<section id="data">
+  <h2>Data schema</h2>
+  <p class="sectag">SQLite on the robot &middot; every table carries org_id</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Table</th><th>Holds</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>orgs</code></td><td>Chain or CSR programme, branding, feature flags</td><td>Top of the tenancy tree</td></tr>
+      <tr><td><code>schools</code></td><td>Campus, default language, timetable</td><td></td></tr>
+      <tr><td><code>classes</code></td><td>Grade, section, subject</td><td></td></tr>
+      <tr><td><code>students</code></td><td>Name, roll number, class</td><td>No photographs, ever</td></tr>
+      <tr><td><code>consent</code></td><td>Student, type, granted_by, granted_at, document ref</td><td>Enrolment is blocked without a row here</td></tr>
+      <tr><td><code>embeddings</code></td><td>Student, vector, quality, captured_at</td><td>Several per student, one per head angle</td></tr>
+      <tr><td><code>sessions</code></td><td>Class, teacher, topic, language, started, ended</td><td>Debug mode writes to a scratch org</td></tr>
+      <tr><td><code>session_students</code></td><td>Presence, join and leave times</td><td>Attendance</td></tr>
+      <tr><td><code>answers</code></td><td>Student, question, response, correct, latency</td><td>Per student, never per class</td></tr>
+      <tr><td><code>events</code></td><td>Append-only session event log</td><td>Source of truth for every report</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note crit">
+    <span class="lbl">Two hard rules in the schema itself</span>
+    <p><strong>No table stores an image.</strong> Enrolment frames are embedded and discarded in the same function call &mdash; there is no column to put them in, so a future intern cannot casually add the behaviour.</p>
+    <p><strong>Attention detail expires.</strong> Per-second scores live only in memory. What reaches <code>events</code> is the session aggregate. This is the difference between a teaching aid and a surveillance record of a child, and it is much easier to build in now than to argue about later.</p>
+  </div>
+</section>
+
+<section id="adding">
+  <h2>Adding a feature, end to end</h2>
+  <p class="sectag">Proof the claim holds</p>
+  <p>Say you want the robot to notice when a student raises their hand. Here is the complete change:</p>
+  <ol>
+    <li>Add <code>packages/lomas_face/gestures.py</code> with a hand-raise detector. It receives arrays and returns data, like everything else in that package.</li>
+    <li>It publishes a new event, <code>student.hand_raised</code>, added to <code>contracts.py</code>.</li>
+    <li>Add its config block with <code>enabled: false</code> as the default.</li>
+    <li>Whatever should react &mdash; the interaction step, the teacher dashboard &mdash; subscribes to the new event.</li>
+  </ol>
+  <p><strong>No existing file changes behaviour.</strong> The detector is off by default, so every existing test passes untouched. Turn it on in one profile, test it there, promote it when you trust it. If it turns out to be a bad idea, delete the file and one config block and there is nothing left behind.</p>
+  <p>The same shape applies to a new language (a content folder and a voice entry), a new AI provider (one file), a new camera (one file plus a config entry), or a new screen (a subscriber). That is the whole point of the structure.</p>
+</section>
+
+<section id="hw">
+  <h2>Hardware and models</h2>
+  <p class="sectag">Pi 4 today, Pi 5 later, all through config</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Job</th><th>Choice</th><th>Config key</th></tr></thead>
+    <tbody>
+      <tr><td>Face detection</td><td>YuNet, in OpenCV, ~5&ndash;10 ms, gives five landmarks free</td><td><code>face.detector</code></td></tr>
+      <tr><td>Head pose</td><td>Derived from those landmarks, no second model</td><td>&mdash;</td></tr>
+      <tr><td>Recognition</td><td>ArcFace or MobileFaceNet via onnxruntime, 30&ndash;80 ms, new tracks only</td><td><code>face.embedder</code></td></tr>
+      <tr><td>Wake word</td><td>openWakeWord, no API key, ~10% of a core</td><td><code>speech.wake.engine</code></td></tr>
+      <tr><td>Speech in, online</td><td>Groq Whisper large-v3-turbo</td><td><code>speech.stt.engine</code></td></tr>
+      <tr><td>Speech in, offline</td><td>Vosk small model per language</td><td><code>speech.stt.fallback_engine</code></td></tr>
+      <tr><td>Speech out</td><td><strong>Piper</strong> &mdash; local, faster than realtime on a Pi 4, Hindi and Indic voices</td><td><code>speech.tts.engine</code></td></tr>
+      <tr><td>Reasoning</td><td>Groq for speed, escalation through your existing router</td><td><code>llm.provider</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Moving to a Pi 5 changes <code>profiles/pi.yaml</code> and nothing else &mdash; higher <code>detect_fps</code>, more <code>max_tracks</code>, a bigger Vosk model, possibly local reasoning. The point of putting every number in config is that a hardware upgrade is a config commit.</p>
+  <p><strong>Budget on the Pi 4 at these settings lands around 3.1&ndash;3.5 of 4 cores</strong>, with Chromium the largest single consumer at roughly 1.0&ndash;1.4. Keep the UI pages lean and add the cooling fans; a throttled Pi presents exactly like a software bug.</p>
+</section>
+
+<section id="test">
+  <h2>Testing</h2>
+  <p class="sectag">How each feature is proven alone</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Layer</th><th>Runs</th><th>Needs</th></tr></thead>
+    <tbody>
+      <tr><td>Package unit tests</td><td>Per package, in isolation</td><td>Nothing. Mock implementations throughout</td></tr>
+      <tr><td>Vision replay</td><td>Recorded classroom video through the real pipeline</td><td><code>file</code> camera source. No hardware</td></tr>
+      <tr><td>Flow tests</td><td>A full session, headless, in under a second</td><td>Mock speech, offline LLM, memory store, fake clock</td></tr>
+      <tr><td>Tenancy test</td><td>Two orgs with deliberately colliding names</td><td>Asserts neither can see the other</td></tr>
+      <tr><td>Feature-off matrix</td><td>Boots once per feature with that feature disabled</td><td>Proves rule 4 still holds</td></tr>
+      <tr><td>Import boundary</td><td>Walks every package's imports</td><td>Proves rules 1 and 2 still hold</td></tr>
+      <tr><td>Literal scanner</td><td>Flags bare constants in decision positions</td><td>Proves rule 5 still holds</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The four rule-enforcing tests are the ones that matter over a year of interns. Everything else tests behaviour, which changes; those four test the architecture, which must not.</p>
+</section>
+
+<footer>
+  <p>Architecture v1 for LomasAI Phase 1. Companion documents: the school journey (product intent) and the build prompt series (execution order). Target: Raspberry Pi 4 4GB, one camera, four to six students recognised, multilingual and grade-configurable.</p>
+</footer>
+
+</main>
+</div>
+</div>

@@ -1,0 +1,8 @@
+# Classroom mode. Quiet output, and a bad subscriber must not end the lesson.
+
+runtime:
+  mode: user
+  log_level: INFO
+  sinks:
+    - console
+  raise_on_handler_error: false
