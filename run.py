@@ -63,6 +63,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.seed:
             seed.demo_class(system)
 
+        if system.web is not None:
+            system.web.start()
+
         logger.info("LomasAI, %s mode, org %s", cfg.runtime.mode, cfg.active_org_id)
         state = system.orchestrator.run(topic=args.topic, language=args.language)
         logger.info("finished: %s", state.value)

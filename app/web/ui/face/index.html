@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lomas</title>
+<link rel="stylesheet" href="face.css">
+</head>
+<body>
+
+<!-- Off unless ?camera=1. A camera feed does not belong on a screen pointed
+     at a class; the machinery is here because the teacher and debug surfaces
+     use the same box positioning. -->
+<div id="camera" hidden>
+  <img id="feed" alt="">
+  <div id="boxes"></div>
+</div>
+
+<main id="stage" data-state="sleeping">
+
+  <div id="face">
+    <div class="eye left"><span class="pupil"></span></div>
+    <div class="eye right"><span class="pupil"></span></div>
+    <div id="mouth"></div>
+  </div>
+
+  <div id="speech">
+    <div id="badge" hidden></div>
+    <p id="line"></p>
+  </div>
+
+  <ol id="options" hidden></ol>
+
+  <p id="hint">Say <b>Hey Lomas</b> to begin</p>
+
+</main>
+
+<footer id="ribbon" aria-label="class"></footer>
+
+<script src="face.js"></script>
+</body>
+</html>

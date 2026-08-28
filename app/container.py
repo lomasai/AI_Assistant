@@ -42,6 +42,7 @@ from app.flow.machine import Machine
 from app.flow.step import STEPS
 from app.orchestrator import Orchestrator
 from app.pipeline import VisionPipeline, vectors_by_student
+from app.web.server import WebServer
 from app.voice import Voice, allow_everything
 
 from app import agents as _agents  # noqa: F401
@@ -72,6 +73,7 @@ class System:
     agents: AgentRunner | None = None
     mcp: ContextServer | None = None
     vision: VisionPipeline | None = None
+    web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -79,6 +81,8 @@ class System:
         return self.vision.frames if self.vision else None
 
     def close(self) -> None:
+        if self.web is not None:
+            self.web.stop()
         # Signal the pipeline first, then close the bus that wakes it. The
         # other order leaves the vision thread parked on an idle camera.
         if self.vision is not None:
@@ -138,13 +142,19 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         ",".join(runner.names()) if runner else "none",
     )
 
-    return System(
+    system = System(
         cfg=cfg, bus=bus, clock=clock, store=store, repos=repos, prompts=prompts,
         llm=llm, router=router, tts=tts, stt=stt, wake=wake, voice=voice,
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
+
+    # Last, because every surface is a view of the finished system. It is
+    # built but not started: nothing listens until someone asks it to.
+    if cfg.web.enabled:
+        system.web = WebServer(system)
+    return system
 
 
 def build_vision(

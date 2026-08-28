@@ -369,6 +369,54 @@ class FlowConfig(BaseModel):
     attendance_falls_back_to_roster: bool = True
 
 
+class ScreenConfig(BaseModel):
+    model_config = Strict
+
+    enabled: bool = True
+    output: str = ""  # xrandr name, for the second HDMI port
+    width: int = Field(default=1024, ge=1)
+    height: int = Field(default=600, ge=1)
+    scale: float = Field(default=1.0, gt=0)
+
+
+class DisplayConfig(BaseModel):
+    """Two surfaces on one Pi. The 7-inch chest panel is the robot's face and
+    cannot carry lesson text a class can read; the second HDMI port drives a
+    classroom TV or projector for that."""
+
+    model_config = Strict
+
+    face_screen: ScreenConfig = Field(default_factory=ScreenConfig)
+    board_screen: ScreenConfig = Field(
+        default_factory=lambda: ScreenConfig(enabled=False, output="HDMI-2",
+                                             width=1920, height=1080)
+    )
+    # Where text starts on the face panel. Absurd on a laptop, right at 1.5 m.
+    base_font_px: int = Field(default=32, ge=1)
+
+
+class WebConfig(BaseModel):
+    model_config = Strict
+
+    enabled: bool = True
+    host: str = "0.0.0.0"
+    port: int = Field(default=8080, ge=1, le=65535)
+    surfaces: list[str] = Field(default_factory=lambda: ["face", "board"])
+
+    mjpeg_quality: int = Field(default=70, ge=1, le=100)
+    mjpeg_fps: int = Field(default=15, ge=1)
+    mjpeg_source: str = ""  # empty means the pipeline's camera
+
+    # Per browser. When it is full the oldest event goes: a tab left open on
+    # a locked laptop must never slow the lesson down.
+    client_queue: int = Field(default=64, ge=1)
+    ping_seconds: float = Field(default=20.0, gt=0)
+    # Vision publishes on every detect cycle and the face UI needs it, so it
+    # is on the wire even though it is kept out of the session log.
+    event_filter: list[str] = Field(default_factory=lambda: ["*"])
+    shutdown_seconds: float = Field(default=2.0, gt=0)
+
+
 class AgentConfig(BaseModel):
     """One agent's overrides. Empty strings inherit from llm.*, so the safety
     filter can be pinned to a cheap fast model without touching the tutor."""
@@ -469,6 +517,8 @@ class Config(BaseModel):
     content: ContentConfig = Field(default_factory=ContentConfig)
     agents: AgentsConfig = Field(default_factory=AgentsConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
+    display: DisplayConfig = Field(default_factory=DisplayConfig)
+    web: WebConfig = Field(default_factory=WebConfig)
 
     @property
     def is_debug(self) -> bool:

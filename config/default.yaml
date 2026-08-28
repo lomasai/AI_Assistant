@@ -299,6 +299,47 @@ flow:
 
 # Each agent has one narrow job, its own prompt and its own model. The safety
 # filter does not need the model that teaches.
+# Two surfaces on one Pi. The 7-inch chest panel is the robot's face and
+# cannot carry lesson text a class can read; the second HDMI port drives a
+# classroom TV or projector for that.
+display:
+  face_screen:
+    enabled: true
+    output: ""
+    width: 1024
+    height: 600
+    scale: 1.0
+
+  board_screen:
+    enabled: false          # turn on where the room has a projector
+    output: HDMI-2
+    width: 1920
+    height: 1080
+    scale: 1.0
+
+  # Where text starts on the face panel. Absurd on a laptop over VNC, about
+  # right on a 7-inch screen seen from a metre and a half.
+  base_font_px: 32
+
+web:
+  enabled: true
+  host: 0.0.0.0
+  port: 8080
+  surfaces: [face, board]
+
+  # The stream is the camera as it is. Boxes are HTML over the video, never
+  # painted into the frame - that would cost a decode and re-encode per frame.
+  mjpeg_quality: 70
+  mjpeg_fps: 15
+  mjpeg_source: ""          # empty means the camera the pipeline is using
+
+  # Per browser. When it is full the oldest event goes: a tab left open on a
+  # locked laptop must never slow the lesson down.
+  client_queue: 64
+  ping_seconds: 20.0
+  event_filter: ["*"]
+  shutdown_seconds: 2.0
+
 agents:
   # Remove a name and that agent is gone. Nothing else changes.
   enabled: [tutor, quizmaster, narrator, engagement, safety]

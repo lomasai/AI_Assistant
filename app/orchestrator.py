@@ -15,7 +15,7 @@ from lomas_core.contracts import (
     SessionClosed,
     SessionOpened,
 )
-from lomas_core.events import EventBus
+from lomas_core.events import EventBus, to_plain
 from lomas_core.schema import Config
 from lomas_llm import PromptLibrary
 from lomas_store import TenantScope
@@ -170,14 +170,6 @@ class Orchestrator:
         def handler(name: str, payload) -> None:
             if any(fnmatch.fnmatchcase(name, pattern) for pattern in excluded):
                 return
-            repo.append(scope, session_id, name, _plain(payload))
+            repo.append(scope, session_id, name, to_plain(payload))
 
         self.bus.subscribe(ALL_EVENTS, handler)
-
-
-def _plain(payload: Any) -> Any:
-    if payload is None or isinstance(payload, (str, int, float, bool, dict, list)):
-        return payload
-    if hasattr(payload, "__slots__"):
-        return {slot: getattr(payload, slot, None) for slot in payload.__slots__}
-    return str(payload)

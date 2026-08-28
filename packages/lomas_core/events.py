@@ -8,6 +8,29 @@ from collections import deque
 from typing import Any, Callable
 
 Handler = Callable[[str, Any], Any]
+PLAIN = (str, int, float, bool)
+
+
+def to_plain(payload: Any) -> Any:
+    """A payload as plain data, for the log and for the wire.
+
+    Contract payloads are slotted dataclasses and nest - a tracks event holds
+    a tuple of track views - so this recurses. Anything unrecognised becomes
+    its string form rather than raising: a serialiser that can stop the class
+    is worse than a serialiser that is occasionally vague.
+    """
+    if payload is None or isinstance(payload, PLAIN):
+        return payload
+    if isinstance(payload, dict):
+        return {str(k): to_plain(v) for k, v in payload.items()}
+    if isinstance(payload, (list, tuple, set)):
+        return [to_plain(item) for item in payload]
+    slots = getattr(payload, "__slots__", None)
+    if slots:
+        return {slot: to_plain(getattr(payload, slot, None)) for slot in slots}
+    return str(payload)
+
+
 ErrorHook = Callable[[str, BaseException], None]
 
 
