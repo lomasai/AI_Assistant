@@ -13,6 +13,9 @@ from lomas_core.schema import Config
 ENV_PREFIX = "LOMAS__"
 ENV_SEPARATOR = "__"
 
+# The only spellings allowed to become None or a bool. See _coerce.
+EXPLICIT_SCALARS = {"true", "false", "~"}
+
 # Layers, lowest precedence first. Anything later wins.
 #   1. default.yaml          every key, documented
 #   2. profiles/<mode>.yaml  per-mode overrides
@@ -111,11 +114,26 @@ def _assign(tree: dict[str, Any], path: list[str], value: Any) -> None:
 
 
 def _coerce(raw: str) -> Any:
-    """Read a shell string as YAML so ints, bools and lists survive."""
+    """Read a shell string as YAML so ints, bools and lists survive.
+
+    With one correction. YAML 1.1 reads `null`, `no`, `yes`, `on` and `off`
+    as None or booleans, which is wrong for config values far more often than
+    it is right: `null` is the name of a real TTS engine here, and `no` is the
+    ISO code for Norwegian. Only the unambiguous spellings coerce; everything
+    else stays the string the user typed. Use `~` for an explicit null.
+    """
+    text = raw.strip()
+    if not text:
+        return ""
+
     try:
-        return yaml.safe_load(raw)
+        value = yaml.safe_load(text)
     except yaml.YAMLError:
         return raw
+
+    if (value is None or isinstance(value, bool)) and text.lower() not in EXPLICIT_SCALARS:
+        return text
+    return value
 
 
 def _explain(exc: ValidationError) -> str:

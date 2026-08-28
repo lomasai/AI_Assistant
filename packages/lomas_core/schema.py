@@ -153,6 +153,84 @@ class AttentionConfig(BaseModel):
     max_nudges_per_session: int = Field(default=3, ge=0)
 
 
+class WakeConfig(BaseModel):
+    model_config = Strict
+
+    enabled: bool = True
+    engine: Literal["openwakeword", "porcupine", "keyboard"] = "openwakeword"
+    phrase: str = "hey lomas"
+    sensitivity: float = Field(default=0.6, ge=0.0, le=1.0)
+    model_path: str = "models/wake/hey_lomas.onnx"
+    zone: str = "front"
+    access_key_env: str = "PICOVOICE_ACCESS_KEY"  # porcupine only
+
+
+class SttConfig(BaseModel):
+    model_config = Strict
+
+    engine: Literal["groq", "vosk", "keyboard"] = "groq"
+    # Used when the internet is gone, which in a government school is often.
+    fallback_engine: Literal["groq", "vosk", "keyboard"] = "vosk"
+    language: str = "en"
+    model: str = "whisper-large-v3-turbo"
+    model_path: str = "models/vosk"  # vosk keeps one directory per language
+    api_base: str = "https://api.groq.com/openai/v1"
+    api_key_env: str = "GROQ_API_KEY"  # the name is config, the secret is not
+    sample_rate: int = Field(default=16000, ge=8000)
+    silence_timeout_ms: int = Field(default=1200, ge=1)
+    max_utterance_seconds: int = Field(default=20, ge=1)
+    timeout_seconds: float = Field(default=15.0, gt=0)
+
+
+def _default_voices() -> dict[str, str]:
+    return {"en": "en_US-lessac-medium", "hi": "hi_IN-pratham-medium"}
+
+
+class TtsConfig(BaseModel):
+    model_config = Strict
+
+    engine: Literal["piper", "gtts", "null"] = "piper"
+    rate: float = Field(default=1.0, gt=0)
+    # A map per language, never a single voice string - that is what keeps
+    # adding a language content work rather than code work.
+    voice: dict[str, str] = Field(default_factory=_default_voices)
+    fallback_language: str = "en"
+    binary: str = "piper"
+    model_dir: str = "models/piper"
+    scratch_file: str = "data/tts-out.mp3"
+
+
+class AudioInputConfig(BaseModel):
+    model_config = Strict
+
+    id: str = "main"
+    device: str = "default"
+    zone: str = "front"
+
+
+def _default_inputs() -> list[AudioInputConfig]:
+    return [AudioInputConfig()]
+
+
+class AudioConfig(BaseModel):
+    model_config = Strict
+
+    # A list from the first commit. Per-desk microphones become entries here.
+    inputs: list[AudioInputConfig] = Field(default_factory=_default_inputs)
+    output: str = "default"
+    half_duplex: bool = True
+    tail_ms: int = Field(default=250, ge=0)
+
+
+class SpeechConfig(BaseModel):
+    model_config = Strict
+
+    wake: WakeConfig = Field(default_factory=WakeConfig)
+    stt: SttConfig = Field(default_factory=SttConfig)
+    tts: TtsConfig = Field(default_factory=TtsConfig)
+    audio: AudioConfig = Field(default_factory=AudioConfig)
+
+
 def _default_sources() -> list[SourceConfig]:
     return [SourceConfig(id="head")]
 
@@ -169,6 +247,7 @@ class Config(BaseModel):
     attention: AttentionConfig = Field(default_factory=AttentionConfig)
     enrolment: EnrolmentConfig = Field(default_factory=EnrolmentConfig)
     privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
+    speech: SpeechConfig = Field(default_factory=SpeechConfig)
 
     @property
     def is_debug(self) -> bool:

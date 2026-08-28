@@ -147,3 +147,59 @@ privacy:
   store_images: false
 
   store_attention_detail: false
+
+speech:
+  wake:
+    enabled: true
+    engine: openwakeword    # openwakeword | porcupine | keyboard
+    phrase: "hey lomas"
+    sensitivity: 0.6
+    model_path: models/wake/hey_lomas.onnx
+    zone: front
+    access_key_env: PICOVOICE_ACCESS_KEY   # porcupine only
+
+  stt:
+    engine: groq            # groq | vosk | keyboard
+    fallback_engine: vosk   # when the school's internet is gone
+    # Quote language codes in this file. Unquoted, YAML reads `no` as false
+    # (it is the code for Norwegian) and would silently break that language.
+    language: "en"
+    model: whisper-large-v3-turbo
+    model_path: models/vosk # one directory per language
+    api_base: https://api.groq.com/openai/v1
+
+    # The name of the variable is config; the secret itself never is.
+    api_key_env: GROQ_API_KEY
+
+    sample_rate: 16000
+    silence_timeout_ms: 1200
+    max_utterance_seconds: 20
+    timeout_seconds: 15.0
+
+  tts:
+    engine: piper           # piper | gtts | null
+    rate: 1.0
+
+    # A voice per language, never one voice string. This is what keeps adding
+    # a language content work instead of code work.
+    voice:
+      en: en_US-lessac-medium
+      hi: hi_IN-pratham-medium
+    fallback_language: en
+    binary: piper
+    model_dir: models/piper
+    scratch_file: data/tts-out.mp3
+
+  audio:
+    # A list, like sources. Per-desk microphones become entries here.
+    inputs:
+      - id: main
+        device: default
+        zone: front
+    output: default
+
+    # Mute the mic while speaking. Cheap, and it removes the two failures
+    # that actually bite: transcribing our own voice, and self-triggering
+    # the wake word.
+    half_duplex: true
+    tail_ms: 250

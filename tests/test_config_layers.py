@@ -96,3 +96,45 @@ def test_debug_writes_to_scratch_tenant(config_dir: Path) -> None:
     bench = load(config_dir, "debug", use_env=False)
     assert live.active_org_id == "from-default"
     assert bench.active_org_id == bench.tenancy.scratch_org_id
+
+
+# --- YAML 1.1 scalar traps -------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "typed, expected",
+    [
+        ("null", "null"),   # a real TTS engine name
+        ("no", "no"),       # Norwegian, not False
+        ("yes", "yes"),
+        ("on", "on"),
+        ("off", "off"),
+        ("y", "y"),
+        ("true", True),     # unambiguous, so it still coerces
+        ("false", False),
+        ("~", None),        # the explicit way to write null
+        ("42", 42),
+        ("1.5", 1.5),
+    ],
+)
+def test_cli_values_are_not_mangled_by_yaml(config_dir: Path, typed, expected) -> None:
+    from lomas_core.config import _coerce
+
+    assert _coerce(typed) == expected
+
+
+def test_null_tts_engine_is_selectable(config_dir: Path) -> None:
+    """It is the engine every test and dry run uses, so it has to be reachable
+    from the command line."""
+    cfg = load(config_dir, "user", ["speech.tts.engine=null"], use_env=False)
+    assert cfg.speech.tts.engine == "null"
+
+
+def test_norwegian_survives_the_command_line(config_dir: Path) -> None:
+    cfg = load(config_dir, "user", ["speech.stt.language=no"], use_env=False)
+    assert cfg.speech.stt.language == "no"
+
+
+def test_booleans_still_work(config_dir: Path) -> None:
+    assert load(config_dir, "user", ["face.enabled=false"], use_env=False).face.enabled is False
+    assert load(config_dir, "user", ["face.enabled=true"], use_env=False).face.enabled is True
