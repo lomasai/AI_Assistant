@@ -303,6 +303,58 @@ class LlmConfig(BaseModel):
     router: RouterConfig = Field(default_factory=RouterConfig)
 
 
+def _default_sequence() -> list[str]:
+    return ["attendance", "greeting", "lesson", "interaction", "quiz", "wrapup"]
+
+
+def _default_timeouts() -> dict[str, float]:
+    return {
+        "attendance": 120.0,
+        "greeting": 30.0,
+        "lesson": 900.0,
+        "interaction": 420.0,
+        "quiz": 300.0,
+        "wrapup": 90.0,
+    }
+
+
+class FlowConfig(BaseModel):
+    model_config = Strict
+
+    # Reordering or dropping a stage is an edit here, never a code change.
+    sequence: list[str] = Field(default_factory=_default_sequence)
+    stage_timeout_seconds: dict[str, float] = Field(default_factory=_default_timeouts)
+    default_timeout_seconds: float = Field(default=300.0, gt=0)
+    tick_seconds: float = Field(default=0.25, gt=0)
+    pause_poll_seconds: float = Field(default=0.1, gt=0)
+
+    questions_per_lesson: int = Field(default=6, ge=0)
+    # How long to wait on a quiz question before moving on. A class where
+    # nobody answers still has to reach the end of the lesson.
+    answer_wait_seconds: float = Field(default=20.0, gt=0)
+    quiz_length: int = Field(default=6, ge=0)
+    pass_mark: float = Field(default=0.6, ge=0.0, le=1.0)
+
+    # Until vision is wired in, and wherever recognition is switched off, the
+    # class list stands in for recognised faces so the lesson still has names.
+    # How long to wait for recognised faces before the class list stands in.
+    # Without this the stage would sit out its whole timeout on a robot with
+    # no camera running.
+    attendance_wait_seconds: float = Field(default=15.0, ge=0)
+    attendance_falls_back_to_roster: bool = True
+
+
+class ContentConfig(BaseModel):
+    model_config = Strict
+
+    language: str = "en"
+    grade: str = "6"
+    subject: str = "science"
+    vocabulary_level: Literal["primary", "middle", "secondary"] = "middle"
+    pack_path: str = "content"
+    default_topic: str = "photosynthesis"
+
+
 def _default_sources() -> list[SourceConfig]:
     return [SourceConfig(id="head")]
 
@@ -321,6 +373,8 @@ class Config(BaseModel):
     privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
     speech: SpeechConfig = Field(default_factory=SpeechConfig)
     llm: LlmConfig = Field(default_factory=LlmConfig)
+    flow: FlowConfig = Field(default_factory=FlowConfig)
+    content: ContentConfig = Field(default_factory=ContentConfig)
 
     @property
     def is_debug(self) -> bool:

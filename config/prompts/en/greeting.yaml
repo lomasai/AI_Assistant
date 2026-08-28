@@ -1,0 +1,9 @@
+# Addressed to the class as a whole. Never name individuals here - a roll of
+# names at the door singles a few children out and leaves the rest waiting.
+# Names are for when the robot asks someone a question directly.
+
+lines:
+  - "Good morning everyone. What shall we learn about today?"
+  - "Hello class. I am glad you are here. Shall we begin?"
+  - "Good morning. I have something interesting for us today."
+  - "Hello everyone. Settle in, and let us get started."

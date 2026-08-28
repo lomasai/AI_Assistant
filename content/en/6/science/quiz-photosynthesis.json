@@ -1,0 +1,19 @@
+{
+  "id": "quiz-photosynthesis",
+  "lesson": "photosynthesis",
+  "language": "en",
+  "questions": [
+    {"id": "q1", "ask": "Where does a plant get its food from?",
+     "options": ["The soil", "It makes its own", "From other plants"], "answer": 1},
+    {"id": "q2", "ask": "Which three things does a leaf need to make food?",
+     "options": ["Sunlight, water and carbon dioxide", "Soil, water and oxygen", "Sunlight, soil and air"], "answer": 0},
+    {"id": "q3", "ask": "What is the green colour inside a leaf called?",
+     "options": ["Chlorophyll", "Carbon", "Oxygen"], "answer": 0},
+    {"id": "q4", "ask": "Which gas does a leaf let out?",
+     "options": ["Carbon dioxide", "Nitrogen", "Oxygen"], "answer": 2},
+    {"id": "q5", "ask": "What does the word photo mean in photosynthesis?",
+     "options": ["Light", "Leaf", "Food"], "answer": 0},
+    {"id": "q6", "ask": "Can a leaf make food at night?",
+     "options": ["Yes, always", "No, there is no sunlight", "Only if it rains"], "answer": 1}
+  ]
+}

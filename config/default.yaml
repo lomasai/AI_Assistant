@@ -254,3 +254,36 @@ llm:
     simple_provider: groq
     medium_provider: groq
     complex_provider: anthropic
+
+flow:
+  # Reordering or dropping a stage is an edit here, never a code change.
+  sequence: [attendance, greeting, lesson, interaction, quiz, wrapup]
+
+  stage_timeout_seconds:
+    attendance: 120.0
+    greeting: 30.0
+    lesson: 900.0
+    interaction: 420.0
+    quiz: 300.0
+    wrapup: 90.0
+  default_timeout_seconds: 300.0
+
+  tick_seconds: 0.25
+  pause_poll_seconds: 0.1
+
+  questions_per_lesson: 6
+  answer_wait_seconds: 20.0   # move on if nobody answers
+  quiz_length: 6
+  pass_mark: 0.6
+
+  # Until vision is wired in, and wherever recognition is switched off, the
+  # class list stands in for recognised faces so the lesson still has names.
+  attendance_falls_back_to_roster: true
+
+content:
+  language: "en"
+  grade: "6"
+  subject: science
+  vocabulary_level: middle    # primary | middle | secondary
+  pack_path: content
+  default_topic: photosynthesis

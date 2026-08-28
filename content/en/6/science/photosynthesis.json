@@ -1,0 +1,39 @@
+{
+  "id": "photosynthesis",
+  "title": "How leaves make food",
+  "language": "en",
+  "grade": "6",
+  "subject": "science",
+  "segments": [
+    {
+      "id": "s1",
+      "display": "Plants make their own food",
+      "say": "Every animal has to find food. A goat eats grass, a tiger eats the goat. But a plant never goes anywhere. So where does a plant get its food from? It makes its own."
+    },
+    {
+      "id": "s2",
+      "display": "Three things a leaf needs",
+      "say": "A leaf needs three things. Sunlight from above, water pulled up from the roots, and a gas from the air called carbon dioxide. Put those three together and the leaf can build food."
+    },
+    {
+      "id": "s3",
+      "display": "Why leaves are green",
+      "say": "Inside every leaf there is a green colour called chlorophyll. That green is what catches the sunlight. No chlorophyll, no catching sunlight, no food. That is why almost every leaf you have ever seen is green."
+    },
+    {
+      "id": "s4",
+      "display": "What comes out",
+      "say": "The leaf keeps the food it makes, and it lets out oxygen. That is the gas we breathe. So the tree outside your classroom is quietly making the air you are breathing right now."
+    },
+    {
+      "id": "s5",
+      "display": "Photosynthesis",
+      "say": "This whole process has a name. Photosynthesis. Photo means light, and synthesis means putting together. Putting food together using light."
+    },
+    {
+      "id": "s6",
+      "display": "At night",
+      "say": "One last thing. At night there is no sunlight, so the leaf cannot make food. It rests, and lives on what it stored during the day. Just like you do."
+    }
+  ]
+}

@@ -8,3 +8,17 @@ runtime:
     - jsonl
   event_replay_size: 4096
   raise_on_handler_error: true
+
+# Bench runs must not sit through a real classroom's clock. Production
+# timings live in default.yaml; these only shorten the waiting.
+flow:
+  stage_timeout_seconds:
+    attendance: 5.0
+    greeting: 5.0
+    lesson: 30.0
+    interaction: 10.0
+    quiz: 20.0
+    wrapup: 5.0
+  tick_seconds: 0.02
+  attendance_wait_seconds: 1.0
+  answer_wait_seconds: 1.0

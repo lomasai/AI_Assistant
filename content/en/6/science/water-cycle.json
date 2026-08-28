@@ -1,0 +1,34 @@
+{
+  "id": "water-cycle",
+  "title": "Where rain comes from",
+  "language": "en",
+  "grade": "6",
+  "subject": "science",
+  "segments": [
+    {
+      "id": "s1",
+      "display": "The same water, again and again",
+      "say": "Here is something strange. The water in your bottle today may have been in a river a hundred years ago, and in a cloud before that. The earth never makes new water. It just keeps moving the same water around."
+    },
+    {
+      "id": "s2",
+      "display": "Water goes up",
+      "say": "When the sun heats a river or the sea, some water turns into vapour and rises into the sky. You cannot see it happening, but you have seen the result. That is why a wet floor dries on its own."
+    },
+    {
+      "id": "s3",
+      "display": "Clouds",
+      "say": "High up, the air is cold. The vapour cools down and turns back into tiny drops. Millions of those drops together are what we call a cloud."
+    },
+    {
+      "id": "s4",
+      "display": "Rain",
+      "say": "When the drops get heavy enough, they fall. That is rain. It runs into streams, then rivers, then back to the sea, and the whole thing starts again."
+    },
+    {
+      "id": "s5",
+      "display": "The water cycle",
+      "say": "Up as vapour, across as cloud, down as rain, back as river. A circle with no beginning and no end. We call it the water cycle."
+    }
+  ]
+}
