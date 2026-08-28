@@ -32,6 +32,7 @@ from app.flow.states import SessionState
 
 HEADLESS = [
     "storage.backend=memory",
+    "vision.pipeline.enabled=false",
     "speech.tts.engine=null",
     "speech.stt.engine=keyboard",
     "speech.wake.engine=keyboard",

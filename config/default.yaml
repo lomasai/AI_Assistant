@@ -23,6 +23,10 @@ runtime:
   # debug overlay. Raise it if the diagnostics view looks truncated.
   event_replay_size: 512
 
+  # Vision publishes on every detect cycle. Keeping it out of the session log
+  # stops thousands of frame events burying the ones a report reads.
+  log_event_exclude: ["vision.*"]
+
   # Debug mode sets this true so a broken handler surfaces immediately.
   # User mode sets it false so a demo survives one bad subscriber.
   raise_on_handler_error: true
@@ -69,6 +73,19 @@ vision:
   # consumer loses frames instead of stalling the camera.
   buffer_size: 4
   read_timeout_ms: 200
+
+  # Frames in, tracks out. Turn this off and the class still runs; attendance
+  # falls back to the roster and the robot addresses the room.
+  pipeline:
+    enabled: true
+    source: ""             # empty means the first enabled camera above
+    publish_tracks: true
+    idle_sleep_seconds: 0.01
+    join_timeout_seconds: 2.0
+
+    # Give up after this many failed cycles in a row. Vision stopping is not
+    # the class stopping; attendance falls back and the lesson carries on.
+    max_consecutive_errors: 5
 
 face:
   enabled: true

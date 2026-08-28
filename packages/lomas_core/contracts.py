@@ -31,6 +31,8 @@ QUESTION_ANSWERED = "question.answered"
 QUIZ_POSED = "quiz.posed"
 QUIZ_ANSWERED = "quiz.answered"
 
+VISION_TRACKS = "vision.tracks"
+
 STUDENT_IDENTIFIED = "student.identified"
 STUDENT_LEFT = "student.left"
 STUDENT_DISENGAGED = "student.disengaged"
@@ -139,3 +141,62 @@ class SafetyHalt:
     reason: str
     at: float
     detail: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class TrackView:
+    """One face as everything downstream sees it.
+
+    Boxes are full-resolution pixels whatever the detector actually ran on,
+    so an overlay can draw them without knowing anything about downscaling.
+    """
+
+    track_id: int
+    x: int
+    y: int
+    w: int
+    h: int
+    student_id: str | None
+    attention: float
+    yaw: float
+    pitch: float
+    seen_for: float
+
+
+@dataclass(frozen=True, slots=True)
+class TracksSeen:
+    source_id: str
+    zone: str
+    at: float
+    width: int
+    height: int
+    tracks: tuple[TrackView, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class StudentIdentified:
+    student_id: str
+    track_id: int
+    source_id: str
+    zone: str
+    at: float
+
+
+@dataclass(frozen=True, slots=True)
+class StudentLeft:
+    student_id: str
+    track_id: int
+    seen_for: float
+    at: float
+
+
+@dataclass(frozen=True, slots=True)
+class StudentDisengaged:
+    """Deliberately not lomas_face.Disengagement. Core carries no dependency
+    on a package, and this is the shape the boundary promises."""
+
+    track_id: int
+    student_id: str | None
+    score: float
+    drifting_for: float
+    at: float

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 from typing import Any
 
 from lomas_core import logging as log
@@ -156,11 +157,19 @@ class Orchestrator:
 
     def _record_events(self, session_id: str) -> None:
         """Every event lands in the append-only log, which is the only source
-        the reports read - so a report cannot disagree with what happened."""
+        the reports read - so a report cannot disagree with what happened.
+
+        Vision is the exception, and it has to be: it publishes on every
+        detect cycle, and a quarter of a million rows an hour would bury the
+        events a report is actually made of.
+        """
         scope = self.scope
         repo = self.repos["event"]
+        excluded = self.cfg.runtime.log_event_exclude
 
         def handler(name: str, payload) -> None:
+            if any(fnmatch.fnmatchcase(name, pattern) for pattern in excluded):
+                return
             repo.append(scope, session_id, name, _plain(payload))
 
         self.bus.subscribe(ALL_EVENTS, handler)

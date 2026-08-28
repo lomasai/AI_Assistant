@@ -21,6 +21,10 @@ class RuntimeConfig(BaseModel):
     event_replay_size: int = Field(default=512, ge=1)
     raise_on_handler_error: bool = True
 
+    # Vision publishes on every detect cycle. Writing all of that to the
+    # session log would bury the events a report actually reads.
+    log_event_exclude: list[str] = Field(default_factory=lambda: ["vision.*"])
+
 
 class TenancyConfig(BaseModel):
     model_config = Strict
@@ -63,11 +67,32 @@ class SourceConfig(BaseModel):
     loop: bool = True  # replay sources start over at the end
 
 
+class PipelineConfig(BaseModel):
+    """The join between frames and faces. It lives in the app, but its knobs
+    belong here with everything else that can be turned."""
+
+    model_config = Strict
+
+    enabled: bool = True
+    # Which camera feeds recognition. Empty means the first enabled source,
+    # which is what a one-camera robot wants and a CCTV room overrides.
+    source: str = ""
+    publish_tracks: bool = True
+    idle_sleep_seconds: float = Field(default=0.01, gt=0)
+    join_timeout_seconds: float = Field(default=2.0, gt=0)
+
+    # One failed cycle is a dropped frame. Every cycle failing is a missing
+    # model or an unplugged camera, and retrying that ten times a second for
+    # an hour helps nobody.
+    max_consecutive_errors: int = Field(default=5, ge=1)
+
+
 class VisionConfig(BaseModel):
     model_config = Strict
 
     buffer_size: int = Field(default=4, ge=1)
     read_timeout_ms: int = Field(default=200, ge=1)
+    pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
 
 
 class PoseConfig(BaseModel):

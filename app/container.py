@@ -5,13 +5,21 @@ from typing import Any
 
 from lomas_core import logging as log
 from lomas_core.clock import Clock, RealClock
+from lomas_core.contracts import SESSION_CLOSED, SESSION_OPENED
 from lomas_core.events import EventBus
 from lomas_core.schema import Config
-from lomas_face import DETECTORS, EMBEDDERS
+from lomas_face import (
+    DETECTORS,
+    EMBEDDERS,
+    AttentionMonitor,
+    IdentityMatcher,
+    Tracker,
+)
 from lomas_llm import PROVIDERS, PromptLibrary, Router
 from lomas_speech import STT_ENGINES, TTS_ENGINES, WAKE_WORDS, DuplexGate, InputSet
 from lomas_store import (
     STORES,
+    TenantScope,
     AnswerRepo,
     ClassRepo,
     ConsentRepo,
@@ -29,6 +37,7 @@ from app.content import ContentLibrary
 from app.flow.machine import Machine
 from app.flow.step import STEPS
 from app.orchestrator import Orchestrator
+from app.pipeline import VisionPipeline, vectors_by_student
 from app.voice import Voice
 
 from app.flow import steps as _steps  # noqa: F401
@@ -54,12 +63,19 @@ class System:
     voice: Voice
     content: ContentLibrary
     orchestrator: Orchestrator
-    frames: FrameBus | None = None
+    vision: VisionPipeline | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def frames(self) -> FrameBus | None:
+        return self.vision.frames if self.vision else None
+
     def close(self) -> None:
-        if self.frames is not None:
-            self.frames.stop()
+        # Signal the pipeline first, then close the bus that wakes it. The
+        # other order leaves the vision thread parked on an idle camera.
+        if self.vision is not None:
+            self.vision.stop()
+            self.vision.frames.stop()
         self.voice.stop()
         self.store.close()
 
@@ -98,6 +114,8 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         prompts=prompts, llm=llm, content=content,
     )
 
+    vision = build_vision(cfg, bus, clock, repos)
+
     logger.debug(
         "built: store=%s llm=%s tts=%s stt=%s wake=%s steps=%s",
         cfg.storage.backend, cfg.llm.provider, cfg.speech.tts.engine,
@@ -107,20 +125,59 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     return System(
         cfg=cfg, bus=bus, clock=clock, store=store, repos=repos, prompts=prompts,
         llm=llm, router=router, tts=tts, stt=stt, wake=wake, voice=voice,
-        content=content, orchestrator=orchestrator,
+        content=content, orchestrator=orchestrator, vision=vision,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 
 
-def build_vision(cfg: Config, clock: Clock) -> FrameBus:
-    """Kept separate because the flow does not need a camera to run, and P8
-    is what joins frames to faces."""
-    return FrameBus(
+def build_vision(
+    cfg: Config, bus: EventBus, clock: Clock, repos: dict[str, Any]
+) -> VisionPipeline | None:
+    """Cameras, detector, tracker, matcher and attention, assembled.
+
+    Returns None when vision is switched off, and the class still runs: that
+    is rule four, and it is the difference between a demo and a product.
+    """
+    if not (cfg.vision.pipeline.enabled and cfg.face.enabled):
+        return None
+
+    frames = FrameBus(
         build_sources(cfg.sources),
         buffer_size=cfg.vision.buffer_size,
         clock=clock,
         read_timeout_ms=cfg.vision.read_timeout_ms,
     )
+    pipeline = VisionPipeline(
+        cfg=cfg,
+        bus=bus,
+        clock=clock,
+        frames=frames,
+        detector=DETECTORS.create(cfg.face.detector, cfg.face),
+        tracker=Tracker(cfg.face),
+        matcher=IdentityMatcher(EMBEDDERS.create(cfg.face.embedder, cfg.face), cfg.face),
+        attention=AttentionMonitor(cfg.attention),
+    )
+    _follow_the_session(pipeline, bus, repos)
+    return pipeline
+
+
+def _follow_the_session(pipeline: VisionPipeline, bus: EventBus, repos: dict[str, Any]) -> None:
+    """The camera starts when a class opens, not when the process does.
+
+    Through events, so the orchestrator keeps its promise of knowing nothing
+    about cameras and vision can be removed without it noticing.
+    """
+
+    def on_open(_event: str, opened) -> None:
+        scope = TenantScope(opened.org_id, opened.school_id, opened.class_id)
+        pipeline.load(vectors_by_student(repos["embedding"].all_for_class(scope)))
+        pipeline.start()
+
+    def on_close(_event: str, _closed) -> None:
+        pipeline.attention.reset()  # nudge budgets are per session
+
+    bus.subscribe(SESSION_OPENED, on_open)
+    bus.subscribe(SESSION_CLOSED, on_close)
 
 
 def _bus_for(cfg: Config) -> EventBus:
