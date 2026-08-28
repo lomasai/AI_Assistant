@@ -99,6 +99,46 @@ class FaceConfig(BaseModel):
     track_death_seconds: float = Field(default=1.5, gt=0)
     pose: PoseConfig = Field(default_factory=PoseConfig)
 
+    # Recognition. Identity is resolved on new tracks and then carried by the
+    # tracker, so these govern how rarely the embedder runs.
+    embedder: Literal["arcface_onnx", "mock"] = "arcface_onnx"
+    embedder_model_path: str = "models/mobilefacenet.onnx"
+    embedding_dim: int = Field(default=512, ge=1)
+    match_threshold: float = Field(default=0.38, gt=0.0, le=2.0)
+    reverify_seconds: float = Field(default=20.0, gt=0)
+    unknown_after_attempts: int = Field(default=3, ge=1)
+    recognition_min_face_px: int = Field(default=80, ge=1)
+    crop_margin: float = Field(default=0.2, ge=0.0, le=1.0)
+
+
+class EnrolmentConfig(BaseModel):
+    model_config = Strict
+
+    sweep_seconds: float = Field(default=4.0, gt=0)
+    sample_frames: int = Field(default=15, ge=1)
+    keep_best: int = Field(default=3, ge=1)
+    min_quality: float = Field(default=0.5, ge=0.0, le=1.0)
+    min_face_px: int = Field(default=96, ge=1)
+    required_angles: list[str] = Field(default_factory=lambda: ["left", "centre", "right"])
+    angle_yaw_degrees: float = Field(default=20.0, gt=0)
+    sharpness_reference: float = Field(default=120.0, gt=0)
+    crop_margin: float = Field(default=0.2, ge=0.0, le=1.0)
+
+
+class PrivacyConfig(BaseModel):
+    model_config = Strict
+
+    # A school that will not consent to face recognition still gets a working
+    # teaching assistant; it simply addresses the room rather than a child.
+    recognition_enabled: bool = True
+    require_consent: bool = True
+
+    # Not a bool on purpose. There is no code path that stores an image and no
+    # column to put one in, so the config must not be able to promise one.
+    store_images: Literal[False] = False
+
+    store_attention_detail: bool = False
+
 
 class AttentionConfig(BaseModel):
     model_config = Strict
@@ -127,6 +167,8 @@ class Config(BaseModel):
     vision: VisionConfig = Field(default_factory=VisionConfig)
     face: FaceConfig = Field(default_factory=FaceConfig)
     attention: AttentionConfig = Field(default_factory=AttentionConfig)
+    enrolment: EnrolmentConfig = Field(default_factory=EnrolmentConfig)
+    privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
 
     @property
     def is_debug(self) -> bool:

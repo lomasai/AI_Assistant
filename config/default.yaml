@@ -97,6 +97,19 @@ face:
     pitch_scale_degrees: 60.0
     pitch_neutral: 0.5
 
+
+  # Recognition. Identity is resolved when a track is new and then carried by
+  # the tracker, so the embedder runs once or twice per child per minute
+  # rather than fifteen times a second.
+  embedder: arcface_onnx        # arcface_onnx | mock
+  embedder_model_path: models/mobilefacenet.onnx
+  embedding_dim: 512
+  match_threshold: 0.38         # cosine distance; lower is stricter
+  reverify_seconds: 20.0        # re-check an established track occasionally
+  unknown_after_attempts: 3     # then stop spending CPU on a stranger
+  recognition_min_face_px: 80   # below this the crop is too poor to match
+  crop_margin: 0.2
+
 attention:
   enabled: true
 
@@ -112,3 +125,25 @@ attention:
   min_duration_seconds: 6.0
   cooldown_seconds: 120.0      # per student
   max_nudges_per_session: 3    # a robot that nudges more than this is nagging
+enrolment:
+  sweep_seconds: 4.0
+  sample_frames: 15
+  keep_best: 3                  # variant vectors kept per head angle
+  min_quality: 0.5
+  min_face_px: 96               # enrolment needs a bigger face than detection
+  required_angles: [left, centre, right]
+  angle_yaw_degrees: 20.0       # boundary between the angle buckets
+  sharpness_reference: 120.0    # Laplacian variance treated as fully sharp
+  crop_margin: 0.2
+
+privacy:
+  # false makes the robot address the room instead of a child. Everything
+  # else still works, which is what a school that will not consent needs.
+  recognition_enabled: true
+  require_consent: true
+
+  # Not a switch. Enrolment embeds and discards in the same call, and the
+  # database has no column for a picture, so this cannot be turned on.
+  store_images: false
+
+  store_attention_detail: false

@@ -104,7 +104,7 @@ class Track:
     student_id: str | None = None
     pose: Pose | None = None
     attention: float = 1.0
-    verified_at: float = 0.0
+    verified_at: float | None = None  # None means never, which 0.0 cannot mean
     identify_attempts: int = 0
     history: list[Point] = field(default_factory=list)
 
