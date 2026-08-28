@@ -4,7 +4,7 @@ import threading
 
 from lomas_core import logging as log
 from lomas_core.clock import Clock
-from lomas_core.contracts import STEP_ENTERED, STEP_EXITED, StepChanged
+from lomas_core.contracts import STEP_ENTERED, STEP_EXITED, STEP_SKIPPED, StepChanged
 from lomas_core.events import EventBus
 from lomas_core.schema import FlowConfig
 
@@ -30,6 +30,7 @@ class Machine:
         self.halt_reason = ""
         self._resume = threading.Event()
         self._resume.set()
+        self._skip = threading.Event()
         self.log = log.get("flow")
 
     def pause(self) -> None:
@@ -41,6 +42,15 @@ class Machine:
         if self.state is SessionState.PAUSED:
             self.state = SessionState.RUNNING
             self._resume.set()
+
+    def skip(self) -> str:
+        """Move on from the current step. The lesson is behind, the bell is in
+        four minutes, and the teacher knows that and the robot does not."""
+        step = self.current
+        if step:
+            self._skip.set()
+            self._resume.set()
+        return step
 
     def halt(self, reason: str) -> None:
         """Latches, like the physical e-stop it usually comes from. Nothing
@@ -68,6 +78,7 @@ class Machine:
                 break
 
             self.current = step.name
+            self._skip.clear()
             self.log.info("-> %s", step.name)
 
             # enter() is where a step puts its subscriptions up, so the event
@@ -92,6 +103,13 @@ class Machine:
 
         while True:
             if self.state is SessionState.HALTED:
+                return
+
+            if self._skip.is_set():
+                self.bus.publish(
+                    STEP_SKIPPED, StepChanged(ctx.session_id, step.name, self.clock.now())
+                )
+                self.log.info("%s skipped", step.name)
                 return
 
             if self.state is SessionState.PAUSED:

@@ -27,7 +27,7 @@ CONVERSATION = (
 
 TEXT_FIELDS = ("text", "answer", "response", "say")
 WHO_FIELDS = ("student_name", "student_id")
-PRESENT = "present"
+PRESENT = "present"  # the column on session_students, not a status word
 BLANK = ""
 
 
@@ -154,7 +154,7 @@ class ContextAssembler:
 
     def _present(self, scope: TenantScope, session_id: str) -> tuple[str, ...]:
         roster = self.repos["session"].roster(scope, session_id)
-        return tuple(row["name"] for row in roster if row.get("status") == PRESENT)
+        return tuple(row["name"] for row in roster if row[PRESENT])
 
     def _profile(self, scope: TenantScope, student_id: str) -> StudentProfile | None:
         if not student_id or not self.cfg.context.include_student_profile:

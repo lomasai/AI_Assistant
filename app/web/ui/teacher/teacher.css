@@ -1,0 +1,272 @@
+/* A tablet propped on a desk, used one-handed while teaching. Big targets,
+   nothing that needs a second look, and the pause button reachable without
+   reading anything. */
+
+:root {
+  --ink: #1a1f28;
+  --muted: #6a7381;
+  --ground: #f6f4ef;
+  --card: #ffffff;
+  --rule: #e0dbd1;
+  --accent: #2563a8;
+  --warn: #b4432c;
+  --engaged: #2f855a;
+  --drifting: #b8860b;
+  --away: #9aa2ae;
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 17px/1.45 system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule);
+}
+
+.tab {
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tab.on { background: var(--ink); color: var(--ground); }
+
+#status { margin-left: auto; font-size: 14px; color: var(--muted); }
+#status.live { color: var(--engaged); }
+
+.panel { display: none; padding: 16px; }
+.panel.on { display: block; }
+
+/* --- live control -------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+button {
+  padding: 14px 24px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--card);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--muted); }
+
+.big {
+  min-width: 180px;
+  padding: 18px 28px;
+  font-size: 20px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.big.paused { background: var(--engaged); border-color: var(--engaged); }
+
+.danger { color: var(--warn); border-color: #e6c4bc; }
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  padding: 12px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.switch input { width: 22px; height: 22px; accent-color: var(--accent); }
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+.video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #0e1218;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.video img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+#boxes { position: absolute; inset: 0; }
+
+.box {
+  position: absolute;
+  border: 3px solid #7fd3ff;
+  border-radius: 8px;
+  transition: left .12s linear, top .12s linear, width .12s linear, height .12s linear;
+}
+
+.box.named { border-color: #57c98a; }
+
+.box b {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  padding: 2px 8px;
+  font-size: 14px;
+  background: #57c98a;
+  color: #0e1218;
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+}
+
+#step, #coach {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 16px;
+  background: rgba(14, 18, 24, .78);
+  color: #f2efe8;
+  font-size: 15px;
+}
+
+.side {
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+}
+
+h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+h2 + .hint { margin-bottom: 12px; }
+
+.hint { font-size: 14px; color: var(--muted); }
+
+ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+#roster li, #enrolled li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+#roster li.on { border-color: var(--accent); background: #eaf1fa; font-weight: 600; }
+
+#roster i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--away);
+  transition: background .4s ease;
+}
+
+#roster li[data-mood="engaged"] i { background: var(--engaged); }
+#roster li[data-mood="drifting"] i { background: var(--drifting); }
+
+#roster small, #enrolled small { margin-left: auto; color: var(--muted); font-size: 13px; }
+
+form { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+
+#ask, #answer { flex-direction: row; }
+
+input[type="text"], input:not([type]) {
+  flex: 1;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  font: inherit;
+  background: var(--card);
+}
+
+label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--muted); }
+label.switch { flex-direction: row; align-items: center; margin: 4px 0 0; color: var(--ink); font-size: 15px; }
+
+/* --- the sweep ring ------------------------------------------------------ */
+
+#ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  pointer-events: none;
+}
+
+#ring circle { fill: none; stroke-width: 6; }
+#ring .track { stroke: rgba(255, 255, 255, .22); }
+
+#ring .fill {
+  stroke: #57c98a;
+  stroke-linecap: round;
+  stroke-dasharray: 327;
+  stroke-dashoffset: 327;
+  transition: stroke-dashoffset .2s linear;
+}
+
+/* --- report --------------------------------------------------------------
+   Attendance, coverage, questions and answers. No score per child, no order
+   but roll order: a report sorted by result is a ranking whatever the column
+   headings say. */
+
+#sessions {
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  font: inherit;
+  background: var(--card);
+  margin-bottom: 16px;
+  min-width: 320px;
+}
+
+.card {
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+
+.card h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+
+.figure { font-size: 32px; font-weight: 700; }
+
+table { width: 100%; border-collapse: collapse; font-size: 16px; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--rule); }
+th { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.q { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.q b { display: block; }
+.q span { color: var(--muted); font-size: 15px; }

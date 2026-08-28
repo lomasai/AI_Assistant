@@ -3,7 +3,6 @@ from __future__ import annotations
 from lomas_core import logging as log
 from lomas_store import TenantScope
 
-CONSENT_KIND = "face_recognition"
 GRANTED_BY = "seed"
 
 DEMO_STUDENTS = [
@@ -44,7 +43,7 @@ def demo_class(system) -> None:
         if roll in existing:
             continue
         student_id = repos["student"].create(scope, name, roll)
-        repos["consent"].grant(scope, student_id, CONSENT_KIND, GRANTED_BY)
+        repos["consent"].grant(scope, student_id, cfg.enrolment.consent_kind, GRANTED_BY)
         added += 1
 
     if added:

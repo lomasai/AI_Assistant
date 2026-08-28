@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lomas teacher</title>
+<link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+
+<nav>
+  <button class="tab on" data-panel="class">Class</button>
+  <button class="tab" data-panel="enrol">Enrol</button>
+  <button class="tab" data-panel="report">Report</button>
+  <span id="status">connecting</span>
+</nav>
+
+<!-- ==================================================== live control -->
+<section id="class" class="panel on">
+
+  <div class="controls">
+    <button id="pause" class="big">Pause</button>
+    <button id="skip">Skip section</button>
+    <button id="halt" class="danger">Stop</button>
+
+    <!-- Prominent on purpose. Teachers trusting they can silence it is what
+         makes them willing to leave it on. -->
+    <label id="nudging" class="switch">
+      <input type="checkbox" checked>
+      <span>Let Lomas invite quiet students in</span>
+    </label>
+  </div>
+
+  <div class="split">
+    <div class="video">
+      <img id="feed" alt="">
+      <div id="boxes"></div>
+      <p id="step">no class running</p>
+    </div>
+
+    <div class="side">
+      <h2>Who is speaking</h2>
+      <p class="hint">Tap a name before a child answers. Voice alone will not
+        tell the robot who spoke in a room this size.</p>
+      <ul id="roster"></ul>
+
+      <form id="answer">
+        <input name="response" placeholder="what they said" autocomplete="off" required>
+        <button>Record answer</button>
+      </form>
+    </div>
+  </div>
+
+  <form id="ask">
+    <input name="text" placeholder="ask Lomas something on behalf of the class" autocomplete="off" required>
+    <button>Ask</button>
+  </form>
+</section>
+
+<!-- ========================================================= enrolment -->
+<section id="enrol" class="panel">
+
+  <div class="split">
+    <div class="video">
+      <img id="enrolFeed" alt="">
+      <svg id="ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="track" cx="60" cy="60" r="52"></circle>
+        <circle class="fill" cx="60" cy="60" r="52"></circle>
+      </svg>
+      <p id="coach">Fill in the form to begin</p>
+    </div>
+
+    <div class="side">
+      <form id="enrolForm">
+        <label>Name <input name="name" required autocomplete="off"></label>
+        <label>Roll number <input name="roll_no" required autocomplete="off"></label>
+        <label>Consent given by <input name="granted_by" placeholder="parent or guardian" autocomplete="off"></label>
+        <label>Reference <input name="document_ref" placeholder="form number, optional" autocomplete="off"></label>
+
+        <label class="switch">
+          <input type="checkbox" name="agreed">
+          <span>A parent or guardian has agreed to face recognition for this child</span>
+        </label>
+
+        <p class="hint">No photograph is taken or stored. Frames are turned
+          into numbers and discarded in the same step.</p>
+
+        <button id="begin">Start the 4 second sweep</button>
+      </form>
+
+      <h2>Enrolled</h2>
+      <ul id="enrolled"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ report -->
+<section id="report" class="panel">
+  <select id="sessions"></select>
+  <div id="reportBody"></div>
+</section>
+
+<script src="teacher.js"></script>
+</body>
+</html>

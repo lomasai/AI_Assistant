@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from lomas_core import logging as log
-from lomas_core.contracts import ROBOT_SAY, ROBOT_SPOKE, Utterance
+from lomas_core.contracts import ROBOT_SAY, ROBOT_SPOKE, SESSION_PAUSED, Utterance
 from lomas_core.events import EventBus
 from lomas_speech import DuplexGate, TextToSpeech
 
@@ -28,6 +28,10 @@ class Voice:
         self.log = log.get("voice")
         bus.subscribe(ROBOT_SAY, self._on_say)
 
+        # Mid-sentence, not at the end of it. A teacher who has to wait out a
+        # paragraph before the room goes quiet stops using the pause button.
+        bus.subscribe(SESSION_PAUSED, self._on_pause)
+
     def _on_say(self, _event: str, utterance: Utterance) -> None:
         # Asked before a sound is made. A filter that subscribes to an event
         # has already lost the race with the speaker.
@@ -44,6 +48,9 @@ class Voice:
         who = f" [{utterance.student_name}]" if utterance.student_name else ""
         self.log.info("%s%s", utterance.text, who)
         self.bus.publish(ROBOT_SPOKE, utterance)
+
+    def _on_pause(self, _event: str, _payload) -> None:
+        self.tts.stop()
 
     def stop(self) -> None:
         self.tts.stop()

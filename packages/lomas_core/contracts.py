@@ -16,8 +16,15 @@ SESSION_RESUMED = "session.resumed"
 
 STEP_ENTERED = "step.entered"
 STEP_EXITED = "step.exited"
+STEP_SKIPPED = "step.skipped"
 
 ATTENDANCE_MARKED = "attendance.marked"
+
+# The teacher, reaching in. Every one of these is a request, never a report.
+TEACHER_NUDGING = "teacher.nudging"
+TEACHER_SPEAKER = "teacher.speaker"
+
+STUDENT_ENROLLED = "student.enrolled"
 
 ROBOT_SAY = "robot.say"
 ROBOT_SPOKE = "robot.spoke"
@@ -253,3 +260,40 @@ class QuizRequested:
     session_id: str
     topic: str = ""
     count: int = 1
+
+
+@dataclass(frozen=True, slots=True)
+class NudgingSet:
+    """A teacher silencing the robot for this session.
+
+    Prominent on purpose. Teachers trusting they can switch it off is what
+    makes them willing to leave it on.
+    """
+
+    enabled: bool
+    session_id: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class SpeakerSet:
+    """Who is talking right now, according to the person in the room.
+
+    Voice alone will not tell you which child spoke in a classroom of forty,
+    so the teacher tapping a name is the attribution.
+    """
+
+    student_id: str
+    student_name: str = ""
+    session_id: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class StudentEnrolled:
+    """Vectors, angles and a count. There is no image in this payload because
+    there is no image anywhere after `add_frame` returns."""
+
+    student_id: str
+    name: str
+    vectors: int
+    angles: tuple[str, ...] = ()
+    quality: float = 0.0

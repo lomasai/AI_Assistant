@@ -5,14 +5,16 @@ import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from lomas_core import logging as log
+from lomas_core.errors import LomasError
 
 from app.pipeline import source_for
 from app.web import api as api_module
+from app.web import teacher as teacher_module
 from app.web import ws as ws_module
 from app.web.stream import CONTENT_TYPE, mjpeg
 
@@ -22,6 +24,7 @@ BOARD = "board"
 INDEX = "index.html"
 API_PREFIX = "/api"
 NO_CAMERA = b""
+BAD_REQUEST = 400
 
 
 def create_app(system) -> FastAPI:
@@ -45,6 +48,14 @@ def create_app(system) -> FastAPI:
     app.state.system = system
 
     app.include_router(api_module.router(system), prefix=API_PREFIX)
+    if system.cfg.teacher.enabled:
+        app.include_router(teacher_module.router(system), prefix=API_PREFIX)
+
+    @app.exception_handler(LomasError)
+    async def refused(_request: Request, exc: LomasError) -> JSONResponse:
+        """Everything this system raises deliberately is a bad request, not a
+        crash. A refused enrolment must read as a refusal in the browser."""
+        return JSONResponse(status_code=BAD_REQUEST, content={"error": str(exc)})
 
     @app.websocket("/events")
     async def events(websocket: WebSocket) -> None:

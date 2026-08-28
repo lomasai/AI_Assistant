@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from lomas_core.contracts import STUDENT_DISENGAGED, StudentDisengaged
+from lomas_core.contracts import (
+    SESSION_OPENED,
+    STUDENT_DISENGAGED,
+    TEACHER_NUDGING,
+    NudgingSet,
+    StudentDisengaged,
+)
 
 from app.agents.base import AGENTS, BaseAgent
 from app.context.assembler import AgentContext
@@ -19,9 +25,27 @@ class Engagement(BaseAgent):
     """
 
     name = "engagement"
-    subscribes = [STUDENT_DISENGAGED]
+    subscribes = [STUDENT_DISENGAGED, TEACHER_NUDGING, SESSION_OPENED]
 
-    def handle(self, _event: str, drifting: StudentDisengaged, ctx: AgentContext) -> None:
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.nudging = True
+
+    def handle(self, event: str, payload, ctx: AgentContext) -> None:
+        if isinstance(payload, NudgingSet):
+            self.nudging = payload.enabled
+            self.log.info("nudging %s", "on" if payload.enabled else "off")
+            return
+
+        if event == SESSION_OPENED:
+            self.nudging = True  # the switch is per session, never sticky
+            return
+
+        if not self.nudging:
+            return
+        self._invite(payload, ctx)
+
+    def _invite(self, drifting: StudentDisengaged, ctx: AgentContext) -> None:
         name = ctx.student_name
         if not name:
             # An unrecognised face has no name to use, and a nudge addressed

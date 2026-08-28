@@ -153,6 +153,13 @@ enrolment:
   sharpness_reference: 120.0    # Laplacian variance treated as fully sharp
   crop_margin: 0.2
 
+  # The consent row that has to exist before a single vector is written.
+  consent_kind: face_recognition
+
+  # An enrolment left half finished must not hold a child's vectors in
+  # memory until the robot is switched off.
+  abandoned_after_seconds: 120.0
+
 privacy:
   # false makes the robot address the room instead of a child. Everything
   # else still works, which is what a school that will not consent needs.
@@ -302,6 +309,15 @@ flow:
 # Two surfaces on one Pi. The 7-inch chest panel is the robot's face and
 # cannot carry lesson text a class can read; the second HDMI port drives a
 # classroom TV or projector for that.
+# The screen that decides whether teachers keep using the product.
+teacher:
+  enabled: true
+  recent_sessions: 10
+
+  # Not a switch. There is no code path that puts an attention score in a
+  # report and no key for one, so this cannot be turned on.
+  report_shows_attention: false
+
 display:
   face_screen:
     enabled: true
@@ -325,7 +341,7 @@ web:
   enabled: true
   host: 0.0.0.0
   port: 8080
-  surfaces: [face, board]
+  surfaces: [face, board, teacher]
 
   # The stream is the camera as it is. Boxes are HTML over the video, never
   # painted into the frame - that would cost a decode and re-encode per frame.

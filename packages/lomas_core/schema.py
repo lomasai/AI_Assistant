@@ -149,6 +149,12 @@ class EnrolmentConfig(BaseModel):
     sharpness_reference: float = Field(default=120.0, gt=0)
     crop_margin: float = Field(default=0.2, ge=0.0, le=1.0)
 
+    # The consent row that has to exist before a single vector is written.
+    consent_kind: str = "face_recognition"
+    # An enrolment left half finished must not hold a child's vectors in
+    # memory until the robot is switched off.
+    abandoned_after_seconds: float = Field(default=120.0, gt=0)
+
 
 class PrivacyConfig(BaseModel):
     model_config = Strict
@@ -401,7 +407,7 @@ class WebConfig(BaseModel):
     enabled: bool = True
     host: str = "0.0.0.0"
     port: int = Field(default=8080, ge=1, le=65535)
-    surfaces: list[str] = Field(default_factory=lambda: ["face", "board"])
+    surfaces: list[str] = Field(default_factory=lambda: ["face", "board", "teacher"])
 
     mjpeg_quality: int = Field(default=70, ge=1, le=100)
     mjpeg_fps: int = Field(default=15, ge=1)
@@ -415,6 +421,19 @@ class WebConfig(BaseModel):
     # is on the wire even though it is kept out of the session log.
     event_filter: list[str] = Field(default_factory=lambda: ["*"])
     shutdown_seconds: float = Field(default=2.0, gt=0)
+
+
+class TeacherConfig(BaseModel):
+    """The surface that decides whether teachers keep using the product."""
+
+    model_config = Strict
+
+    enabled: bool = True
+    recent_sessions: int = Field(default=10, ge=1)
+
+    # Not a bool. There is no code path that puts an attention score in a
+    # report and no key for one, so the config must not be able to promise it.
+    report_shows_attention: Literal[False] = False
 
 
 class AgentConfig(BaseModel):
@@ -519,6 +538,7 @@ class Config(BaseModel):
     context: ContextConfig = Field(default_factory=ContextConfig)
     display: DisplayConfig = Field(default_factory=DisplayConfig)
     web: WebConfig = Field(default_factory=WebConfig)
+    teacher: TeacherConfig = Field(default_factory=TeacherConfig)
 
     @property
     def is_debug(self) -> bool:

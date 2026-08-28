@@ -36,11 +36,13 @@ from lomas_vision import FrameBus, build_sources
 from app.agents.base import AGENTS, Agent, AgentDeps, AgentRunner
 from app.agents.safety import Safety
 from app.content import ContentLibrary
+from app.enrolment import EnrolmentService
 from app.context.assembler import ContextAssembler
 from app.context.mcp_server import ContextServer
 from app.flow.machine import Machine
 from app.flow.step import STEPS
 from app.orchestrator import Orchestrator
+from app.report import ReportBuilder
 from app.pipeline import VisionPipeline, vectors_by_student
 from app.web.server import WebServer
 from app.voice import Voice, allow_everything
@@ -73,6 +75,8 @@ class System:
     agents: AgentRunner | None = None
     mcp: ContextServer | None = None
     vision: VisionPipeline | None = None
+    enrolment: EnrolmentService | None = None
+    report: ReportBuilder | None = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -134,6 +138,8 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     )
 
     vision = build_vision(cfg, bus, clock, repos)
+    report = ReportBuilder(cfg, repos, content)
+    enrolment = _enrolment(cfg, bus, clock, vision, repos)
 
     logger.debug(
         "built: store=%s llm=%s tts=%s stt=%s wake=%s steps=%s agents=%s",
@@ -147,6 +153,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         llm=llm, router=router, tts=tts, stt=stt, wake=wake, voice=voice,
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
+        enrolment=enrolment, report=report,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 
@@ -186,6 +193,28 @@ def build_vision(
     )
     _follow_the_session(pipeline, bus, repos)
     return pipeline
+
+
+def _enrolment(
+    cfg: Config, bus: EventBus, clock: Clock, vision: VisionPipeline | None, repos: dict[str, Any]
+) -> EnrolmentService | None:
+    """Its own detector and its own embedder.
+
+    Borrowing the pipeline's would mean two threads sharing one model with
+    one input size, which is a fault you only meet on the Pi and only under
+    load - so it is not worth the object it saves.
+    """
+    if not cfg.teacher.enabled:
+        return None
+    return EnrolmentService(
+        cfg=cfg,
+        bus=bus,
+        clock=clock,
+        frames=vision.frames if vision else None,
+        detector=DETECTORS.create(cfg.face.detector, cfg.face),
+        embedder=EMBEDDERS.create(cfg.face.embedder, cfg.face),
+        repos=repos,
+    )
 
 
 def _follow_the_session(pipeline: VisionPipeline, bus: EventBus, repos: dict[str, Any]) -> None:
