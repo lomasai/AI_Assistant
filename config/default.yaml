@@ -37,3 +37,15 @@ tenancy:
   # Bench testing writes here instead, so fake students never appear in a
   # pilot school's dashboard.
   scratch_org_id: scratch
+
+storage:
+  # sqlite - a file on the robot, which is also what offline schools need
+  # memory - nothing on disk, used by tests and dry runs
+  backend: sqlite
+  path: data/lomas.db
+
+  # Session detail older than this is purged. Aggregates survive.
+  retention_days: 180
+  purge_on_term_end: true
+
+  busy_timeout_ms: 5000

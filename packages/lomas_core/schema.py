@@ -31,11 +31,22 @@ class TenancyConfig(BaseModel):
     scratch_org_id: str = "scratch"
 
 
+class StorageConfig(BaseModel):
+    model_config = Strict
+
+    backend: Literal["sqlite", "memory"] = "sqlite"
+    path: str = "data/lomas.db"
+    retention_days: int = Field(default=180, ge=1)
+    purge_on_term_end: bool = True
+    busy_timeout_ms: int = Field(default=5000, ge=0)
+
+
 class Config(BaseModel):
     model_config = Strict
 
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     tenancy: TenancyConfig = Field(default_factory=TenancyConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
 
     @property
     def is_debug(self) -> bool:
