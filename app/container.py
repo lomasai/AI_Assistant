@@ -7,7 +7,7 @@ from lomas_core import logging as log
 from lomas_core.clock import Clock, RealClock
 from lomas_core.contracts import SESSION_CLOSED, SESSION_OPENED
 from lomas_core.events import EventBus
-from lomas_core.schema import Config
+from lomas_core.schema import AgentConfig, Config
 from lomas_face import (
     DETECTORS,
     EMBEDDERS,
@@ -33,16 +33,22 @@ from lomas_store import (
 )
 from lomas_vision import FrameBus, build_sources
 
+from app.agents.base import AGENTS, Agent, AgentDeps, AgentRunner
+from app.agents.safety import Safety
 from app.content import ContentLibrary
+from app.context.assembler import ContextAssembler
+from app.context.mcp_server import ContextServer
 from app.flow.machine import Machine
 from app.flow.step import STEPS
 from app.orchestrator import Orchestrator
 from app.pipeline import VisionPipeline, vectors_by_student
-from app.voice import Voice
+from app.voice import Voice, allow_everything
 
+from app import agents as _agents  # noqa: F401
 from app.flow import steps as _steps  # noqa: F401
 
 STEPS.discover("app.flow.steps")
+AGENTS.discover("app.agents")
 
 
 @dataclass(slots=True)
@@ -63,6 +69,8 @@ class System:
     voice: Voice
     content: ContentLibrary
     orchestrator: Orchestrator
+    agents: AgentRunner | None = None
+    mcp: ContextServer | None = None
     vision: VisionPipeline | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -103,9 +111,16 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     stt = STT_ENGINES.create(cfg.speech.stt.engine, cfg.speech.stt)
     wake = WAKE_WORDS.create(cfg.speech.wake.engine, cfg.speech.wake)
     gate = DuplexGate(cfg.speech.audio, clock)
-    voice = Voice(tts, gate, bus)
 
     content = ContentLibrary(cfg.content)
+    assembler = ContextAssembler(cfg, repos, content)
+    built = _agents_from(cfg, bus, clock, repos, prompts, llm)
+    runner = AgentRunner(built, assembler, bus, clock, cfg) if built else None
+
+    # The filter is asked before a sound is made, so it is an argument to the
+    # voice rather than another subscriber racing it.
+    guard = next((a.approve for a in built if isinstance(a, Safety)), allow_everything)
+    voice = Voice(tts, gate, bus, guard=guard)
     steps = [STEPS.create(name, cfg) for name in cfg.flow.sequence]
     machine = Machine(steps, cfg.flow, bus, clock)
 
@@ -117,15 +132,17 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     vision = build_vision(cfg, bus, clock, repos)
 
     logger.debug(
-        "built: store=%s llm=%s tts=%s stt=%s wake=%s steps=%s",
+        "built: store=%s llm=%s tts=%s stt=%s wake=%s steps=%s agents=%s",
         cfg.storage.backend, cfg.llm.provider, cfg.speech.tts.engine,
         cfg.speech.stt.engine, cfg.speech.wake.engine, ",".join(cfg.flow.sequence),
+        ",".join(runner.names()) if runner else "none",
     )
 
     return System(
         cfg=cfg, bus=bus, clock=clock, store=store, repos=repos, prompts=prompts,
         llm=llm, router=router, tts=tts, stt=stt, wake=wake, voice=voice,
         content=content, orchestrator=orchestrator, vision=vision,
+        agents=runner, mcp=ContextServer(assembler),
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 
@@ -192,6 +209,41 @@ def _bus_for(cfg: Config) -> EventBus:
     )
 
 
+def _agents_from(
+    cfg: Config,
+    bus: EventBus,
+    clock: Clock,
+    repos: dict[str, Any],
+    prompts: PromptLibrary,
+    shared: Any,
+) -> list[Agent]:
+    """One object per name in `agents.enabled`. Drop a name and that agent
+    is gone; nothing else in the system notices."""
+    built: list[Agent] = []
+    for name in cfg.agents.enabled:
+        settings = cfg.agents.settings.get(name) or AgentConfig(prompt=name)
+        deps = AgentDeps(
+            bus=bus,
+            clock=clock,
+            prompts=prompts,
+            llm=_provider_for(cfg, settings, shared),
+            repos=repos,
+        )
+        built.append(AGENTS.create(name, cfg, settings, deps))
+    return built
+
+
+def _provider_for(cfg: Config, settings: AgentConfig, shared: Any) -> Any:
+    """An empty provider inherits llm.*, so pinning the safety filter to a
+    small fast model leaves the tutor on the one that can teach."""
+    if not settings.provider:
+        return shared
+    overrides = {"provider": settings.provider}
+    if settings.model:
+        overrides["model"] = settings.model
+    return PROVIDERS.create(settings.provider, cfg.llm.model_copy(update=overrides))
+
+
 def _repos(store) -> dict[str, Any]:
     return {
         "org": OrgRepo(store),
@@ -218,4 +270,5 @@ def available() -> dict[str, list[str]]:
         "detector": DETECTORS.keys(),
         "embedder": EMBEDDERS.keys(),
         "steps": STEPS.keys(),
+        "agents": AGENTS.keys(),
     }

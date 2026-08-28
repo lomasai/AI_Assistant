@@ -22,20 +22,27 @@ ATTENDANCE_MARKED = "attendance.marked"
 ROBOT_SAY = "robot.say"
 ROBOT_SPOKE = "robot.spoke"
 ROBOT_STATE = "robot.state"
+ROBOT_BLOCKED = "robot.blocked"
 
 LESSON_SEGMENT = "lesson.segment"
+STORY_REQUESTED = "story.requested"
 
 QUESTION_ASKED = "question.asked"
 QUESTION_ANSWERED = "question.answered"
 
+QUIZ_REQUESTED = "quiz.requested"
 QUIZ_POSED = "quiz.posed"
 QUIZ_ANSWERED = "quiz.answered"
+QUIZ_RECORDED = "quiz.recorded"
+QUIZ_MARKED = "quiz.marked"
 
 VISION_TRACKS = "vision.tracks"
 
 STUDENT_IDENTIFIED = "student.identified"
 STUDENT_LEFT = "student.left"
 STUDENT_DISENGAGED = "student.disengaged"
+
+AGENT_FAILED = "agent.failed"
 
 SAFETY_HALT = "safety.halt"
 SAFETY_CLEARED = "safety.cleared"
@@ -200,3 +207,49 @@ class StudentDisengaged:
     score: float
     drifting_for: float
     at: float
+
+
+@dataclass(frozen=True, slots=True)
+class StoryRequested:
+    session_id: str
+    topic: str
+    language: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class QuizMarked:
+    """A free-text answer after the quizmaster has read it. Multiple choice
+    is marked by the content pack and never reaches an agent."""
+
+    session_id: str
+    question_id: str
+    student_id: str
+    correct: bool | None
+    comment: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class Blocked:
+    """What the safety filter stopped. Never silently dropped: a blocked line
+    is the thing a school will ask about, so it lands in the log."""
+
+    text: str
+    reason: str
+    session_id: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class AgentFailed:
+    agent: str
+    event: str
+    error: str
+    at: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class QuizRequested:
+    """The teacher asking for a question the content pack does not have."""
+
+    session_id: str
+    topic: str = ""
+    count: int = 1

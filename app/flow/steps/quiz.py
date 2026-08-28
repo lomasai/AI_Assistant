@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from lomas_core.contracts import QUIZ_ANSWERED, QUIZ_POSED, QuizAnswered, QuizPosed
+from lomas_core.contracts import (
+    QUIZ_ANSWERED,
+    QUIZ_POSED,
+    QUIZ_RECORDED,
+    QuizAnswered,
+    QuizPosed,
+)
 
 from app.flow.states import StepResult
 from app.flow.step import STEPS, BaseStep
@@ -41,6 +47,10 @@ class QuizStep(BaseStep):
             )
             ctx.notes["quiz_recorded"] += 1
             ctx.notes["quiz_posed"] = None
+
+            # Announced after the row exists, so whoever marks free text is
+            # updating something rather than racing the insert.
+            ctx.bus.publish(QUIZ_RECORDED, answered)
 
         return handler
 

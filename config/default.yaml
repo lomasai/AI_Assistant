@@ -297,6 +297,44 @@ flow:
   # class list stands in for recognised faces so the lesson still has names.
   attendance_falls_back_to_roster: true
 
+# Each agent has one narrow job, its own prompt and its own model. The safety
+# filter does not need the model that teaches.
+agents:
+  # Remove a name and that agent is gone. Nothing else changes.
+  enabled: [tutor, quizmaster, narrator, engagement, safety]
+
+  settings:
+    # provider and model empty means inherit llm.*, so one agent can be
+    # pinned to a cheap fast model without touching the others.
+    tutor:      {provider: "", model: "", prompt: tutor}
+    quizmaster: {provider: "", model: "", prompt: quizmaster, prompts: {mark: marking}}
+    narrator:   {provider: "", model: "", prompt: narrator}
+    engagement: {provider: "", model: "", prompt: nudge}
+    safety:     {provider: "", model: "", prompt: safety}
+
+  safety:
+    # Runs with no model and no internet, so it is the only check a school
+    # can count on being there. Empty by default: what a board wants blocked
+    # is their decision, not ours.
+    blocked_terms: []
+
+    # The model check is better and costs a round trip on every line spoken.
+    use_model: false
+    allow_token: ALLOW
+    block_token: BLOCK
+
+    # A verdict that is neither word means the model is unusable for this.
+    # A robot that falls silent mid-lesson is a failed class.
+    fail_open: true
+
+# What an agent is allowed to see. Every number here narrows it.
+context:
+  mcp_enabled: true
+  history_turns: 8
+  lesson_window: 3            # taught segments an agent may see, not the whole lesson
+  include_student_profile: true
+  recent_answers: 5
+
 content:
   language: "en"
   grade: "6"

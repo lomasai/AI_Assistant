@@ -29,6 +29,22 @@ class AnswerRepo(Repository):
         )
         return answer_id
 
+    def mark(
+        self,
+        scope: TenantScope,
+        session_id: str,
+        student_id: str,
+        question_ref: str,
+        correct: bool | None,
+    ) -> None:
+        """Free text is recorded first and marked afterwards, because reading
+        it takes a model and the class cannot wait for one."""
+        clause, params = self._where(scope, "session_id = ? AND student_id = ? AND question_ref = ?")
+        self._store.execute(
+            f"UPDATE answers SET correct = ? WHERE {clause}",
+            [None if correct is None else int(correct), *params, session_id, student_id, question_ref],
+        )
+
     def for_session(self, scope: TenantScope, session_id: str) -> list[Row]:
         return self._select(scope, "session_id = ?", [session_id], order="answered_at")
 

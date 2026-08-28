@@ -369,6 +369,73 @@ class FlowConfig(BaseModel):
     attendance_falls_back_to_roster: bool = True
 
 
+class AgentConfig(BaseModel):
+    """One agent's overrides. Empty strings inherit from llm.*, so the safety
+    filter can be pinned to a cheap fast model without touching the tutor."""
+
+    model_config = Strict
+
+    provider: str = ""
+    model: str = ""
+    prompt: str = ""  # the agent's main prompt file
+    # Extra prompt files the agent uses, by role. Marking an answer and
+    # writing a question are different jobs and want different instructions.
+    prompts: dict[str, str] = Field(default_factory=dict)
+    max_tokens: int = Field(default=0, ge=0)  # 0 inherits llm.max_tokens
+
+
+def _default_agent_settings() -> dict[str, AgentConfig]:
+    return {
+        "tutor": AgentConfig(prompt="tutor"),
+        "quizmaster": AgentConfig(prompt="quizmaster", prompts={"mark": "marking"}),
+        "narrator": AgentConfig(prompt="narrator"),
+        "engagement": AgentConfig(prompt="nudge"),
+        "safety": AgentConfig(prompt="safety"),
+    }
+
+
+class SafetyConfig(BaseModel):
+    model_config = Strict
+
+    # The term list runs with no model and no internet, so it is the only
+    # check a school can rely on being there. It is empty by default because
+    # what a board wants blocked is their decision, not ours.
+    blocked_terms: list[str] = Field(default_factory=list)
+
+    # The model check costs a round trip on every line the robot speaks.
+    use_model: bool = False
+    allow_token: str = "ALLOW"
+    block_token: str = "BLOCK"
+
+    # A verdict that is neither word means the model is unusable for this -
+    # the offline provider, a timeout, a refusal. A robot that falls silent
+    # mid-lesson is a failed class; the term list still stands.
+    fail_open: bool = True
+
+
+class AgentsConfig(BaseModel):
+    model_config = Strict
+
+    # Removing a name here switches that agent off. Nothing else changes.
+    enabled: list[str] = Field(
+        default_factory=lambda: ["tutor", "quizmaster", "narrator", "engagement", "safety"]
+    )
+    settings: dict[str, AgentConfig] = Field(default_factory=_default_agent_settings)
+    safety: SafetyConfig = Field(default_factory=SafetyConfig)
+
+
+class ContextConfig(BaseModel):
+    """What an agent is allowed to see. Every number here narrows it."""
+
+    model_config = Strict
+
+    mcp_enabled: bool = True
+    history_turns: int = Field(default=8, ge=0)
+    lesson_window: int = Field(default=3, ge=0)  # taught segments, not the whole lesson
+    include_student_profile: bool = True
+    recent_answers: int = Field(default=5, ge=0)
+
+
 class ContentConfig(BaseModel):
     model_config = Strict
 
@@ -400,6 +467,8 @@ class Config(BaseModel):
     llm: LlmConfig = Field(default_factory=LlmConfig)
     flow: FlowConfig = Field(default_factory=FlowConfig)
     content: ContentConfig = Field(default_factory=ContentConfig)
+    agents: AgentsConfig = Field(default_factory=AgentsConfig)
+    context: ContextConfig = Field(default_factory=ContextConfig)
 
     @property
     def is_debug(self) -> bool:
