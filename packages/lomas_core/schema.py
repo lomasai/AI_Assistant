@@ -70,6 +70,49 @@ class VisionConfig(BaseModel):
     read_timeout_ms: int = Field(default=200, ge=1)
 
 
+class PoseConfig(BaseModel):
+    """Calibration for the geometric head-pose approximation. These are the
+    knobs to turn if the attention cone feels wrong in a real classroom."""
+
+    model_config = Strict
+
+    yaw_scale_degrees: float = Field(default=60.0, gt=0)
+    pitch_scale_degrees: float = Field(default=60.0, gt=0)
+    pitch_neutral: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class FaceConfig(BaseModel):
+    model_config = Strict
+
+    enabled: bool = True
+    detector: Literal["yunet", "mediapipe", "mock"] = "yunet"
+    model_path: str = "models/face_detection_yunet_2023mar.onnx"
+    detect_fps: int = Field(default=10, ge=1)
+    downscale_width: int = Field(default=640, ge=64)
+    min_confidence: float = Field(default=0.6, ge=0.0, le=1.0)
+    nms_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    top_k: int = Field(default=50, ge=1)
+    min_face_px: int = Field(default=40, ge=1)
+    max_tracks: int = Field(default=8, ge=1)
+    track_iou_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
+    track_birth_hits: int = Field(default=3, ge=1)
+    track_death_seconds: float = Field(default=1.5, gt=0)
+    pose: PoseConfig = Field(default_factory=PoseConfig)
+
+
+class AttentionConfig(BaseModel):
+    model_config = Strict
+
+    enabled: bool = True
+    cone_yaw_degrees: float = Field(default=35.0, gt=0)
+    cone_pitch_degrees: float = Field(default=25.0, gt=0)
+    window_seconds: float = Field(default=10.0, gt=0)
+    threshold: float = Field(default=0.45, ge=0.0, le=1.0)
+    min_duration_seconds: float = Field(default=6.0, gt=0)
+    cooldown_seconds: float = Field(default=120.0, ge=0)
+    max_nudges_per_session: int = Field(default=3, ge=0)
+
+
 def _default_sources() -> list[SourceConfig]:
     return [SourceConfig(id="head")]
 
@@ -82,6 +125,8 @@ class Config(BaseModel):
     storage: StorageConfig = Field(default_factory=StorageConfig)
     sources: list[SourceConfig] = Field(default_factory=_default_sources)
     vision: VisionConfig = Field(default_factory=VisionConfig)
+    face: FaceConfig = Field(default_factory=FaceConfig)
+    attention: AttentionConfig = Field(default_factory=AttentionConfig)
 
     @property
     def is_debug(self) -> bool:

@@ -69,3 +69,46 @@ vision:
   # consumer loses frames instead of stalling the camera.
   buffer_size: 4
   read_timeout_ms: 200
+
+face:
+  enabled: true
+  detector: yunet          # yunet | mediapipe | mock
+  model_path: models/face_detection_yunet_2023mar.onnx
+
+  # Detection runs slower than capture, deliberately. Faces do not move fast
+  # enough to need 15 Hz and the spare cores are wanted elsewhere.
+  detect_fps: 10
+  downscale_width: 640     # detect on this; crop faces from the full frame
+
+  min_confidence: 0.6
+  nms_threshold: 0.3
+  top_k: 50
+  min_face_px: 40          # detection floor; recognition needs about 80
+  max_tracks: 8
+
+  track_iou_threshold: 0.35
+  track_birth_hits: 3      # frames before a track is treated as real
+  track_death_seconds: 1.5
+
+  # Calibration for the geometric pose estimate. Turn these if the attention
+  # cone feels wrong in a real classroom.
+  pose:
+    yaw_scale_degrees: 60.0
+    pitch_scale_degrees: 60.0
+    pitch_neutral: 0.5
+
+attention:
+  enabled: true
+
+  # Inside this cone the child counts as facing the robot.
+  cone_yaw_degrees: 35.0
+  cone_pitch_degrees: 25.0
+
+  # Time constant of the score, not a frame count, so a variable frame rate
+  # does not change how quickly someone reads as drifting.
+  window_seconds: 10.0
+  threshold: 0.45
+
+  min_duration_seconds: 6.0
+  cooldown_seconds: 120.0      # per student
+  max_nudges_per_session: 3    # a robot that nudges more than this is nagging
