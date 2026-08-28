@@ -5,327 +5,609 @@
 
 <style>
 :root{
-  --paper:#F1F3F1; --surface:#FFFFFF; --surface-2:#E7EBE8; --code-bg:#EDF1EF;
+  --paper:#F1F3F1; --surface:#FFFFFF; --surface-2:#E7EBE8; --code-bg:#EBEFED;
   --ink:#16211F; --ink-2:#47564F; --ink-3:#6E7D75;
   --line:#D2DAD5; --line-strong:#B9C4BE;
   --teal:#0F6F66; --teal-soft:#DCEBE8;
-  --copper:#A25730; --good:#2E7D5B; --good-soft:#DFEFE7; --crit:#A8433C;
+  --copper:#A25730; --good:#2E7D5B; --good-soft:#DEEFE6; --crit:#A8433C; --crit-soft:#F7E4E2;
   --shadow:0 1px 2px rgba(22,33,31,.06), 0 8px 24px -16px rgba(22,33,31,.28);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --code-bg:#131C19;
+    --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --code-bg:#121A18;
     --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
     --line:#2B3934; --line-strong:#3B4C45;
     --teal:#54C4B2; --teal-soft:#152B28;
-    --copper:#DB8F62; --good:#5CBA8C; --good-soft:#142621; --crit:#E2776D;
+    --copper:#DB8F62; --good:#5CBA8C; --good-soft:#132520; --crit:#E2776D; --crit-soft:#2C1A18;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
   }
 }
 :root[data-theme="dark"]{
-  --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --code-bg:#131C19;
+  --paper:#101715; --surface:#17201D; --surface-2:#1E2925; --code-bg:#121A18;
   --ink:#E8EDEA; --ink-2:#A7B5AE; --ink-3:#7C8C85;
   --line:#2B3934; --line-strong:#3B4C45;
   --teal:#54C4B2; --teal-soft:#152B28;
-  --copper:#DB8F62; --good:#5CBA8C; --good-soft:#142621; --crit:#E2776D;
+  --copper:#DB8F62; --good:#5CBA8C; --good-soft:#132520; --crit:#E2776D; --crit-soft:#2C1A18;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
 }
 *{box-sizing:border-box}
 body{margin:0; background:var(--paper); color:var(--ink);
-  font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif; font-size:16px; line-height:1.6}
-.wrap{max-width:900px; margin:0 auto; padding:0 24px 90px}
-.mast{padding:56px 0 30px; border-bottom:2px solid var(--ink)}
+  font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif; font-size:16px; line-height:1.58}
+.wrap{max-width:1000px; margin:0 auto; padding:0 24px 90px}
+.mast{padding:54px 0 28px; border-bottom:2px solid var(--ink)}
 .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.15em;
-  text-transform:uppercase; color:var(--teal); margin:0 0 14px}
-h1{font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:clamp(1.95rem,4.4vw,2.85rem);
-  line-height:1.07; letter-spacing:-.02em; margin:0 0 15px; text-wrap:balance}
-.standfirst{font-size:1.06rem; color:var(--ink-2); max-width:64ch; margin:0}
+  text-transform:uppercase; color:var(--teal); margin:0 0 13px}
+h1{font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:clamp(1.9rem,4.3vw,2.8rem);
+  line-height:1.07; letter-spacing:-.02em; margin:0 0 14px; text-wrap:balance}
+.standfirst{font-size:1.04rem; color:var(--ink-2); max-width:66ch; margin:0}
 .howto{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--teal);
-  border-radius:0 4px 4px 0; padding:18px 20px; margin:30px 0 0; box-shadow:var(--shadow)}
+  border-radius:0 4px 4px 0; padding:17px 19px; margin:26px 0 0; box-shadow:var(--shadow)}
 .howto .lbl{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.11em;
   text-transform:uppercase; color:var(--teal); display:block; margin-bottom:9px}
-.howto ol{margin:0; padding-left:19px; font-size:.9rem; color:var(--ink-2)}
-.howto li{margin-bottom:6px} .howto li:last-child{margin-bottom:0}
+.howto ol{margin:0; padding-left:19px; font-size:.89rem; color:var(--ink-2)}
+.howto li{margin-bottom:5px} .howto li:last-child{margin-bottom:0}
 .howto b{color:var(--ink)}
 .phase{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.13em;
-  text-transform:uppercase; color:var(--ink-3); margin:54px 0 16px; padding-bottom:11px;
+  text-transform:uppercase; color:var(--ink-3); margin:50px 0 15px; padding-bottom:10px;
   border-bottom:1px solid var(--line-strong)}
-.p{margin:0 0 20px; border:1px solid var(--line); border-radius:5px; background:var(--surface);
+.p{margin:0 0 18px; border:1px solid var(--line); border-radius:5px; background:var(--surface);
   overflow:hidden; box-shadow:var(--shadow)}
-.p > .hd{display:grid; grid-template-columns:52px minmax(0,1fr); align-items:center;
-  padding:14px 17px 14px 0; border-bottom:1px solid var(--line); background:var(--surface-2)}
+.p > .hd{display:grid; grid-template-columns:54px minmax(0,1fr); align-items:center;
+  padding:13px 16px 13px 0; border-bottom:1px solid var(--line); background:var(--surface-2)}
+.p.done > .hd{background:var(--good-soft)}
 .p .id{font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:500; color:var(--teal); text-align:center}
-.p .ti{font-family:"Fraunces",Georgia,serif; font-size:1.16rem; font-weight:600; line-height:1.22}
-.p .meta{font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--ink-3);
-  letter-spacing:.05em; margin-top:4px}
-.p .bd{padding:16px 17px}
-.p h4{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.11em; text-transform:uppercase;
-  color:var(--ink-3); margin:0 0 7px; font-weight:500}
-.p h4.g{color:var(--good)} .p h4.c{color:var(--crit)}
-.p p{margin:0 0 14px; font-size:.9rem; color:var(--ink-2); max-width:none}
-.p ul{margin:0 0 14px; padding-left:19px; font-size:.875rem; color:var(--ink-2); max-width:none}
-.p li{margin-bottom:4px}
-.p .last{margin-bottom:0}
+.p.done .id{color:var(--good)}
+.p .ti{font-family:"Fraunces",Georgia,serif; font-size:1.13rem; font-weight:600; line-height:1.2}
+.p .meta{font-family:"IBM Plex Mono",monospace; font-size:9.5px; color:var(--ink-3);
+  letter-spacing:.05em; margin-top:3px}
+.p .bd{padding:15px 16px}
+.ctx{font-size:.86rem; color:var(--ink-2); margin:0 0 14px; padding-bottom:12px;
+  border-bottom:1px dashed var(--line)}
+.ctx b{color:var(--ink)}
+h4{font-family:"IBM Plex Mono",monospace; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--teal); margin:16px 0 6px; font-weight:500}
+h4:first-of-type{margin-top:0}
+pre{font-family:"IBM Plex Mono",monospace; font-size:11.8px; line-height:1.6; background:var(--code-bg);
+  border:1px solid var(--line); border-radius:4px; padding:12px 14px; overflow-x:auto;
+  margin:0 0 12px; color:var(--ink-2); white-space:pre; user-select:all}
+pre b{color:var(--ink); font-weight:500}
+pre i{color:var(--ink-3); font-style:normal}
+pre u{color:var(--teal); text-decoration:none}
+pre s{color:var(--copper); text-decoration:none}
+p{margin:0 0 12px; font-size:.88rem; color:var(--ink-2); max-width:none}
+ul{margin:0 0 12px; padding-left:19px; font-size:.865rem; color:var(--ink-2)}
+li{margin-bottom:4px}
 code{font-family:"IBM Plex Mono",monospace; font-size:.855em; background:var(--code-bg);
   padding:1.5px 5px; border-radius:3px; color:var(--ink)}
-.prompt{background:var(--code-bg); border:1px solid var(--line); border-radius:4px;
-  padding:15px 17px; margin:0 0 14px; font-family:"IBM Plex Mono",monospace; font-size:12.5px;
-  line-height:1.62; color:var(--ink-2); white-space:pre-wrap; overflow-x:auto; user-select:all}
-.prompt b{color:var(--ink); font-weight:500}
-.acc{background:var(--good-soft); border:1px solid var(--line); border-radius:4px; padding:12px 15px;
-  font-size:.85rem; color:var(--ink-2); margin:0 0 14px}
-.acc b{color:var(--good); font-family:"IBM Plex Mono",monospace; font-size:10px;
-  letter-spacing:.11em; text-transform:uppercase; display:block; margin-bottom:6px; font-weight:500}
-.dont{font-size:.85rem; color:var(--ink-2)}
-.dont b{color:var(--crit)}
+.acc{background:var(--good-soft); border:1px solid var(--line); border-radius:4px;
+  padding:11px 14px; font-size:.845rem; color:var(--ink-2); margin:0 0 12px}
+.acc b{color:var(--good); font-family:"IBM Plex Mono",monospace; font-size:9.5px;
+  letter-spacing:.12em; text-transform:uppercase; display:block; margin-bottom:6px; font-weight:500}
+.acc pre{background:var(--surface); margin:7px 0 0; font-size:11.5px}
+.dont{background:var(--crit-soft); border:1px solid var(--line); border-radius:4px;
+  padding:11px 14px; font-size:.845rem; color:var(--ink-2); margin:0}
+.dont b{color:var(--crit); font-family:"IBM Plex Mono",monospace; font-size:9.5px;
+  letter-spacing:.12em; text-transform:uppercase; display:block; margin-bottom:6px; font-weight:500}
 .note{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--copper);
-  border-radius:0 4px 4px 0; padding:16px 19px; margin:0 0 22px}
+  border-radius:0 4px 4px 0; padding:15px 18px; margin:24px 0}
 .note .lbl{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.11em;
   text-transform:uppercase; color:var(--copper); display:block; margin-bottom:7px}
-.note p{margin:0; font-size:.9rem; color:var(--ink-2)}
-footer{margin-top:56px; padding-top:22px; border-top:1px solid var(--line);
+.note p:last-child{margin-bottom:0}
+footer{margin-top:52px; padding-top:22px; border-top:1px solid var(--line);
   font-size:.83rem; color:var(--ink-3)}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
 <div class="wrap">
 <header class="mast">
-  <p class="eyebrow">LomasAI &middot; Build sequence &middot; 14 prompts</p>
+  <p class="eyebrow">LomasAI &middot; Build sequence &middot; 14 prompts &middot; P0 complete</p>
   <h1>Build Prompts</h1>
-  <p class="standfirst">Run these in order, one at a time. Each produces something you can actually test before you move on, and each names what it must not touch &mdash; which is how the isolation rules survive contact with a deadline.</p>
+  <p class="standfirst">Each prompt is a complete specification: the files to create, the exact interfaces, the config keys it introduces, the events it publishes, a command that proves it works, and the boundary it must not cross. Written so an agent or an intern can execute one without having read the others.</p>
 
   <div class="howto">
-    <span class="lbl">How to use these</span>
+    <span class="lbl">Standing rules for every prompt</span>
     <ol>
-      <li>Paste one prompt. Let it finish. <b>Run its acceptance check before starting the next.</b></li>
-      <li>If the check fails, fix it in that prompt's scope. Do not carry a broken step forward &mdash; every later prompt assumes the earlier ones hold.</li>
-      <li>Commit after each one. Fourteen commits, each a working system.</li>
-      <li>P0 to P4 need no hardware, no keys, no Pi. Work on the laptop.</li>
+      <li><b>Paste one prompt, let it finish, run the acceptance command.</b> Do not start the next until it passes.</li>
+      <li><b>Never edit a file outside the prompt's scope.</b> If you cannot finish without doing so, stop and say why &mdash; that is an architecture problem, not a coding one.</li>
+      <li><b>No value in code that belongs in config.</b> Defaults live only in <code>schema.py</code>. The literal scanner enforces this.</li>
+      <li><b>Comments are sparse and human.</b> Explain why, never what. No docstring on every function, no narration of obvious steps.</li>
+      <li><b>Every new implementation registers itself</b> with the family's <code>Registry</code> and is selected by a config string.</li>
+      <li><b>Commit after each prompt.</b> Fourteen commits, each a system that runs.</li>
     </ol>
   </div>
 </header>
 
-<div class="phase">Phase A &middot; Foundation &mdash; laptop only, no hardware</div>
+<div class="phase">Phase A &middot; Foundation &mdash; laptop only, no hardware, no keys</div>
 
-<div class="p">
-  <div class="hd"><div class="id">P0</div><div><div class="ti">Skeleton and core</div>
-  <div class="meta">packages/lomas_core &middot; ~9 files &middot; no dependencies</div></div></div>
+<div class="p done">
+  <div class="hd"><div class="id">P0</div><div><div class="ti">Skeleton and core &mdash; complete</div>
+  <div class="meta">lomas_core &middot; 9 modules &middot; 26 tests green &middot; commit c577e5c</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Create the LomasAI repository skeleton and the <b>lomas_core</b> package only.
-
-Layout: <b>run.py</b> at root; <b>packages/</b> for capability packages; <b>app/</b> for the
-integrator; <b>config/</b>, <b>content/</b>, <b>tests/</b>. Python 3.12, no framework yet.
-
-Build lomas_core with exactly these modules, one job each:
-- <b>registry.py</b> — a generic Registry[T] with a @register(key) decorator and
-  auto-discovery that imports every module in a package directory so
-  implementations self-register on import.
-- <b>config.py</b> — four-layer loader: config/default.yaml, then
-  config/profiles/{mode}.yaml, then optional site.yaml, then env vars
-  prefixed LOMAS__ and --set key=value pairs. Last layer wins. Dotted access.
-- <b>schema.py</b> — typed config models (dataclasses or pydantic). This is the
-  ONLY file in the repo where a default value may be written.
-- <b>events.py</b> — an EventBus with publish, subscribe by event name or
-  wildcard, and a bounded replay buffer. Sync and async subscribers.
-- <b>contracts.py</b> — event name constants and payload dataclasses. Empty
-  for now apart from session.opened and session.closed.
-- <b>clock.py</b> — a Clock protocol with a real and a fake implementation, so
-  tests never sleep.
-- <b>logging.py</b> — logger factory that reads runtime.mode and emits
-  human lines in user mode, structured records in debug mode.
-- <b>errors.py</b> — the exception hierarchy.
-
-Write config/default.yaml with the runtime and tenancy sections only, every
-key commented with what it does.
-
-Also write the three architecture-enforcing tests now, before there is
-anything to enforce:
-- <b>test_imports.py</b> — walks the AST of every package; fails if a package
-  imports a sibling package or anything under app/.
-- <b>test_no_literals.py</b> — flags bare numeric or string literals used in
-  comparisons or as default arguments outside schema.py.
-- <b>test_config_layers.py</b> — proves each layer overrides the one below.
-
-Comments: sparse, only where the reason is not obvious from the code.
-No docstring on every function, no narration of obvious steps.</div>
-    <div class="acc"><b>Acceptance</b><code>pytest tests/</code> passes with three tests green, and <code>python run.py --mode debug --set runtime.log_level=DEBUG</code> prints the resolved config and exits cleanly.</div>
-    <p class="dont last"><b>Must not touch:</b> nothing exists yet. Do not create any other package, and do not add FastAPI, OpenCV or any AI library to requirements.</p>
+    <p class="ctx">Shipped. <b>Registry</b>, four-layer <b>config</b> with typed schema, <b>EventBus</b>, <b>Clock</b>, mode-aware <b>logging</b>, and the three architecture-enforcing tests. Debug mode resolves to the scratch tenant. Everything below builds on this and none of it may modify it.</p>
+    <h4>What later prompts may rely on</h4>
+<pre><b>from</b> lomas_core.registry <b>import</b> Registry
+<b>from</b> lomas_core.config <b>import</b> load
+<b>from</b> lomas_core.schema <b>import</b> Config          <i># add your section here, defaults live here</i>
+<b>from</b> lomas_core.events <b>import</b> EventBus
+<b>from</b> lomas_core.clock <b>import</b> Clock, RealClock, FakeClock
+<b>from</b> lomas_core <b>import</b> logging <b>as</b> log        <i># log.get("name")</i>
+<b>from</b> lomas_core.errors <b>import</b> LomasError, ConfigError, RegistryError</pre>
+    <div class="acc"><b>Verify at any time</b><pre>.venv\Scripts\python -m pytest
+.venv\Scripts\python run.py --mode debug --show-config</pre></div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P1</div><div><div class="ti">Storage and tenancy</div>
-  <div class="meta">packages/lomas_store &middot; ~14 files</div></div></div>
+  <div class="meta">packages/lomas_store &middot; 15 files &middot; needs P0</div></div></div>
   <div class="bd">
+    <p class="ctx">Only <b>lomas_core</b> exists. This adds persistence and the tenant isolation that every later feature depends on. It is the last prompt before anything visible happens, and the one most expensive to get wrong.</p>
+
     <h4>Prompt</h4>
-    <div class="prompt">Build the <b>lomas_store</b> package. It may import lomas_core and stdlib only.
+    <p>Build the <code>lomas_store</code> package. It may import <code>lomas_core</code> and the standard library only &mdash; no third-party database driver, <code>sqlite3</code> is in stdlib.</p>
 
-- <b>store.py</b> — Store protocol: execute, query, transaction.
-- <b>backends/sqlite.py</b> and <b>backends/memory.py</b>, both registered.
-- <b>schema.sql</b> — orgs, schools, classes, students, consent, embeddings,
-  sessions, session_students, answers, events. Every table carries org_id.
-  There is deliberately no column anywhere for an image or a video.
-- <b>migrations.py</b> — versioned, forward-only.
-- <b>scope.py</b> — a TenantScope value object holding org, school, class.
-- <b>repos/</b> — one file per aggregate. <b>Every public method takes
-  TenantScope as its first argument</b> and applies it to the query. Not
-  optional, not defaulted.
+    <h4>Create</h4>
+<pre>packages/lomas_store/
+  __init__.py
+  store.py              <i>Store protocol + STORES registry</i>
+  scope.py              <i>TenantScope</i>
+  schema.sql            <i>tables, indexes, foreign keys</i>
+  migrations.py         <i>versioned, forward-only</i>
+  backends/sqlite.py    <i>@STORES.register("sqlite")</i>
+  backends/memory.py    <i>@STORES.register("memory") - in-memory sqlite</i>
+  repos/base.py         <i>Repository base holding a Store</i>
+  repos/orgs.py  schools.py  classes.py  students.py
+  repos/consent.py  embeddings.py  sessions.py  answers.py  events.py</pre>
 
-Add the storage and tenancy config sections.
+    <h4>Interfaces &mdash; implement exactly</h4>
+<pre><b>class</b> Store(Protocol):
+    <b>def</b> execute(self, sql: str, params: Sequence = ()) -> <b>None</b>
+    <b>def</b> executemany(self, sql: str, rows: Iterable[Sequence]) -> <b>None</b>
+    <b>def</b> query(self, sql: str, params: Sequence = ()) -> list[dict]
+    <b>def</b> transaction(self) -> AbstractContextManager[<b>None</b>]
+    <b>def</b> close(self) -> <b>None</b>
 
-Tests: a tenancy isolation test that seeds two orgs with identical class
-and student names, writes a session in each, and asserts neither org's
-queries return the other's rows. Plus a test that the repo layer cannot be
-called without a scope.</div>
-    <div class="acc"><b>Acceptance</b>Tenancy test passes. Deleting the scope argument from any repo method makes the suite fail.</div>
-    <p class="dont last"><b>Must not touch:</b> lomas_core. If you need something from core that is missing, stop and say so rather than editing it.</p>
+STORES: Registry[Store]
+
+@dataclass(frozen=<b>True</b>, slots=<b>True</b>)
+<b>class</b> TenantScope:
+    org_id: str
+    school_id: str | <b>None</b> = <b>None</b>
+    class_id: str | <b>None</b> = <b>None</b>
+
+<i># Every public repository method takes scope FIRST. Not optional,</i>
+<i># not defaulted. The signature is the enforcement.</i>
+<b>class</b> StudentRepo(Repository):
+    <b>def</b> create(self, scope: TenantScope, name: str, roll_no: str) -> str
+    <b>def</b> get(self, scope: TenantScope, student_id: str) -> dict | <b>None</b>
+    <b>def</b> list_for_class(self, scope: TenantScope) -> list[dict]
+    <b>def</b> delete(self, scope: TenantScope, student_id: str) -> <b>None</b></pre>
+
+    <h4>Schema &mdash; every table carries org_id</h4>
+<pre>orgs             id, name, created_at
+schools          id, <u>org_id</u>, name, default_language, created_at
+classes          id, <u>org_id</u>, school_id, grade, section, subject
+students         id, <u>org_id</u>, school_id, class_id, name, roll_no, created_at
+consent          id, <u>org_id</u>, student_id, kind, granted_by, granted_at, document_ref
+embeddings       id, <u>org_id</u>, student_id, vector BLOB, quality REAL, angle, captured_at
+sessions         id, <u>org_id</u>, school_id, class_id, teacher, topic, language,
+                 started_at, ended_at, status
+session_students id, <u>org_id</u>, session_id, student_id, joined_at, left_at, present
+answers          id, <u>org_id</u>, session_id, student_id, question_ref, response,
+                 correct, latency_ms, answered_at
+events           id, <u>org_id</u>, session_id, name, payload JSON, at
+
+<s>There is deliberately no column anywhere for an image, a frame or a video.</s>
+<s>A future contributor cannot casually add face-image storage because there</s>
+<s>is nowhere to put it.</s></pre>
+
+    <h4>Config added</h4>
+<pre><b>storage:</b>
+  backend: sqlite          <i># sqlite | memory</i>
+  path: data/lomas.db
+  retention_days: 180      <i># session detail older than this is purged</i>
+  purge_on_term_end: true
+  busy_timeout_ms: 5000</pre>
+
+    <h4>Tests to write</h4>
+    <ul>
+      <li><code>test_tenancy.py</code> &mdash; seed two orgs with <em>identical</em> class names, student names and roll numbers. Write a session in each. Assert every repo list/get method returns only the caller's org rows.</li>
+      <li>Assert a repo method raises <code>TypeError</code> if called without a scope (the signature does this for free; the test locks it in).</li>
+      <li><code>test_migrations.py</code> &mdash; migrate an empty database, then migrate again; second run is a no-op.</li>
+      <li>Round-trip a float32 embedding vector through the BLOB column unchanged.</li>
+    </ul>
+
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python -m pytest tests/test_tenancy.py -v
+<i># all green; deleting the scope argument from any repo method breaks the suite</i></pre></div>
+    <div class="dont"><b>Must not touch</b><code>lomas_core</code>, <code>run.py</code>, <code>config/default.yaml</code> beyond appending the <code>storage</code> block, or <code>schema.py</code> beyond appending <code>StorageConfig</code>.</div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P2</div><div><div class="ti">Camera sources and the frame bus</div>
-  <div class="meta">packages/lomas_vision &middot; ~11 files</div></div></div>
+  <div class="meta">packages/lomas_vision &middot; 12 files &middot; needs P0</div></div></div>
   <div class="bd">
+    <p class="ctx">Frames only. This package must not know that faces, students or lessons exist &mdash; that separation is what lets classroom CCTV arrive later as one new file.</p>
+
     <h4>Prompt</h4>
-    <div class="prompt">Build <b>lomas_vision</b>. Frames only — this package must know nothing about
-faces, students or lessons.
+    <p>Build <code>lomas_vision</code>. May import <code>lomas_core</code>, <code>numpy</code>, and (guarded) <code>opencv-python</code> and <code>picamera2</code>.</p>
 
-- <b>frame.py</b> — Frame dataclass: source_id, seq, timestamp, image array.
-- <b>source.py</b> — CameraSource protocol: open, read, set_zoom, close.
-- <b>sources/</b> one file each, all registered:
-  mock.py (synthetic frames), folder.py (still images, deterministic),
-  file.py (video replay), usb.py (OpenCV), picamera2.py (Pi, import
-  guarded so it does not break on a laptop), rtsp.py (stub that raises
-  NotImplemented with a clear message — the CCTV seam).
-- <b>bus.py</b> — FrameBus reading from N sources concurrently into a
-  per-source ring buffer, drop-oldest, with a subscribe API.
-- <b>zoom.py</b> — maps a 1.0–2.5 zoom factor to a centred sensor crop
-  rectangle for picamera2 ScalerCrop; a no-op for other sources.
+    <h4>Create</h4>
+<pre>packages/lomas_vision/
+  __init__.py
+  frame.py              <i>Frame dataclass</i>
+  source.py             <i>CameraSource protocol + CAMERA_SOURCES registry</i>
+  bus.py                <i>FrameBus</i>
+  zoom.py               <i>zoom factor to sensor crop rectangle</i>
+  sources/mock.py       <i>synthetic gradient frames, no dependencies</i>
+  sources/folder.py     <i>still images in order, deterministic</i>
+  sources/file.py       <i>video replay via cv2.VideoCapture</i>
+  sources/usb.py        <i>cv2.VideoCapture(index)</i>
+  sources/picamera2.py  <i>import guarded so a laptop still imports the package</i>
+  sources/rtsp.py       <i>the CCTV seam - raises NotImplementedError with a clear message</i></pre>
 
-Config: <b>sources</b> is a LIST from day one, each entry with id, kind,
-zone, resolution, fps, zoom, rotation. Ship one entry.
+    <h4>Interfaces</h4>
+<pre>@dataclass(slots=<b>True</b>)
+<b>class</b> Frame:
+    source_id: str
+    seq: int
+    ts: float
+    image: np.ndarray        <i># BGR, HxWx3, uint8</i>
 
-Tests run against mock and folder sources only, no hardware.</div>
-    <div class="acc"><b>Acceptance</b>A test opens three mock sources at once, pulls 100 frames, and asserts sequence numbers are monotonic per source with no cross-contamination. Nothing imports lomas_face.</div>
-    <p class="dont last"><b>Must not touch:</b> lomas_core, lomas_store.</p>
+    @property
+    <b>def</b> size(self) -> tuple[int, int]   <i># (width, height)</i>
+
+<b>class</b> CameraSource(Protocol):
+    <b>def</b> open(self) -> <b>None</b>
+    <b>def</b> read(self) -> Frame | <b>None</b>      <i># None means no frame ready, never blocks forever</i>
+    <b>def</b> set_zoom(self, factor: float) -> <b>None</b>
+    <b>def</b> close(self) -> <b>None</b>
+
+CAMERA_SOURCES: Registry[CameraSource]
+
+<b>class</b> FrameBus:
+    <b>def</b> __init__(self, sources: list[CameraSource], buffer_size: int, clock: Clock)
+    <b>def</b> start(self) -> <b>None</b>            <i># one capture thread per source</i>
+    <b>def</b> stop(self) -> <b>None</b>
+    <b>def</b> latest(self, source_id: str) -> Frame | <b>None</b>
+    <b>def</b> subscribe(self, source_id: str = "*") -> Iterator[Frame]
+    <b>def</b> stats(self) -> dict           <i># per source: captured, dropped, fps</i></pre>
+
+    <h4>Config added &mdash; note sources is a list</h4>
+<pre><b>sources:</b>                    <i># a LIST from day one, even with one camera.</i>
+  - id: head               <i># This is what makes CCTV and multi-angle additive</i>
+    kind: picamera2        <i># rather than a rewrite.</i>
+    zone: front
+    width: 1280
+    height: 720
+    fps: 15
+    zoom: 1.0              <i># 1.0-2.5, digital crop of the sensor</i>
+    rotation: 0
+    enabled: true
+  <i># later, no code change:</i>
+  <i># - id: cctv_back</i>
+  <i>#   kind: rtsp</i>
+  <i>#   url: rtsp://...</i>
+  <i>#   zone: back</i>
+
+<b>vision:</b>
+  buffer_size: 4           <i># ring depth per source; drop-oldest when full</i>
+  read_timeout_ms: 200</pre>
+
+    <h4>Behaviour that matters</h4>
+    <ul>
+      <li><strong>Drop-oldest, never block.</strong> A slow consumer must not stall capture. Count drops and expose them in <code>stats()</code>.</li>
+      <li>Each source gets its own thread and its own monotonic <code>seq</code>.</li>
+      <li><code>picamera2.py</code> must import cleanly on a laptop &mdash; guard the import and raise only when <code>open()</code> is called.</li>
+      <li><code>zoom.py</code> maps 1.0&ndash;2.5 to a centred <code>ScalerCrop</code> rectangle for picamera2, and is a no-op elsewhere.</li>
+    </ul>
+
+    <div class="acc"><b>Acceptance</b><pre><i># three mock sources at once, 100 frames, no cross-contamination</i>
+.venv\Scripts\python -m pytest tests/test_frame_bus.py -v
+<i># asserts: seq monotonic per source, source_id never mixed,</i>
+<i># drops counted when a consumer is slow</i></pre></div>
+    <div class="dont"><b>Must not touch</b>Anything outside <code>packages/lomas_vision</code>. This package must never import <code>lomas_face</code> or <code>lomas_store</code>.</div>
   </div>
 </div>
 
 <div class="p">
-  <div class="hd"><div class="id">P3</div><div><div class="ti">Detection, tracking, pose</div>
-  <div class="meta">packages/lomas_face &middot; ~13 files</div></div></div>
+  <div class="hd"><div class="id">P3</div><div><div class="ti">Detection, tracking, pose, attention</div>
+  <div class="meta">packages/lomas_face &middot; 13 files &middot; needs P0</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build <b>lomas_face</b>. It receives image arrays and returns data. It must
-never open a camera, and must not import lomas_vision.
+    <p class="ctx">Receives image arrays, returns data. It must never open a camera and must not import <code>lomas_vision</code> &mdash; the app wires them together in P8. Recognition comes in P4; this prompt is detection and the state machine around it.</p>
 
-- <b>types.py</b> — FaceBox, Landmarks, Track, Pose, Identity.
-- <b>detector.py</b> + <b>detectors/</b>: yunet.py (OpenCV FaceDetectorYN, the
-  default), mediapipe.py, mock.py.
-- <b>tracker.py</b> — IoU-based track association with birth and death
-  thresholds. Tracks carry a stable id and an optional identity that
-  persists across frames.
-- <b>pose.py</b> — yaw and pitch from the five landmarks YuNet returns.
-  No extra model.
-- <b>attention.py</b> — per-track attention score as an EMA over a config
-  window, using the pose cone. Emits a disengagement signal after
-  min_duration below threshold, respecting a per-student cooldown.
+    <h4>Create</h4>
+<pre>packages/lomas_face/
+  __init__.py
+  types.py              <i>Detection, Landmarks, Track, Pose, TrackState</i>
+  detector.py           <i>FaceDetector protocol + DETECTORS registry</i>
+  detectors/yunet.py    <i>cv2.FaceDetectorYN - the default</i>
+  detectors/mediapipe.py
+  detectors/mock.py     <i>returns a scripted list, for tests</i>
+  tracker.py            <i>IoU association, track birth and death</i>
+  pose.py               <i>yaw/pitch/roll from five landmarks</i>
+  attention.py          <i>AttentionMonitor</i></pre>
 
-Config: the face and attention sections. Every threshold, window, cone
-angle and cooldown is a key. No numbers in the code.
+    <h4>Interfaces</h4>
+<pre>@dataclass(frozen=<b>True</b>, slots=<b>True</b>)
+<b>class</b> Detection:
+    x: int; y: int; w: int; h: int
+    confidence: float
+    landmarks: Landmarks | <b>None</b>     <i># right_eye, left_eye, nose, right_mouth, left_mouth</i>
 
-Tests use the mock detector and a scripted sequence of boxes so tracking
-and attention logic are tested without any model or image.</div>
-    <div class="acc"><b>Acceptance</b>Tracker test: a face moving across scripted frames keeps one track id; two faces crossing do not swap ids. Attention test: a scripted head-turn sequence triggers disengagement exactly once, then respects cooldown.</div>
-    <p class="dont last"><b>Must not touch:</b> any other package. Detection accuracy is not the goal here — the state machine around it is.</p>
+@dataclass(slots=<b>True</b>)
+<b>class</b> Track:
+    track_id: int
+    box: Detection
+    student_id: str | <b>None</b>          <i># filled by P4, carried forward for free</i>
+    first_seen: float
+    last_seen: float
+    hits: int
+    pose: Pose | <b>None</b>
+    attention: float                 <i># 0.0-1.0 EMA</i>
+
+<b>class</b> FaceDetector(Protocol):
+    <b>def</b> detect(self, image: np.ndarray) -> list[Detection]
+
+DETECTORS: Registry[FaceDetector]
+
+<b>class</b> Tracker:
+    <b>def</b> __init__(self, cfg: FaceConfig, clock: Clock)
+    <b>def</b> update(self, detections: list[Detection], ts: float) -> list[Track]
+    <b>def</b> active(self) -> list[Track]
+
+<b>def</b> estimate_pose(landmarks: Landmarks, box: Detection) -> Pose   <i># yaw, pitch, roll degrees</i>
+
+<b>class</b> AttentionMonitor:
+    <b>def</b> update(self, tracks: list[Track], ts: float) -> list[Disengagement]</pre>
+
+    <h4>Config added</h4>
+<pre><b>face:</b>
+  enabled: true
+  detector: yunet
+  detect_fps: 10           <i># detection runs slower than capture, deliberately</i>
+  downscale_width: 640     <i># detect on this, crop faces from the full frame</i>
+  min_confidence: 0.6
+  min_face_px: 40
+  max_tracks: 8
+  track_iou_threshold: 0.35
+  track_birth_hits: 3      <i># frames before a track is real</i>
+  track_death_seconds: 1.5
+
+<b>attention:</b>
+  enabled: true
+  cone_yaw_degrees: 35     <i># inside this, counted as facing the robot</i>
+  cone_pitch_degrees: 25
+  window_seconds: 10
+  ema_alpha: 0.25
+  threshold: 0.45          <i># below this is drifting</i>
+  min_duration_seconds: 6
+  cooldown_seconds: 120    <i># per student, between nudges</i>
+  max_nudges_per_session: 3</pre>
+
+    <h4>Tests &mdash; no model, no images</h4>
+    <ul>
+      <li>Use <code>detectors/mock.py</code> with a scripted sequence of boxes.</li>
+      <li>A face moving across frames keeps <strong>one</strong> track id.</li>
+      <li>Two faces crossing paths do <strong>not</strong> swap ids.</li>
+      <li>A track that disappears for longer than <code>track_death_seconds</code> dies; reappearing creates a new id.</li>
+      <li>A scripted head-turn sequence triggers disengagement <strong>exactly once</strong>, then respects <code>cooldown_seconds</code>, then stops after <code>max_nudges_per_session</code>.</li>
+    </ul>
+
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python -m pytest tests/test_tracker.py tests/test_attention.py -v</pre></div>
+    <div class="dont"><b>Must not touch</b>Any other package. Detection <em>accuracy</em> is not the goal here &mdash; the state machine around it is. Do not tune the model.</div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P4</div><div><div class="ti">Enrolment and recognition</div>
-  <div class="meta">lomas_face embedder + identity &middot; ~6 files</div></div></div>
+  <div class="meta">lomas_face, 6 more files &middot; needs P3</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Add recognition to lomas_face.
+    <p class="ctx">The design decision that makes this run on a Pi 4: <b>recognise once, then track</b>. Identity does not change between frames, so you only pay when a new track appears.</p>
 
-- <b>embedder.py</b> + <b>embedders/arcface_onnx.py</b> (onnxruntime, 112x112
-  input) and <b>embedders/mock.py</b> (deterministic vectors for tests).
-- <b>identity.py</b> — matches an embedding against a set of enrolled
-  vectors using cosine distance and a config threshold. Implements the
-  recognise-once-then-track policy: identify only on NEW tracks, and
-  re-verify an existing track every reverify_seconds.
-- <b>enrolment.py</b> — takes a sequence of frames from a head-turn sweep,
-  scores each for blur and angle, keeps the best N, returns an averaged
-  vector plus the variant vectors. <b>It returns vectors and nothing else —
-  it must not write, cache or return any image.</b>
+    <h4>Create</h4>
+<pre>packages/lomas_face/
+  embedder.py                 <i>FaceEmbedder protocol + EMBEDDERS registry</i>
+  embedders/arcface_onnx.py   <i>onnxruntime, 112x112 input, L2-normalised output</i>
+  embedders/mock.py           <i>deterministic vector from a seed, for tests</i>
+  identity.py                 <i>IdentityMatcher</i>
+  enrolment.py                <i>EnrolmentSession</i>
+  quality.py                  <i>blur and angle scoring for enrolment frames</i></pre>
 
-Wire the embeddings repo from lomas_store through the app later, not here.
+    <h4>Interfaces</h4>
+<pre><b>class</b> FaceEmbedder(Protocol):
+    <b>def</b> embed(self, face_crop: np.ndarray) -> np.ndarray    <i># float32, L2-normalised</i>
 
-Config: match_threshold, reverify_seconds, enrolment sample count,
-quality floors, privacy.recognition_enabled, privacy.require_consent.
+EMBEDDERS: Registry[FaceEmbedder]
 
-Test with the mock embedder: enrol three synthetic identities, assert
-correct matching, assert an unknown face returns no identity, and assert
-that recognition runs once per new track rather than per frame.</div>
-    <div class="acc"><b>Acceptance</b>The per-frame call count for the embedder in a 100-frame test with one stable track is <strong>1</strong>, not 100. That number is the whole design.</div>
-    <p class="dont last"><b>Must not touch:</b> lomas_vision, lomas_store.</p>
+<b>class</b> IdentityMatcher:
+    <b>def</b> __init__(self, embedder: FaceEmbedder, cfg: FaceConfig, clock: Clock)
+    <b>def</b> load(self, enrolled: dict[str, list[np.ndarray]]) -> <b>None</b>
+    <b>def</b> resolve(self, track: Track, full_frame: np.ndarray) -> str | <b>None</b>
+        <i># Runs the embedder ONLY when track.student_id is None, or when</i>
+        <i># reverify_seconds has elapsed since that track was last checked.</i>
+        <i># Crops from the FULL resolution frame, never the downscale.</i>
+    <b>def</b> stats(self) -> dict           <i># embed_calls, matches, unknowns</i>
+
+<b>class</b> EnrolmentSession:
+    <b>def</b> __init__(self, embedder, cfg, clock)
+    <b>def</b> add_frame(self, image: np.ndarray, detection: Detection) -> FrameFeedback
+        <i># FrameFeedback carries quality, angle bucket, and whether it was kept,</i>
+        <i># so the UI can show live guidance during the head turn</i>
+    <b>def</b> finish(self) -> EnrolmentResult
+        <i># EnrolmentResult holds: mean_vector, variant_vectors, angles, quality.</i>
+        <i># It returns VECTORS AND NOTHING ELSE. No image is stored, cached,</i>
+        <i># returned or written to disk at any point.</i></pre>
+
+    <h4>Config added</h4>
+<pre><b>face:</b>
+  embedder: arcface_onnx
+  model_path: models/arcface.onnx
+  match_threshold: 0.38      <i># cosine distance; lower is stricter</i>
+  reverify_seconds: 20       <i># re-check an established track occasionally</i>
+  unknown_after_attempts: 3
+
+<b>enrolment:</b>
+  sweep_seconds: 4
+  sample_frames: 15
+  keep_best: 3               <i># variant vectors, one per head angle</i>
+  min_quality: 0.5
+  min_face_px: 96            <i># enrolment needs a bigger face than detection</i>
+  required_angles: [left, centre, right]
+
+<b>privacy:</b>
+  recognition_enabled: true  <i># false = the robot teaches a room, not named children</i>
+  require_consent: true      <i># enrolment refuses without a consent row</i>
+  store_images: false        <i># must stay false; there is no code path that honours true</i></pre>
+
+    <div class="acc"><b>Acceptance &mdash; this number is the whole design</b><pre>.venv\Scripts\python -m pytest tests/test_identity.py -v
+
+<i># test_recognises_once_per_track:</i>
+<i>#   feed 100 frames containing one stable track</i>
+<i>#   assert matcher.stats()["embed_calls"] == 1</i>
+<i># If that number is 100, the Pi will not cope. Stop and fix it.</i></pre></div>
+    <div class="dont"><b>Must not touch</b><code>lomas_vision</code>, <code>lomas_store</code>. Wiring enrolment to the database happens in P11, not here.</div>
   </div>
 </div>
 
 <div class="phase">Phase B &middot; Voice and reasoning</div>
 
 <div class="p">
-  <div class="hd"><div class="id">P5</div><div><div class="ti">Speech in, speech out, wake word</div>
-  <div class="meta">packages/lomas_speech &middot; ~14 files</div></div></div>
+  <div class="hd"><div class="id">P5</div><div><div class="ti">Wake word, speech in, speech out</div>
+  <div class="meta">packages/lomas_speech &middot; 15 files &middot; needs P0</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build <b>lomas_speech</b>.
+    <p class="ctx">The keyboard implementations are not throwaway &mdash; they are what let the entire teaching flow be tested in CI with no microphone, no speaker and no API key.</p>
 
-- <b>wake.py</b> + <b>wakes/</b>: openwakeword.py (default), porcupine.py,
-  keyboard.py (press a key to simulate the wake word — this is what makes
-  the whole flow testable with no microphone).
-- <b>stt.py</b> + <b>stts/</b>: groq.py, vosk.py, keyboard.py (typed input).
-- <b>tts.py</b> + <b>ttss/</b>: piper.py (default), gtts.py, null.py.
-- <b>devices.py</b> — audio input is a LIST of devices, each with a zone id,
-  even though there is one today. This is the per-desk microphone seam.
-- <b>duplex.py</b> — a gate that mutes inputs while TTS is playing, with a
-  configurable tail delay.
+    <h4>Create</h4>
+<pre>packages/lomas_speech/
+  wake.py  wakes/openwakeword.py  wakes/porcupine.py  wakes/keyboard.py
+  stt.py   stts/groq.py  stts/vosk.py  stts/keyboard.py
+  tts.py   ttss/piper.py  ttss/gtts.py  ttss/null.py
+  devices.py      <i>audio inputs as a LIST, each with a zone id</i>
+  duplex.py       <i>DuplexGate - mute inputs while speaking</i>
+  types.py        <i>Transcript, Utterance, SpeechEvent</i></pre>
 
-Every engine takes a language code. TTS voice is a per-language map in
-config, not a single voice string.
+    <h4>Interfaces</h4>
+<pre><b>class</b> WakeWord(Protocol):
+    <b>def</b> start(self) -> <b>None</b>
+    <b>def</b> poll(self) -> WakeEvent | <b>None</b>     <i># non-blocking; carries zone_id + confidence</i>
+    <b>def</b> stop(self) -> <b>None</b>
 
-Tests use keyboard and null implementations only. No audio device is
-touched in the test suite.</div>
-    <div class="acc"><b>Acceptance</b>With <code>speech.wake.engine=keyboard</code>, <code>stt.engine=keyboard</code> and <code>tts.engine=null</code>, a test drives a full wake &rarr; transcript &rarr; speak cycle with no sound hardware present.</div>
-    <p class="dont last"><b>Must not touch:</b> any other package.</p>
+<b>class</b> SpeechToText(Protocol):
+    <b>def</b> transcribe(self, audio: bytes, language: str) -> Transcript
+    <b>def</b> stream(self, language: str) -> Iterator[Transcript]   <i># partial then final</i>
+
+<b>class</b> TextToSpeech(Protocol):
+    <b>def</b> speak(self, text: str, language: str) -> SpeechHandle
+    <b>def</b> stop(self) -> <b>None</b>                  <i># must cut off mid-sentence, under 300ms</i>
+    <b>def</b> amplitude(self) -> float            <i># 0.0-1.0, drives the mouth animation</i>
+
+WAKE_WORDS / STT_ENGINES / TTS_ENGINES: Registry[...]
+
+<b>class</b> DuplexGate:
+    <b>def</b> on_speech_start(self) -> <b>None</b>      <i># mute inputs</i>
+    <b>def</b> on_speech_end(self) -> <b>None</b>        <i># unmute after tail_ms</i>
+    <b>def</b> is_muted(self) -> bool</pre>
+
+    <h4>Config added</h4>
+<pre><b>speech:</b>
+  wake:
+    enabled: true
+    engine: openwakeword     <i># openwakeword | porcupine | keyboard</i>
+    phrase: "hey lomas"
+    sensitivity: 0.6
+  stt:
+    engine: groq             <i># groq | vosk | keyboard</i>
+    fallback_engine: vosk    <i># used when the internet is gone</i>
+    language: en
+    silence_timeout_ms: 1200
+    max_utterance_seconds: 20
+  tts:
+    engine: piper            <i># piper | gtts | null</i>
+    rate: 1.0
+    voice:                   <i># per language, never a single voice string</i>
+      en: en_US-lessac-medium
+      hi: hi_IN-pratham-medium
+  audio:
+    inputs:                  <i># a LIST - this is the per-desk microphone seam</i>
+      - id: main
+        device: default
+        zone: front
+    output: default
+    half_duplex: true        <i># mute the mic while speaking; cheap echo control</i>
+    tail_ms: 250</pre>
+
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python -m pytest tests/test_speech.py -v
+<i># with engine=keyboard/keyboard/null, drives wake -> transcript -> speak</i>
+<i># with no audio device present anywhere in the suite</i></pre></div>
+    <div class="dont"><b>Must not touch</b>Any other package. Do not open an audio device inside a test.</div>
   </div>
 </div>
 
 <div class="p">
-  <div class="hd"><div class="id">P6</div><div><div class="ti">AI providers and routing</div>
-  <div class="meta">packages/lomas_llm &middot; ~9 files</div></div></div>
+  <div class="hd"><div class="id">P6</div><div><div class="ti">AI providers, routing, prompts</div>
+  <div class="meta">packages/lomas_llm &middot; 10 files &middot; needs P0</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build <b>lomas_llm</b>.
+    <p class="ctx">Port the complexity router from the existing <code>AI_Assistant</code> codebase &mdash; that part was sound. The offline provider is the default so the whole system runs with zero API keys.</p>
 
-- <b>types.py</b> — Message, Completion, Usage.
-- <b>provider.py</b> — LLMProvider protocol: complete() and stream().
-- <b>providers/</b>: offline.py (rule-based and canned answers, the default
-  so the system runs with zero API keys), groq.py, anthropic.py, openai.py.
-- <b>router.py</b> — port the complexity scoring from the existing
-  AI_Assistant router. Scores route to exactly one model, never a chain.
-  Every weight and threshold from config.
-- <b>prompts.py</b> — loads templates from config/prompts/{language}/*.yaml.
-  <b>No prompt text may appear in any .py file.</b>
+    <h4>Create</h4>
+<pre>packages/lomas_llm/
+  types.py        <i>Message, Completion, Usage, Complexity</i>
+  provider.py     <i>LLMProvider protocol + PROVIDERS registry</i>
+  providers/offline.py    <i>rule-based + canned; the default</i>
+  providers/groq.py  providers/anthropic.py  providers/openai.py
+  router.py       <i>complexity scoring to exactly one model</i>
+  prompts.py      <i>language-keyed template loader</i></pre>
 
-Config: provider, model, fallback_provider, temperature, max_tokens,
-timeout, retries, stream, and the router thresholds.
+    <h4>Interfaces</h4>
+<pre><b>class</b> LLMProvider(Protocol):
+    <b>def</b> complete(self, messages: list[Message], **opts) -> Completion
+    <b>def</b> stream(self, messages: list[Message], **opts) -> Iterator[str]
+    @property
+    <b>def</b> name(self) -> str
 
-Tests use the offline provider. One test asserts that swapping
-llm.provider changes the class the container builds, with no other change.</div>
-    <div class="acc"><b>Acceptance</b>Full test suite passes with no API key set anywhere in the environment.</div>
-    <p class="dont last"><b>Must not touch:</b> any other package. Do not put prompt strings in code — the multilingual requirement dies the moment you do.</p>
+PROVIDERS: Registry[LLMProvider]
+
+<b>class</b> Router:
+    <b>def</b> classify(self, text: str) -> Complexity        <i># simple | medium | complex</i>
+    <b>def</b> choose(self, complexity: Complexity) -> str    <i># a provider key. ONE model, never a chain</i>
+
+<b>class</b> PromptLibrary:
+    <b>def</b> render(self, name: str, language: str, **vars) -> str
+        <i># loads config/prompts/&lt;language&gt;/&lt;name&gt;.yaml</i>
+        <i># falls back to runtime.locale, then to en, and logs the fallback</i></pre>
+
+    <h4>Config added</h4>
+<pre><b>llm:</b>
+  provider: offline          <i># offline | groq | anthropic | openai</i>
+  model: ""                  <i># provider-specific; empty means provider default</i>
+  fallback_provider: offline <i># used on timeout, rate limit or no internet</i>
+  temperature: 0.4
+  max_tokens: 1024
+  timeout_seconds: 12
+  retries: 2
+  stream: true
+  router:
+    enabled: true
+    long_sentence_words: 25
+    reasoning_keywords: [why, how, explain, compare, prove, derive]
+    weights: {length: 1, keywords: 1, multipart: 1}
+    medium_at: 2
+    complex_at: 3
+    simple_provider: groq
+    medium_provider: groq
+    complex_provider: anthropic</pre>
+
+    <div class="note">
+      <span class="lbl">The rule that keeps multilingual alive</span>
+      <p><strong>No prompt text may appear in any <code>.py</code> file.</strong> Every prompt is a template under <code>config/prompts/&lt;language&gt;/</code>. The moment a English sentence gets inlined into Python, adding Hindi becomes a code change instead of a content change, and the multilingual promise quietly dies.</p>
+    </div>
+
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python -m pytest tests/test_llm.py -v
+<i># the FULL suite passes with no API key set in the environment</i>
+<i># one test asserts swapping llm.provider changes the constructed class</i>
+<i># and changes nothing else</i></pre></div>
+    <div class="dont"><b>Must not touch</b>Any other package. No prompt strings in code.</div>
   </div>
 </div>
 
@@ -333,156 +615,262 @@ llm.provider changes the class the container builds, with no other change.</div>
 
 <div class="p">
   <div class="hd"><div class="id">P7</div><div><div class="ti">Container, flow engine, the six steps</div>
-  <div class="meta">app/ &middot; the first integrator &middot; ~13 files</div></div></div>
+  <div class="meta">app/ &middot; 15 files &middot; needs P1, P5, P6</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build the <b>app/</b> integrator layer — the first code allowed to know all
-the packages exist.
+    <p class="ctx">The first code allowed to know all the packages exist. After this prompt you can watch a complete class run in the terminal &mdash; <b>this is the milestone that answers the original question</b>.</p>
 
-- <b>container.py</b> — reads config, resolves every registry key, constructs
-  and injects. The only file in the repo where concrete class names appear.
-- <b>flow/states.py</b>, <b>flow/machine.py</b> — the transition engine.
-- <b>flow/steps/</b> — attendance, greeting, lesson, interaction, quiz,
-  wrapup. Each a FlowStep with enter, tick, exit. Each in its own file,
-  each registered, the running order read from flow.sequence in config.
-- <b>orchestrator.py</b> — owns a session: opens it, drives the machine,
-  publishes events, closes it. Handles pause, resume and safety halt as
-  interrupts from any state.
+    <h4>Create</h4>
+<pre>app/
+  container.py          <i>the ONLY file where concrete class names appear</i>
+  orchestrator.py       <i>owns a session, drives the machine, publishes events</i>
+  flow/states.py  flow/machine.py
+  flow/step.py          <i>FlowStep protocol + STEPS registry</i>
+  flow/steps/attendance.py  greeting.py  lesson.py
+              interaction.py  quiz.py  wrapup.py
+content/en/6/science/photosynthesis.json    <i>two real lessons</i>
+content/en/6/science/water-cycle.json
+content/en/6/science/quiz-photosynthesis.json</pre>
 
-Steps communicate ONLY by publishing events. A step may not call another
-step or reach into the orchestrator.
+    <h4>Interfaces</h4>
+<pre><b>class</b> FlowStep(Protocol):
+    name: str
+    <b>def</b> enter(self, ctx: SessionContext) -> <b>None</b>
+    <b>def</b> tick(self, ctx: SessionContext, now: float) -> StepResult
+    <b>def</b> exit(self, ctx: SessionContext) -> <b>None</b>
 
-Greeting addresses the class as a whole and does not name individuals.
-Names are used only when a step or agent addresses one student directly.
+STEPS: Registry[FlowStep]
 
-Content: content/{language}/{grade}/{subject}/ with lessons and quizzes as
-JSON. Write two real lessons and one quiz for Grade 6 science in English
-as the reference pack.
+<b>class</b> StepResult(Enum):
+    CONTINUE; DONE; ABORT
 
-Acceptance target: <b>python run.py --mode debug</b> walks a complete session
-headless with mock speech and the offline provider, printing every state
-transition, and writes the session to SQLite.</div>
-    <div class="acc"><b>Acceptance</b>A full class runs end to end in under a second with the fake clock. Removing any single step from <code>flow.sequence</code> still produces a valid session.</div>
-    <p class="dont last"><b>Must not touch:</b> the packages. If a package is missing something, note it and stop — do not reach in and edit.</p>
+<b>class</b> Orchestrator:
+    <b>def</b> open_session(self, scope, topic, language) -> str
+    <b>def</b> run(self) -> <b>None</b>
+    <b>def</b> pause(self) -> <b>None</b>       <i># must halt speech and freeze within 300ms</i>
+    <b>def</b> resume(self) -> <b>None</b>
+    <b>def</b> halt(self, reason: str) -> <b>None</b>   <i># safety; pre-empts any state</i>
+    <b>def</b> close_session(self, reason: str) -> <b>None</b></pre>
+
+    <h4>Config added</h4>
+<pre><b>flow:</b>
+  sequence: [attendance, greeting, lesson, interaction, quiz, wrapup]
+  stage_timeout_seconds: {attendance: 120, greeting: 30, lesson: 900,
+                          interaction: 420, quiz: 300, wrapup: 90}
+  advance_policy: teacher_or_timeout   <i># teacher | timeout | teacher_or_timeout</i>
+  questions_per_lesson: 6
+  quiz_length: 6
+  pass_mark: 0.6
+  pause_response_ms: 300
+
+<b>content:</b>
+  language: en
+  grade: 6
+  subject: science
+  vocabulary_level: middle    <i># primary | middle | secondary</i>
+  pack_path: content</pre>
+
+    <h4>Rules for the steps</h4>
+    <ul>
+      <li>A step may <strong>only</strong> publish events. It may not call another step, reach into the orchestrator, or call an agent directly.</li>
+      <li><strong>Greeting addresses the class as a whole and names nobody.</strong> Names are used only when a step or agent addresses one student directly &mdash; a roll of names at the door singles a few children out and leaves the rest waiting.</li>
+      <li>Every step must handle being skipped: removing it from <code>flow.sequence</code> still produces a valid session.</li>
+    </ul>
+
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python run.py --mode debug
+<i># walks attendance -> greeting -> lesson -> interaction -> quiz -> wrapup</i>
+<i># prints every state transition, writes the session to SQLite</i>
+
+.venv\Scripts\python -m pytest tests/test_flow.py -v
+<i># full session in under a second on the FakeClock</i>
+<i># a second test removes each step in turn and asserts the session still closes</i></pre></div>
+    <div class="dont"><b>Must not touch</b>The packages. If a package is missing something you need, stop and say so &mdash; do not reach in and edit it.</div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P8</div><div><div class="ti">The vision pipeline</div>
-  <div class="meta">app/pipeline.py &middot; wires vision to face &middot; ~3 files</div></div></div>
+  <div class="meta">app/pipeline.py &middot; 3 files &middot; needs P2, P3, P4</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Write <b>app/pipeline.py</b>, the integrator that joins lomas_vision to
-lomas_face. This is the only place those two packages meet.
+    <p class="ctx">The only place <code>lomas_vision</code> and <code>lomas_face</code> meet. Both packages stay ignorant of each other; this file does the joining.</p>
 
-Flow: FrameBus → downscale to the configured detection size → detect at
-detect_fps (not capture fps) → track → identify new tracks only, cropping
-from the FULL resolution frame not the downscale → pose → attention.
+    <h4>Order of operations &mdash; implement exactly this</h4>
+<pre>FrameBus
+  -> downscale to face.downscale_width
+  -> detect at face.detect_fps          <i>NOT at capture fps</i>
+  -> tracker.update()
+  -> matcher.resolve() for NEW tracks only, cropping from the
+     FULL RESOLUTION frame, never the downscaled copy
+  -> estimate_pose()
+  -> attention.update()
+  -> publish</pre>
 
-Publishes: vision.tracks, student.identified, student.left,
-student.disengaged. Nothing else in the system may read frames directly.
+    <h4>Events published</h4>
+<pre>vision.tracks         <i>every detect cycle: track ids, boxes, names, attention</i>
+student.identified    <i>a track resolved to an enrolled student</i>
+student.left          <i>a track with an identity died</i>
+student.disengaged    <i>from AttentionMonitor</i></pre>
 
-Run it in its own thread with a drop-oldest queue so vision can never
-stall the session. If the queue backs up, log it in debug mode and drop.
+    <h4>Rules</h4>
+    <ul>
+      <li>Runs in its own thread with a drop-oldest queue. <strong>Vision must never stall the session.</strong> If the queue backs up, drop and count it; log in debug mode only.</li>
+      <li>Nothing else in the system may read frames directly. If a component wants pixels, it subscribes to the MJPEG stream in P10.</li>
+      <li>Respect <code>privacy.recognition_enabled: false</code> by publishing tracks with <code>student_id=None</code> and skipping the matcher entirely.</li>
+    </ul>
 
-Test the whole pipeline against a recorded video through the file camera
-source, asserting a stable identity across the clip.</div>
-    <div class="acc"><b>Acceptance</b>Record a 30-second clip of two people. The pipeline holds both identities for the clip, and the embedder call count is in single digits.</div>
-    <p class="dont last"><b>Must not touch:</b> lomas_vision or lomas_face internals. All wiring lives here.</p>
+    <div class="acc"><b>Acceptance</b><pre><i># record a 30-second clip of two people, save as tests/data/two_people.mp4</i>
+.venv\Scripts\python -m pytest tests/test_pipeline.py -v
+<i># asserts both identities stay stable across the clip</i>
+<i># asserts embed_calls stays in single digits, not hundreds</i></pre></div>
+    <div class="dont"><b>Must not touch</b>The internals of <code>lomas_vision</code> or <code>lomas_face</code>. All wiring lives in this file.</div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P9</div><div><div class="ti">Agents and the MCP context seam</div>
-  <div class="meta">app/agents, app/context &middot; ~9 files</div></div></div>
+  <div class="meta">app/agents, app/context &middot; 10 files &middot; needs P6, P7</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build the agents and the context layer.
+    <p class="ctx">Split by responsibility so each agent has a narrow job, its own prompt, and its own model &mdash; the safety filter does not need the model the tutor uses.</p>
 
-- <b>context/assembler.py</b> — builds exactly what an agent may see: session
-  state, the current lesson slice, and a student profile. Tenant scope is
-  applied HERE and nowhere else, so an agent cannot read another school.
-- <b>context/mcp_server.py</b> — exposes that context as MCP resources.
-- <b>agents/base.py</b> — Agent protocol: handle(event, context).
-- <b>agents/</b>: tutor (answers student questions at the configured grade
-  level, declines off-syllabus), quizmaster (generates and scores),
-  narrator (storytelling), engagement (subscribes to student.disengaged
-  and produces a nudge), safety (content filter on everything spoken).
+    <h4>Create</h4>
+<pre>app/context/assembler.py    <i>what an agent may see. Tenant scope applied HERE only</i>
+app/context/mcp_server.py   <i>exposes that context as MCP resources</i>
+app/agents/base.py          <i>Agent protocol + AGENTS registry</i>
+app/agents/tutor.py  quizmaster.py  narrator.py  engagement.py  safety.py</pre>
 
-<b>The engagement agent phrases every nudge as a question, never as a
-correction.</b> It must never use words like distracted or attention. Put
-the phrasings in the prompt templates, per language, so they are tunable
-without code.
+    <h4>Interfaces</h4>
+<pre><b>class</b> Agent(Protocol):
+    name: str
+    subscribes: list[str]              <i># event patterns</i>
+    <b>def</b> handle(self, event: str, payload, ctx: AgentContext) -> <b>None</b>
 
-Each agent has its own model and prompt in config, so the safety filter
-can run on a cheap model while the tutor runs on a good one.
+<b>class</b> ContextAssembler:
+    <b>def</b> for_agent(self, agent: str, scope: TenantScope, session_id: str) -> AgentContext
+        <i># session state + current lesson slice + student profile.</i>
+        <i># This is the ONE place tenant scope is applied to agent reads,</i>
+        <i># so an agent cannot see another school even by accident.</i></pre>
 
-Agents subscribe to events. No step calls an agent directly.</div>
-    <div class="acc"><b>Acceptance</b>Disabling any agent in <code>agents.enabled</code> leaves a full session running. A test asserts the context assembler refuses a cross-org read.</div>
-    <p class="dont last"><b>Must not touch:</b> flow steps. If a step needs to trigger an agent, it publishes an event.</p>
+    <h4>Agent responsibilities</h4>
+<pre><b>tutor</b>        answers at content.vocabulary_level; declines off-syllabus
+             politely and offers to return to it after class
+<b>quizmaster</b>   generates questions from the lesson; scores free-text answers
+<b>narrator</b>     storytelling with display cues and gesture markers
+<b>engagement</b>   subscribes to student.disengaged, produces a nudge
+<b>safety</b>       content filter on everything spoken to children; in the path</pre>
+
+    <div class="note">
+      <span class="lbl">The engagement agent has one hard rule</span>
+      <p><strong>Every nudge is phrased as a question, never as a correction.</strong> It must never use the words distracted, attention, listening or concentrate. &ldquo;Meera, what do you think happens next?&rdquo; is an invitation; &ldquo;Meera, you seem distracted&rdquo; is a machine reprimanding a child in front of her class, and it is the fastest way to get the robot switched off permanently. Put the phrasings in the prompt templates, per language, so a teacher's feedback is a content edit.</p>
+    </div>
+
+    <h4>Config added</h4>
+<pre><b>agents:</b>
+  enabled: [tutor, quizmaster, narrator, engagement, safety]
+  tutor:      {provider: "", model: "", prompt: tutor}
+  quizmaster: {provider: "", model: "", prompt: quizmaster}
+  narrator:   {provider: "", model: "", prompt: narrator}
+  engagement: {provider: "", model: "", prompt: nudge}
+  safety:     {provider: "", model: "", prompt: safety}
+  <i># empty provider/model inherits llm.*, so a cheap model can be pinned</i>
+  <i># per agent without touching the others</i>
+
+<b>context:</b>
+  mcp_enabled: true
+  history_turns: 8
+  include_student_profile: true</pre>
+
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python -m pytest tests/test_agents.py tests/test_context.py -v
+<i># disabling any agent in agents.enabled still runs a full session</i>
+<i># the assembler refuses a cross-org read</i>
+<i># the nudge prompt output contains none of the banned words</i></pre></div>
+    <div class="dont"><b>Must not touch</b>Flow steps. If a step needs an agent, it publishes an event.</div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P10</div><div><div class="ti">The robot face and the board</div>
-  <div class="meta">app/web &middot; two of the four surfaces &middot; ~10 files</div></div></div>
+  <div class="meta">app/web &middot; 12 files &middot; needs P7, P8</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build the web layer and the first two surfaces.
+    <p class="ctx">First moment it looks like a product. Two of the four surfaces, both subscribing to the same event stream.</p>
 
-- <b>server.py</b> — FastAPI. <b>stream.py</b> — MJPEG endpoint from the frame
-  bus. <b>ws.py</b> — the event stream to browsers. <b>api.py</b> — REST for the
-  teacher controls.
+    <h4>Create</h4>
+<pre>app/web/server.py     <i>FastAPI app</i>
+app/web/stream.py     <i>MJPEG endpoint fed from the FrameBus</i>
+app/web/ws.py         <i>event stream to browsers</i>
+app/web/api.py        <i>REST for teacher controls</i>
+app/web/ui/face/      <i>index.html, face.css, face.js</i>
+app/web/ui/board/     <i>index.html, board.css, board.js</i></pre>
 
-<b>ui/face/</b> — the robot's 7-inch screen, 1024x600, five states: sleeping,
-listening, thinking, speaking, asking. An animated face: eyes that blink
-and orient toward the active speaker, a mouth driven by TTS output
-amplitude. Body text starts at 32px. A persistent student ribbon along the
-bottom showing name plus a green/amber/grey dot — never a number, never a
-ranking.
+    <h4>Face surface &mdash; 1024x600, five states</h4>
+<pre><b>sleeping</b>    slow blink, occasional look-around, "Say Hey Lomas to begin"
+<b>listening</b>   eyes widen and orient toward the active zone, live partial
+            transcript in large type
+<b>thinking</b>    breathing animation, glance upward. Must exist or a two-second
+            pause reads as a crash
+<b>speaking</b>    mouth animates from tts.amplitude(), current sentence very large,
+            name badge when addressing one student
+<b>asking</b>      question plus big numbered option cards</pre>
+    <p>Persistent across all five: a student ribbon along the bottom &mdash; name plus one dot, green engaged, amber drifting, grey out of frame. <strong>Never a number, never a ranking, never a percentage.</strong></p>
 
-<b>ui/board/</b> — the projector surface for lesson content, enabled by
-display.board_screen.enabled and served on the second HDMI output.
+    <h4>Hard performance rules</h4>
+    <ul>
+      <li><strong>Face boxes are absolutely positioned HTML over the video element</strong>, driven by <code>vision.tracks</code>. Never re-encode a frame in Python to draw an overlay.</li>
+      <li>No frontend framework. Vanilla JS, CSS transitions only. <strong>No canvas redraw loop.</strong> Chromium is already the largest CPU consumer on the Pi at 1.0&ndash;1.4 cores.</li>
+      <li>Body text starts at 32px. If it looks absurdly large on your laptop over VNC, it is probably right on a 7-inch panel at 1.5 m.</li>
+      <li>Animate the face, never the layout. Sliding panels are where the frame rate dies.</li>
+    </ul>
 
-Face boxes are absolutely positioned HTML over the video element, drawn
-from the vision.tracks event. <b>Never re-encode frames in Python to draw
-overlays.</b>
+    <h4>Config added</h4>
+<pre><b>display:</b>
+  face_screen:  {enabled: true, width: 1024, height: 600, scale: 1.0}
+  board_screen: {enabled: false, output: HDMI-2, width: 1920, height: 1080}
+<b>web:</b>
+  host: 0.0.0.0
+  port: 8080
+  surfaces: [face, board, teacher, debug]
+  mjpeg_quality: 70
+  mjpeg_fps: 15</pre>
 
-No frontend framework. Vanilla JS, CSS transitions only, no canvas redraw
-loop — this runs in Chromium on a Pi 4 and that browser is already your
-largest CPU consumer.</div>
-    <div class="acc"><b>Acceptance</b>On the Pi, the face UI holds 25+ fps of video with boxes tracking correctly, and Chromium stays under about 1.4 cores.</div>
-    <p class="dont last"><b>Must not touch:</b> orchestrator or steps. The UI is a subscriber, and only a subscriber.</p>
+    <div class="acc"><b>Acceptance</b><pre><i># on the Pi:</i>
+.venv/bin/python run.py --mode user
+<i># face UI holds 25+ fps of video with boxes tracking correctly,</i>
+<i># Chromium stays under ~1.4 cores (check with top)</i></pre></div>
+    <div class="dont"><b>Must not touch</b>The orchestrator or the steps. The UI is a subscriber and only a subscriber.</div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P11</div><div><div class="ti">Enrolment and teacher control</div>
-  <div class="meta">app/web/ui/teacher &middot; ~8 files</div></div></div>
+  <div class="meta">app/web/ui/teacher &middot; 9 files &middot; needs P4, P10</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build the teacher and admin surface.
+    <p class="ctx">The surface that decides whether teachers keep using the product. Three screens.</p>
 
-<b>Enrolment screen</b> — live camera, name and roll number, a consent
-checkbox that is REQUIRED and writes a consent row, a 3–4 second head-turn
-capture with a progress ring and live quality feedback, then confirm. It
-shows how many vectors were stored. It never displays or saves a captured
-image, and the frames are discarded in the same call that embeds them.
+    <h4>Enrolment</h4>
+    <ul>
+      <li>Live camera, name and roll number, and a <strong>required</strong> consent checkbox that writes a <code>consent</code> row.</li>
+      <li>3&ndash;4 second head-turn capture with a progress ring and live quality feedback from <code>FrameFeedback</code>.</li>
+      <li>Shows how many vectors were stored. <strong>Never displays or saves a captured image</strong>; frames are discarded in the same call that embeds them.</li>
+      <li><strong>Consent is enforced server-side, not just in the UI.</strong> A POST without a consent reference is rejected.</li>
+    </ul>
 
-<b>Live control screen</b> — video with named boxes, the class roster with
-attention state, pause and resume, skip section, tap-to-attribute which
-student is speaking, and a prominent switch that disables nudging for the
-session.
+    <h4>Live control</h4>
+    <ul>
+      <li>Video with named boxes, roster with attention state, pause and resume, skip section.</li>
+      <li>Tap-to-attribute which student is speaking &mdash; this is how per-student Q&amp;A tracking actually works, since voice alone will not identify a child in a noisy room.</li>
+      <li>A prominent switch that disables nudging for the session. Teachers trusting they can silence it is what makes them willing to leave it on.</li>
+      <li><strong>Pause must halt speech mid-sentence and freeze the flow within 300 ms.</strong> Treat that latency as a hard requirement, not a nicety.</li>
+    </ul>
 
-<b>Session report</b> — attendance, coverage, the questions students asked,
-quiz results per student. No engagement scores, no ranking, nothing a
-parent could read as a judgement of their child.
+    <h4>Session report</h4>
+    <ul>
+      <li>Attendance, coverage, the questions students asked, quiz results per student.</li>
+      <li><strong>No engagement scores. No ranking. Nothing a parent could read as a judgement of their child.</strong></li>
+    </ul>
 
-Pause must halt speech mid-sentence and freeze the flow within 300ms.
-That button is the teacher's trust in the product; treat its latency as a
-hard requirement.</div>
-    <div class="acc"><b>Acceptance</b>Enrol five people, run a lesson, pause and resume it, and read a report that matches what happened. Enrolment without consent is refused by the server, not just the UI.</div>
-    <p class="dont last"><b>Must not touch:</b> the face UI.</p>
+    <div class="acc"><b>Acceptance</b><pre><i># enrol five people, run a lesson, pause and resume, read the report</i>
+.venv\Scripts\python -m pytest tests/test_enrolment_api.py -v
+<i># asserts a POST without consent is refused by the server with 4xx</i>
+<i># asserts no endpoint ever returns image bytes from enrolment</i></pre></div>
+    <div class="dont"><b>Must not touch</b>The face UI.</div>
   </div>
 </div>
 
@@ -490,68 +878,91 @@ hard requirement.</div>
 
 <div class="p">
   <div class="hd"><div class="id">P12</div><div><div class="ti">Debug mode and diagnostics</div>
-  <div class="meta">app/web/ui/debug + observability &middot; ~5 files</div></div></div>
+  <div class="meta">app/web/ui/debug + observability &middot; 6 files &middot; needs P10</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build debug mode as an overlay available on any surface, toggled by
-runtime.mode.
+    <p class="ctx">Your existing <code>AI_Assistant</code> dashboard, reborn where it belongs: an overlay for engineers, not a screen for children.</p>
 
-Shows: capture and detect fps, queue depth and drops, detection count,
-recognition latency and call count, track table with ids and identities,
-attention scores, wake word confidence, STT and TTS latency, LLM prompt,
-token counts and cost estimate, CPU load and SoC temperature, and the last
-serial frames once hardware exists.
+    <h4>Shows</h4>
+<pre>capture fps, detect fps, queue depth, drop count
+detection count, embed calls, recognition latency
+track table: id, student, box, pose, attention
+wake confidence, STT latency, TTS latency
+LLM: prompt, token counts, cost estimate, chosen provider
+CPU load per core, SoC temperature, throttle flags
+last serial frames (once P13 lands)</pre>
 
-Debug mode also: writes sessions to the scratch tenant so bench testing
-never pollutes a real school's data, raises on error instead of
-recovering, and logs structured JSONL alongside the console.
+    <h4>Mode differences to assert by test</h4>
+<pre>                    debug                     user
+sinks               console + jsonl           console
+on handler error    raise                     log and continue
+target tenant       tenancy.scratch_org_id    tenancy.org_id
+overlay             available                 not served at all</pre>
 
-User mode must show none of this and must recover from errors rather than
-raise. Confirm both by test.</div>
-    <div class="acc"><b>Acceptance</b>Same binary, same flow, two modes. A test boots both and asserts the event sink sets and the target tenant differ.</div>
-    <p class="dont last"><b>Must not touch:</b> feature logic. Diagnostics are subscribers.</p>
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python -m pytest tests/test_modes.py -v
+<i># boots both modes and asserts sinks, error policy and tenant differ</i>
+<i># asserts the debug overlay route returns 404 in user mode</i></pre></div>
+    <div class="dont"><b>Must not touch</b>Feature logic. Diagnostics are subscribers, never participants.</div>
   </div>
 </div>
 
 <div class="p">
   <div class="hd"><div class="id">P13</div><div><div class="ti">Hardware layer and ESP32 protocol</div>
-  <div class="meta">packages/lomas_hal + firmware &middot; ~8 files</div></div></div>
+  <div class="meta">packages/lomas_hal + firmware &middot; 9 files &middot; needs P0</div></div></div>
   <div class="bd">
-    <h4>Prompt</h4>
-    <div class="prompt">Build <b>lomas_hal</b> against the actual BOM: servos on a PCA9685 (2x
-OT5325M shoulders, 4x MG996R neck and elbows), 2x Rhino encoder DC motors
-on BTS7960B for drive, ESP32-S3 as the motor controller, HC-SR04 x6,
-VL53L0X x4 cliff, MPU6050, limit switches, e-stop, ACS712.
+    <p class="ctx">Built against the <b>selected-components CSV</b>, not the older spec document. The spec describes stepper motors; the BOM describes servos. The BOM is correct.</p>
 
-Note this differs from the older spec document, which describes stepper
-motors. The BOM is correct; the spec is stale.
+    <h4>Actual hardware</h4>
+<pre>Servos      PCA9685 16-ch driver
+            2x OT5325M 25kg  shoulders
+            4x MG996R        neck, elbows
+Drive       2x Rhino 60RPM encoder DC motors on BTS7960B
+Controller  ESP32-S3 (owns real-time motion and safety reflexes)
+Sensors     6x HC-SR04, 4x VL53L0X cliff, MPU6050, limit switches
+Safety      e-stop, ACS712 current sense, fuse</pre>
 
-- <b>protocol.py</b> — the wire format, framing, command set, telemetry and
-  error codes. This file is the shared contract with the firmware.
-- <b>backends/simulator.py</b> — the default. Accepts every command,
-  simulates travel time, emits plausible sensor readings, and logs the
-  exact bytes it would have sent.
-- <b>backends/esp32.py</b> — pyserial against the same protocol.
-- <b>gestures.py</b> — namaste, wave, nod played from keyframes in
-  config/hardware/gestures.yaml. No angle in code.
+    <h4>Create</h4>
+<pre>packages/lomas_hal/
+  backend.py            <i>HardwareBackend protocol + BACKENDS registry</i>
+  protocol.py           <i>THE SHARED CONTRACT WITH FIRMWARE - framing,</i>
+                        <i>command set, telemetry, error codes, checksum</i>
+  backends/simulator.py <i>default. accepts everything, simulates travel time,</i>
+                        <i>emits plausible sensors, logs the exact bytes</i>
+  backends/esp32.py     <i>pyserial against the same protocol</i>
+  gestures.py           <i>keyframe playback</i>
+config/hardware/servos.yaml  sensors.yaml  gestures.yaml
+firmware/esp32/         <i>stub implementing protocol.py, for the embedded intern</i></pre>
 
-The Pi sends intent; the ESP32 owns real-time motion and the safety
-reflexes. A Python pause must never become a servo glitch.
+    <h4>Interfaces</h4>
+<pre><b>class</b> HardwareBackend(Protocol):
+    <b>def</b> connect(self) -> <b>None</b>
+    <b>def</b> gesture(self, name: str) -> GestureHandle
+    <b>def</b> look_at(self, yaw: float, pitch: float) -> <b>None</b>   <i># eyes follow the speaker</i>
+    <b>def</b> move(self, linear: float, angular: float) -> <b>None</b>
+    <b>def</b> read_sensors(self) -> SensorReading
+    <b>def</b> halt(self) -> <b>None</b>                    <i># immediate, always honoured</i>
+    <b>def</b> disconnect(self) -> <b>None</b></pre>
 
-Also write the firmware stub in firmware/esp32/ implementing the same
-protocol so the embedded intern has a fixed target.</div>
-    <div class="acc"><b>Acceptance</b>A full lesson runs on the simulator with gesture frames logged. Swapping to <code>esp32</code> requires only the config change.</div>
-    <p class="dont last"><b>Must not touch:</b> anything else. Safety cut-outs are verified on the bench before this goes near children.</p>
+    <h4>Division of responsibility &mdash; this is not negotiable</h4>
+    <ul>
+      <li>The Pi sends <em>intent</em> (&ldquo;namaste&rdquo;). The ESP32 does <em>execution</em> (keyframe interpolation).</li>
+      <li>The ESP32 owns sensor polling, e-stop, cliff and tilt cut-out <strong>in hard real time</strong>. A Python garbage-collection pause must never become a servo glitch or a missed cliff sensor.</li>
+      <li>No servo angle appears in code. All of it in <code>config/hardware/gestures.yaml</code>.</li>
+    </ul>
+
+    <div class="acc"><b>Acceptance</b><pre>.venv\Scripts\python run.py --mode debug
+<i># full lesson on the simulator, gesture frames logged as exact bytes</i>
+<i># switching to real hardware is ONLY: --set hardware.backend=esp32</i></pre></div>
+    <div class="dont"><b>Must not touch</b>Anything else. Safety cut-outs are verified on the bench before this goes anywhere near children.</div>
   </div>
 </div>
 
 <div class="note">
-  <span class="lbl">One rule for every prompt</span>
-  <p>If a prompt cannot be completed without editing a file outside its scope, that is a signal the architecture is wrong somewhere &mdash; stop and say so rather than reaching across. Every such reach is a future breakage, and they are far cheaper to catch at the moment they are proposed.</p>
+  <span class="lbl">If a prompt cannot be completed inside its boundary</span>
+  <p>Stop and say so. Needing to edit a file outside scope means the architecture is wrong somewhere, and that is worth five minutes of conversation. Every quiet reach across a boundary is a future breakage, and they are far cheaper to catch at the moment they are proposed than three months later when four people depend on them.</p>
 </div>
 
 <footer>
-  <p>Fourteen prompts, four phases. P0&ndash;P6 need no hardware and no API keys. P7 is the first moment you can watch a full class run. P10 is the first moment it looks like a product. Companion documents: the school journey and the system architecture.</p>
+  <p>Fourteen prompts, four phases. P0&ndash;P6 need no hardware and no API keys. P7 is the first full class. P10 is the first time it looks like a product. P0 is complete: <code>lomas_core</code>, 26 tests green, commit c577e5c.</p>
 </footer>
 
 </div>
