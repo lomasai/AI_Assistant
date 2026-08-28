@@ -1,0 +1,21 @@
+# The joints, as built. Channels are PCA9685 outputs.
+#
+# min and max are mechanical limits, not preferences: past them the horn hits
+# the shell and the servo stalls, which is how you burn one out in front of a
+# class. Nothing in code may exceed these - the library clamps and the
+# firmware clamps again.
+
+driver:
+  kind: pca9685
+  address: 0x40
+  frequency_hz: 50
+
+joints:
+  neck_yaw:        {channel: 0,  servo: MG996R,   min: -70,  max: 70,   rest: 0}
+  neck_pitch:      {channel: 1,  servo: MG996R,   min: -25,  max: 30,   rest: 0}
+
+  shoulder_left:   {channel: 2,  servo: OT5325M,  min: -20,  max: 120,  rest: 0}
+  shoulder_right:  {channel: 3,  servo: OT5325M,  min: -20,  max: 120,  rest: 0}
+
+  elbow_left:      {channel: 4,  servo: MG996R,   min: 0,    max: 110,  rest: 10}
+  elbow_right:     {channel: 5,  servo: MG996R,   min: 0,    max: 110,  rest: 10}

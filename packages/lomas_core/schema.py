@@ -375,6 +375,51 @@ class FlowConfig(BaseModel):
     attendance_falls_back_to_roster: bool = True
 
 
+class HardwareConfig(BaseModel):
+    """The body. Off by default, because most of the time there isn't one.
+
+    The Pi sends intent and the ESP32 does execution, so nothing here is a
+    servo angle or a safety threshold - those live in config/hardware/ and
+    are applied on the board.
+    """
+
+    model_config = Strict
+
+    enabled: bool = False
+    backend: Literal["simulator", "esp32"] = "simulator"
+
+    port: str = "/dev/ttyUSB0"
+    baud: int = Field(default=921600, ge=9600)
+    timeout_seconds: float = Field(default=0.2, gt=0)
+    telemetry_hz: int = Field(default=20, ge=1, le=255)
+
+    config_path: str = "config/hardware"
+    gesture_speed: int = Field(default=100, ge=1, le=100)
+
+    # Debug mode logs the exact bytes, which is what gets compared against the
+    # board's own serial log when something does not move.
+    log_frames: bool = True
+    simulate_travel_time: bool = True
+    simulated_battery_mv: int = Field(default=12000, ge=0)
+
+    # The head following whoever is speaking. Config, because a robot whose
+    # head tracks children is not something to switch on without asking.
+    look_at_enabled: bool = True
+    # A deadband. A head that snaps between children every tenth of a second
+    # is unsettling to watch and hard on the servos.
+    look_at_min_degrees: float = Field(default=6.0, ge=0)
+
+    # Event to gesture. Adding one is a line here, never a change in code.
+    gestures: dict[str, str] = Field(
+        default_factory=lambda: {
+            "session.opened": "namaste",
+            "session.closed": "namaste",
+            "question.asked": "thinking",
+            "quiz.marked": "celebrate",
+        }
+    )
+
+
 class ScreenConfig(BaseModel):
     model_config = Strict
 
@@ -577,6 +622,7 @@ class Config(BaseModel):
     web: WebConfig = Field(default_factory=WebConfig)
     teacher: TeacherConfig = Field(default_factory=TeacherConfig)
     debug: DebugConfig = Field(default_factory=DebugConfig)
+    hardware: HardwareConfig = Field(default_factory=HardwareConfig)
 
     @property
     def is_debug(self) -> bool:

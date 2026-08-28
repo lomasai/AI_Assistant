@@ -63,6 +63,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.seed:
             seed.demo_class(system)
 
+        if system.body is not None:
+            system.body.start()
+
         if system.web is not None:
             system.web.start()
 

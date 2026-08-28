@@ -31,10 +31,12 @@ from lomas_store import (
     StudentRepo,
     migrate,
 )
+from lomas_hal import BACKENDS
 from lomas_vision import FrameBus, build_sources
 
 from app.agents.base import AGENTS, Agent, AgentDeps, AgentRunner
 from app.agents.safety import Safety
+from app.body import Body
 from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
 from app.observability.metrics import Metrics
@@ -76,6 +78,7 @@ class System:
     agents: AgentRunner | None = None
     mcp: ContextServer | None = None
     vision: VisionPipeline | None = None
+    body: Body | None = None
     enrolment: EnrolmentService | None = None
     report: ReportBuilder | None = None
     metrics: Metrics | None = None
@@ -89,6 +92,8 @@ class System:
     def close(self) -> None:
         if self.web is not None:
             self.web.stop()
+        if self.body is not None:
+            self.body.stop()
         # Signal the pipeline first, then close the bus that wakes it. The
         # other order leaves the vision thread parked on an idle camera.
         if self.vision is not None:
@@ -145,6 +150,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
 
     vision = build_vision(cfg, bus, clock, repos)
     report = ReportBuilder(cfg, repos, content)
+    body = _body(cfg, bus, clock)
     enrolment = _enrolment(cfg, bus, clock, vision, repos)
 
     logger.debug(
@@ -159,7 +165,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         llm=llm, router=router, tts=tts, stt=stt, wake=wake, voice=voice,
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
-        enrolment=enrolment, report=report, metrics=metrics,
+        enrolment=enrolment, report=report, metrics=metrics, body=body,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 
@@ -261,6 +267,14 @@ def event_bus(cfg: Config) -> EventBus:
     )
 
 
+def _body(cfg: Config, bus: EventBus, clock: Clock) -> Body | None:
+    """The simulator and the real board are the same object to everything
+    above this line. Switching is one config key and nothing else."""
+    if not cfg.hardware.enabled:
+        return None
+    return Body(cfg, bus, clock, BACKENDS.create(cfg.hardware.backend, cfg.hardware, clock))
+
+
 def _diagnostics(cfg: Config) -> bool:
     """Debug mode only. The overlay is a panel for engineers, and in a
     classroom the tap would be holding every prompt the robot has sent."""
@@ -331,4 +345,5 @@ def available() -> dict[str, list[str]]:
         "embedder": EMBEDDERS.keys(),
         "steps": STEPS.keys(),
         "agents": AGENTS.keys(),
+        "hardware": BACKENDS.keys(),
     }

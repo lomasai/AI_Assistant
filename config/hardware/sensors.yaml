@@ -1,0 +1,27 @@
+# Safety thresholds. These are uploaded to the ESP32 at connect and applied
+# there, in an interrupt. Python sends these numbers and never compares
+# against them: a cliff sensor read by a garbage-collected language is a
+# cliff sensor read late.
+
+sensors:
+  ultrasonic:
+    kind: HC-SR04
+    count: 6
+    poll_hz: 20
+  cliff:
+    kind: VL53L0X
+    count: 4
+    poll_hz: 50          # the fastest loop on the board, and the reason for it
+  imu:
+    kind: MPU6050
+    poll_hz: 100
+  current:
+    kind: ACS712
+    poll_hz: 100
+
+limits:
+  cliff_mm: 120          # floor further away than this means there is no floor
+  obstacle_mm: 350       # stop the drive motors
+  current_ma: 4500       # a stalled servo pulls this long before it smells
+  tilt_degrees: 22       # past this the robot is going over
+  stall_ms: 400          # commanded to move, encoder says otherwise

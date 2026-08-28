@@ -1,0 +1,76 @@
+# Every angle the robot moves through. There are none in any .py file, and a
+# test enforces that.
+#
+# The ids are the wire format: the Pi sends an id, the board plays the
+# keyframes. The firmware's copy of this table is generated from this file, so
+# editing a gesture here changes what the robot actually does - there is a
+# test that fails if the two have drifted apart.
+
+gestures:
+  rest:
+    id: 0
+    description: neutral, arms down
+    frames:
+      - {at: 0.0, pose: {neck_yaw: 0, neck_pitch: 0, shoulder_left: 0, shoulder_right: 0, elbow_left: 10, elbow_right: 10}}
+
+  namaste:
+    id: 1
+    description: palms together at the chest, the greeting a class expects
+    frames:
+      - {at: 0.0, pose: {shoulder_left: 0,  shoulder_right: 0,  elbow_left: 10,  elbow_right: 10}}
+      - {at: 0.6, pose: {shoulder_left: 45, shoulder_right: 45, elbow_left: 95,  elbow_right: 95}}
+      - {at: 1.4, pose: {shoulder_left: 45, shoulder_right: 45, elbow_left: 100, elbow_right: 100}}
+      - {at: 2.2, pose: {shoulder_left: 0,  shoulder_right: 0,  elbow_left: 10,  elbow_right: 10}}
+
+  nod:
+    id: 2
+    description: yes, or go on
+    frames:
+      - {at: 0.0, pose: {neck_pitch: 0}}
+      - {at: 0.3, pose: {neck_pitch: 18}}
+      - {at: 0.6, pose: {neck_pitch: -8}}
+      - {at: 0.9, pose: {neck_pitch: 0}}
+
+  shake:
+    id: 3
+    description: no
+    frames:
+      - {at: 0.0, pose: {neck_yaw: 0}}
+      - {at: 0.3, pose: {neck_yaw: -22}}
+      - {at: 0.6, pose: {neck_yaw: 22}}
+      - {at: 0.9, pose: {neck_yaw: 0}}
+
+  point_left:
+    id: 4
+    description: at the board, from the class's left
+    frames:
+      - {at: 0.0, pose: {shoulder_left: 0,  elbow_left: 10}}
+      - {at: 0.5, pose: {shoulder_left: 85, elbow_left: 15}}
+      - {at: 1.6, pose: {shoulder_left: 85, elbow_left: 15}}
+      - {at: 2.1, pose: {shoulder_left: 0,  elbow_left: 10}}
+
+  point_right:
+    id: 5
+    description: at the board, from the class's right
+    frames:
+      - {at: 0.0, pose: {shoulder_right: 0,  elbow_right: 10}}
+      - {at: 0.5, pose: {shoulder_right: 85, elbow_right: 15}}
+      - {at: 1.6, pose: {shoulder_right: 85, elbow_right: 15}}
+      - {at: 2.1, pose: {shoulder_right: 0,  elbow_right: 10}}
+
+  thinking:
+    id: 6
+    description: head tilted, while a model is answering
+    frames:
+      - {at: 0.0, pose: {neck_yaw: 0,  neck_pitch: 0}}
+      - {at: 0.5, pose: {neck_yaw: 14, neck_pitch: -10}}
+      - {at: 1.2, pose: {neck_yaw: 14, neck_pitch: -10}}
+
+  celebrate:
+    id: 7
+    description: a right answer, both arms up
+    frames:
+      - {at: 0.0, pose: {shoulder_left: 0,   shoulder_right: 0,   elbow_left: 10, elbow_right: 10}}
+      - {at: 0.4, pose: {shoulder_left: 110, shoulder_right: 110, elbow_left: 30, elbow_right: 30}}
+      - {at: 1.0, pose: {shoulder_left: 95,  shoulder_right: 95,  elbow_left: 20, elbow_right: 20}}
+      - {at: 1.6, pose: {shoulder_left: 0,   shoulder_right: 0,   elbow_left: 10, elbow_right: 10}}

@@ -309,6 +309,40 @@ flow:
 # Two surfaces on one Pi. The 7-inch chest panel is the robot's face and
 # cannot carry lesson text a class can read; the second HDMI port drives a
 # classroom TV or projector for that.
+# The body. Off by default, because most of the time there is not one.
+#
+# The Pi sends intent and the ESP32 does execution: keyframe interpolation,
+# sensor polling, and the e-stop, cliff and tilt cut-outs. No servo angle and
+# no safety threshold appears here or in any .py file - those live in
+# config/hardware/ and are applied on the board, in an interrupt.
+hardware:
+  enabled: false
+  backend: simulator      # simulator | esp32. Switching is only this line.
+
+  port: /dev/ttyUSB0
+  baud: 921600
+  timeout_seconds: 0.2
+  telemetry_hz: 20
+
+  config_path: config/hardware
+  gesture_speed: 100
+
+  log_frames: true        # the exact bytes, for comparing against the board
+  simulate_travel_time: true
+  simulated_battery_mv: 12000
+
+  # A robot whose head follows children is not something to switch on without
+  # asking a school first.
+  look_at_enabled: true
+  look_at_min_degrees: 6.0   # deadband, so the head does not snap about
+
+  # Event to gesture. Adding one is a line here, never a change in code.
+  gestures:
+    session.opened: namaste
+    session.closed: namaste
+    question.asked: thinking
+    quiz.marked: celebrate
+
 # The diagnostics overlay. Served in debug mode and nowhere else - it is a
 # panel for engineers, not a screen for children.
 debug:
