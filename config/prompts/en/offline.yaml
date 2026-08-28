@@ -1,0 +1,24 @@
+# Answers used when there is no internet. Matched by word overlap against the
+# question, so `match` should list the words a child would actually use.
+
+lines:
+  - "That is a good question. Let us come back to it when I am connected again."
+
+entries:
+  - match: photosynthesis leaves sunlight food plant green
+    answer: >-
+      Plants use sunlight, water and air to make their own food in their
+      leaves. That is called photosynthesis, and it is why leaves are green.
+
+  - match: water cycle rain evaporation clouds river sea
+    answer: >-
+      Water from rivers and seas warms up and rises as vapour, cools into
+      clouds, and falls again as rain. That circle is called the water cycle.
+
+  - match: your name who are you lomas robot
+    answer: >-
+      I am Lomas. I help your teacher with lessons, questions and quizzes.
+
+  - match: hello hi good morning namaste
+    answer: >-
+      Hello. What shall we learn about today?

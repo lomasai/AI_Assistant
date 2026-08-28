@@ -231,6 +231,78 @@ class SpeechConfig(BaseModel):
     audio: AudioConfig = Field(default_factory=AudioConfig)
 
 
+class EndpointConfig(BaseModel):
+    model_config = Strict
+
+    api_base: str = ""
+    api_key_env: str = ""
+    model: str = ""
+    # Anthropic only. `effort` replaces temperature on Opus 5, which rejects
+    # sampling parameters outright.
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
+    server_side_fallback: bool = True
+
+
+def _default_endpoints() -> dict[str, EndpointConfig]:
+    return {
+        "groq": EndpointConfig(
+            api_base="https://api.groq.com/openai/v1",
+            api_key_env="GROQ_API_KEY",
+            model="llama-3.3-70b-versatile",
+        ),
+        "anthropic": EndpointConfig(
+            api_base="https://api.anthropic.com/v1",
+            api_key_env="ANTHROPIC_API_KEY",
+            model="claude-opus-5",
+        ),
+        "openai": EndpointConfig(
+            api_base="https://api.openai.com/v1",
+            api_key_env="OPENAI_API_KEY",
+            model="gpt-4o-mini",
+        ),
+    }
+
+
+class RouterConfig(BaseModel):
+    """Score a question, pick one model. Never chain them - that multiplies
+    latency and cost for very little gain."""
+
+    model_config = Strict
+
+    enabled: bool = True
+    long_sentence_words: int = Field(default=25, ge=1)
+    reasoning_keywords: list[str] = Field(
+        default_factory=lambda: ["why", "how", "explain", "compare", "prove", "derive"]
+    )
+    weight_length: int = Field(default=1, ge=0)
+    weight_keywords: int = Field(default=1, ge=0)
+    weight_multipart: int = Field(default=1, ge=0)
+    medium_at: int = Field(default=2, ge=1)
+    complex_at: int = Field(default=3, ge=1)
+    simple_provider: str = "groq"
+    medium_provider: str = "groq"
+    complex_provider: str = "anthropic"
+
+
+class LlmConfig(BaseModel):
+    model_config = Strict
+
+    provider: Literal["offline", "groq", "anthropic", "openai"] = "offline"
+    model: str = ""  # empty means the endpoint's own default
+    # Used on timeout, rate limit, or no internet at all.
+    fallback_provider: Literal["offline", "groq", "anthropic", "openai"] = "offline"
+    temperature: float = Field(default=0.4, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=1024, ge=1)
+    timeout_seconds: float = Field(default=12.0, gt=0)
+    retries: int = Field(default=2, ge=0)
+    stream: bool = True
+    prompts_path: str = "config/prompts"
+    fallback_language: str = "en"
+    offline_faq: str = "offline"
+    endpoints: dict[str, EndpointConfig] = Field(default_factory=_default_endpoints)
+    router: RouterConfig = Field(default_factory=RouterConfig)
+
+
 def _default_sources() -> list[SourceConfig]:
     return [SourceConfig(id="head")]
 
@@ -248,6 +320,7 @@ class Config(BaseModel):
     enrolment: EnrolmentConfig = Field(default_factory=EnrolmentConfig)
     privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
     speech: SpeechConfig = Field(default_factory=SpeechConfig)
+    llm: LlmConfig = Field(default_factory=LlmConfig)
 
     @property
     def is_debug(self) -> bool:

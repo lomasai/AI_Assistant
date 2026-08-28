@@ -1,0 +1,10 @@
+# Hindi phrasings. Same rule as English: an invitation, never a correction.
+#
+# NEEDS NATIVE-SPEAKER REVIEW before any pilot. These are placeholders that
+# prove the per-language mechanism works, not finished classroom Hindi.
+
+lines:
+  - "{name}, आपको क्या लगता है आगे क्या होगा?"
+  - "{name}, आप क्या सोचते हैं?"
+  - "मैं {name} से सुनना चाहूँगा।"
+  - "{name}, क्या आपने ऐसा कभी देखा है?"

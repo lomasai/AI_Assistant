@@ -1,0 +1,16 @@
+# Read this before editing.
+#
+# A robot that announces a child is not paying attention gets switched off by
+# the teacher and never switched on again. Every line here is an invitation
+# back into the lesson, phrased as curiosity.
+#
+# Never add a line containing: distracted, attention, listening, concentrate,
+# focus, or any instruction to look at the robot. A test enforces that list.
+
+lines:
+  - "{name}, what do you think happens next?"
+  - "{name}, what would you guess the answer is?"
+  - "I would like to hear from {name} on this one."
+  - "{name}, has anyone seen this happen at home?"
+  - "What do you think, {name}?"
+  - "{name}, would you say that is right or wrong?"

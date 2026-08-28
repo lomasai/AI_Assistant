@@ -203,3 +203,54 @@ speech:
     # the wake word.
     half_duplex: true
     tail_ms: 250
+
+llm:
+  # offline is the default so the whole system runs with no API key at all,
+  # and so a school whose internet drops mid-lesson keeps teaching.
+  provider: offline           # offline | groq | anthropic | openai
+  model: ""                   # empty means the endpoint's own default
+  fallback_provider: offline  # on timeout, rate limit, or no connection
+
+  temperature: 0.4            # ignored by anthropic, which rejects sampling
+  max_tokens: 1024
+  timeout_seconds: 12.0
+  retries: 2
+  stream: true
+
+  # Every prompt lives here, keyed by language. None of it may move into code.
+  prompts_path: config/prompts
+  fallback_language: en
+  offline_faq: offline
+
+  endpoints:
+    groq:
+      api_base: https://api.groq.com/openai/v1
+      api_key_env: GROQ_API_KEY
+      model: llama-3.3-70b-versatile
+    anthropic:
+      api_base: https://api.anthropic.com/v1
+      api_key_env: ANTHROPIC_API_KEY
+      model: claude-opus-5
+      # Opus 5 rejects temperature; effort is how depth is tuned instead.
+      # low keeps classroom answers quick.
+      effort: low
+      server_side_fallback: true
+    openai:
+      api_base: https://api.openai.com/v1
+      api_key_env: OPENAI_API_KEY
+      model: gpt-4o-mini
+
+  router:
+    enabled: true
+    long_sentence_words: 25
+    reasoning_keywords: [why, how, explain, compare, prove, derive]
+    weight_length: 1
+    weight_keywords: 1
+    weight_multipart: 1
+    medium_at: 2
+    complex_at: 3
+
+    # One model per question. Chaining them multiplies latency and cost.
+    simple_provider: groq
+    medium_provider: groq
+    complex_provider: anthropic
