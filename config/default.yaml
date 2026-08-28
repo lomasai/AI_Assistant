@@ -49,3 +49,23 @@ storage:
   purge_on_term_end: true
 
   busy_timeout_ms: 5000
+
+# A LIST, deliberately, even with one camera. Adding a classroom CCTV feed
+# or a second angle later is an entry here plus nothing else.
+sources:
+  - id: head
+    kind: mock            # picamera2 | usb | rtsp | file | folder | mock
+    zone: front
+    enabled: true
+    width: 1280           # 720p: recognition needs ~80px of face width, which
+    height: 720           # this gives you out to about 2 m
+    fps: 15
+    zoom: 1.0             # 1.0-2.5, a centred crop of the sensor
+    rotation: 0
+    loop: true            # replay sources start over at the end
+
+vision:
+  # Ring depth per source. When it is full the oldest frame goes, so a slow
+  # consumer loses frames instead of stalling the camera.
+  buffer_size: 4
+  read_timeout_ms: 200

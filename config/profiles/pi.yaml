@@ -1,0 +1,16 @@
+# On the robot. Real camera, real hardware, classroom output.
+# Everything else is inherited; this file exists to prove that moving from a
+# laptop to the Pi is a config change and nothing else.
+
+runtime:
+  mode: user
+  log_level: INFO
+
+sources:
+  - id: head
+    kind: picamera2
+    zone: front
+    width: 1280
+    height: 720
+    fps: 15
+    zoom: 1.0
