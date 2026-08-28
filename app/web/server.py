@@ -14,6 +14,7 @@ from lomas_core.errors import LomasError
 
 from app.pipeline import source_for
 from app.web import api as api_module
+from app.web import debug as debug_module
 from app.web import teacher as teacher_module
 from app.web import ws as ws_module
 from app.web.stream import CONTENT_TYPE, mjpeg
@@ -21,6 +22,7 @@ from app.web.stream import CONTENT_TYPE, mjpeg
 UI = Path(__file__).parent / "ui"
 FACE = "face"
 BOARD = "board"
+DEBUG = "debug"
 INDEX = "index.html"
 API_PREFIX = "/api"
 NO_CAMERA = b""
@@ -50,6 +52,8 @@ def create_app(system) -> FastAPI:
     app.include_router(api_module.router(system), prefix=API_PREFIX)
     if system.cfg.teacher.enabled:
         app.include_router(teacher_module.router(system), prefix=API_PREFIX)
+    if system.metrics is not None:
+        app.include_router(debug_module.router(system), prefix=f"{API_PREFIX}/{DEBUG}")
 
     @app.exception_handler(LomasError)
     async def refused(_request: Request, exc: LomasError) -> JSONResponse:
@@ -73,7 +77,10 @@ def create_app(system) -> FastAPI:
         source = system.cfg.web.mjpeg_source or source_for(system.cfg)
         return StreamingResponse(mjpeg(frames, system.cfg, source), media_type=CONTENT_TYPE)
 
-    surfaces = [s for s in system.cfg.web.surfaces if (UI / s).is_dir()]
+    # The overlay is not hidden in user mode, it is not served at all: a
+    # route that only refuses is still a route somebody can find.
+    wanted = [s for s in system.cfg.web.surfaces if s != DEBUG or system.metrics is not None]
+    surfaces = [s for s in wanted if (UI / s).is_dir()]
     for surface in surfaces:
         app.mount(f"/{surface}", StaticFiles(directory=UI / surface, html=True), name=surface)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 import numpy as np
@@ -25,6 +26,7 @@ from lomas_face.types import Pose, Track
 from lomas_vision import Frame, FrameBus
 
 NO_SCALE = 1.0
+MILLISECONDS = 1000.0
 LEVEL = Pose(yaw=0.0, pitch=0.0, roll=0.0)
 NO_SOURCE = ""
 
@@ -99,6 +101,8 @@ class VisionPipeline:
         self.cycles = 0
         self.skipped = 0
         self.errors = 0
+        self.cycle_seconds = 0.0
+        self.last_at = 0.0
         self._interval = NO_SCALE / cfg.face.detect_fps
         self._last_seq = 0
         self._identified: dict[int, tuple[str, float]] = {}
@@ -135,6 +139,7 @@ class VisionPipeline:
     def process(self, frame: Frame) -> list[Track]:
         """One detect cycle. Public because the thread is only a driver - a
         test can hand it frames and get the same behaviour with no threads."""
+        began = time.perf_counter()
         small, factor = downscale(frame.image, self.cfg.face.downscale_width)
         detections = [d.scaled(factor) for d in self.detector.detect(small)]
         tracks = self.tracker.update(detections, frame.ts)
@@ -162,6 +167,8 @@ class VisionPipeline:
             self.bus.publish(VISION_TRACKS, self._view(frame, tracks))
 
         self.cycles += 1
+        self.cycle_seconds += time.perf_counter() - began
+        self.last_at = frame.ts
         return tracks
 
     def stats(self) -> dict[str, Any]:
@@ -169,6 +176,8 @@ class VisionPipeline:
             "cycles": self.cycles,
             "skipped": self.skipped,
             "errors": self.errors,
+            "cycle_ms": round(self.cycle_seconds * MILLISECONDS / max(1, self.cycles), 1),
+            "detect_fps_target": self.cfg.face.detect_fps,
             "running": self._thread is not None and self._thread.is_alive(),
             "tracks": len(self.tracker.active()),
             "identified": len(self._identified),

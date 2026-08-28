@@ -46,7 +46,7 @@ HEADLESS = [
 def build(*extra: str):
     cfg = load("config", "debug", [*HEADLESS, *extra], use_env=False)
     clock = FakeClock()
-    bus = EventBus(replay_size=cfg.runtime.event_replay_size)
+    bus = container.event_bus(cfg)
     system = container.build(cfg, clock=clock, bus=bus)
     seed.demo_class(system)
     return system

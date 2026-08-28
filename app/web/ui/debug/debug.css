@@ -1,0 +1,162 @@
+/* A panel for engineers, on a laptop, usually over VNC. Dense on purpose:
+   the point is to see everything at once and spot the one number that is
+   wrong, not to read any of it comfortably. */
+
+:root {
+  --ground: #0d1117;
+  --card: #151b23;
+  --rule: #232c38;
+  --ink: #d5dde7;
+  --muted: #79879a;
+  --good: #57c98a;
+  --warn: #e8b04b;
+  --bad: #e26d5c;
+  --key: #7fd3ff;
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 13px/1.45 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 10px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule);
+}
+
+header b { color: var(--key); letter-spacing: .04em; }
+header span { color: var(--muted); }
+#poll { margin-left: auto; }
+#poll.live { color: var(--good); }
+#mode.debug { color: var(--warn); }
+
+main {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+  padding: 10px;
+  align-items: start;
+}
+
+.card {
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.card.wide { grid-column: 1 / -1; }
+
+h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; }
+dt { color: var(--muted); }
+dd { text-align: right; font-variant-numeric: tabular-nums; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--rule); }
+th { color: var(--muted); font-weight: 400; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: 0; }
+
+/* --- cores --------------------------------------------------------------- */
+
+#cores { display: flex; gap: 6px; margin-bottom: 10px; }
+
+.core {
+  flex: 1;
+  height: 46px;
+  position: relative;
+  background: #0b1017;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.core span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--good);
+  transition: height .4s ease, background .4s ease;
+}
+
+.core.busy span { background: var(--warn); }
+.core.pegged span { background: var(--bad); }
+
+.core b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--ink);
+  mix-blend-mode: difference;
+}
+
+#throttle { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+#throttle i {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bad);
+  color: #12161c;
+  font-style: normal;
+  font-size: 11px;
+}
+
+/* --- model calls --------------------------------------------------------- */
+
+#llmTotals { margin-bottom: 10px; color: var(--muted); }
+#llmTotals b { color: var(--ink); }
+
+details {
+  border-top: 1px solid var(--rule);
+  padding: 6px 0;
+}
+
+summary { cursor: pointer; color: var(--key); }
+summary span { color: var(--muted); margin-left: 10px; }
+
+pre {
+  margin: 8px 0 0;
+  padding: 10px;
+  background: #0b1017;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
+  color: #b9c6d6;
+}
+
+/* --- the event tail ------------------------------------------------------ */
+
+#events { max-height: 300px; overflow: auto; }
+
+.line { display: flex; gap: 12px; padding: 2px 0; border-bottom: 1px solid #1a212b; }
+.line time { color: var(--muted); flex: 0 0 auto; }
+.line b { color: var(--key); flex: 0 0 200px; font-weight: 400; }
+.line span { color: #93a2b4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.miss { color: var(--muted); }

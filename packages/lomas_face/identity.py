@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import time
+
 import numpy as np
 
 from lomas_core.schema import FaceConfig
 from lomas_face.embedder import FaceEmbedder, distance
 from lomas_face.quality import crop_face
 from lomas_face.types import Track
+
+MILLISECONDS = 1000.0
 
 
 
@@ -23,6 +27,7 @@ class IdentityMatcher:
         self.cfg = cfg
         self._enrolled: dict[str, list[np.ndarray]] = {}
         self.embed_calls = 0
+        self.embed_seconds = 0.0
         self.matches = 0
         self.unknowns = 0
         self.skipped_too_small = 0
@@ -50,7 +55,9 @@ class IdentityMatcher:
             return track.student_id
 
         self.embed_calls += 1
+        began = time.perf_counter()
         vector = self.embedder.embed(crop)
+        self.embed_seconds += time.perf_counter() - began
         track.verified_at = ts
 
         student_id = self._nearest(vector)
@@ -67,6 +74,7 @@ class IdentityMatcher:
     def stats(self) -> dict[str, int]:
         return {
             "embed_calls": self.embed_calls,
+            "embed_ms": round(self.embed_seconds * MILLISECONDS / max(1, self.embed_calls), 1),
             "matches": self.matches,
             "unknowns": self.unknowns,
             "skipped_too_small": self.skipped_too_small,
@@ -75,6 +83,7 @@ class IdentityMatcher:
 
     def reset(self) -> None:
         self.embed_calls = 0
+        self.embed_seconds = 0.0
         self.matches = 0
         self.unknowns = 0
         self.skipped_too_small = 0

@@ -22,3 +22,7 @@ flow:
   tick_seconds: 0.02
   attendance_wait_seconds: 1.0
   answer_wait_seconds: 1.0
+
+# The overlay is served here and nowhere else.
+web:
+  surfaces: [face, board, teacher, debug]

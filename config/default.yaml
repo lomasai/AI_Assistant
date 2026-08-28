@@ -309,6 +309,33 @@ flow:
 # Two surfaces on one Pi. The 7-inch chest panel is the robot's face and
 # cannot carry lesson text a class can read; the second HDMI port drives a
 # classroom TV or projector for that.
+# The diagnostics overlay. Served in debug mode and nowhere else - it is a
+# panel for engineers, not a screen for children.
+debug:
+  enabled: true
+  rate_window_seconds: 5.0
+  rate_samples: 200
+  rate_events: [vision.tracks, robot.say, student.identified]
+
+  # Event pairs to time. Adding one - a wake word to its transcript, once
+  # there is a microphone loop - is a line here rather than a code change.
+  latencies:
+    speak: [robot.say, robot.spoke]
+    answer: [question.asked, question.answered]
+    marking: [quiz.recorded, quiz.marked]
+
+  keep_samples: 20
+  keep_events: 200
+  tracks_event: vision.tracks
+  noisy_events: [vision.tracks]     # ten a second would bury everything else
+
+  # Empty means unpriced, and the panel says so rather than inventing a
+  # number. Keys are model ids, values are [input, output] per million tokens.
+  cost_per_million: {}
+  currency: USD
+
+  poll_seconds: 1.0
+
 # The screen that decides whether teachers keep using the product.
 teacher:
   enabled: true

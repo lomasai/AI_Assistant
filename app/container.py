@@ -37,6 +37,7 @@ from app.agents.base import AGENTS, Agent, AgentDeps, AgentRunner
 from app.agents.safety import Safety
 from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
+from app.observability.metrics import Metrics
 from app.context.assembler import ContextAssembler
 from app.context.mcp_server import ContextServer
 from app.flow.machine import Machine
@@ -77,6 +78,7 @@ class System:
     vision: VisionPipeline | None = None
     enrolment: EnrolmentService | None = None
     report: ReportBuilder | None = None
+    metrics: Metrics | None = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -104,7 +106,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     happens here and nowhere else.
     """
     clock = clock or RealClock()
-    bus = bus or _bus_for(cfg)
+    bus = bus or event_bus(cfg)
     logger = log.get("container")
 
     store = STORES.create(cfg.storage.backend, cfg.storage.path, cfg.storage.busy_timeout_ms)
@@ -122,7 +124,11 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
 
     content = ContentLibrary(cfg.content)
     assembler = ContextAssembler(cfg, repos, content)
-    built = _agents_from(cfg, bus, clock, repos, prompts, llm)
+
+    # Built before the agents so their providers can be tapped on the way
+    # past. In user mode there is no tap, so no prompt is ever held in memory.
+    metrics = Metrics(cfg, bus, clock) if _diagnostics(cfg) else None
+    built = _agents_from(cfg, bus, clock, repos, prompts, llm, metrics)
     runner = AgentRunner(built, assembler, bus, clock, cfg) if built else None
 
     # The filter is asked before a sound is made, so it is an argument to the
@@ -153,7 +159,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         llm=llm, router=router, tts=tts, stt=stt, wake=wake, voice=voice,
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
-        enrolment=enrolment, report=report,
+        enrolment=enrolment, report=report, metrics=metrics,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 
@@ -236,7 +242,14 @@ def _follow_the_session(pipeline: VisionPipeline, bus: EventBus, repos: dict[str
     bus.subscribe(SESSION_CLOSED, on_close)
 
 
-def _bus_for(cfg: Config) -> EventBus:
+def event_bus(cfg: Config) -> EventBus:
+    """The only correct way to build one.
+
+    The error policy is a mode difference - raise on the bench, log and carry
+    on in a classroom - and it is set here. Anyone constructing an EventBus
+    directly gets the raising behaviour whatever their config says, which is
+    why this is public and why the tests use it too.
+    """
     logger = log.get("events")
 
     def on_error(event: str, exc: BaseException) -> None:
@@ -248,6 +261,12 @@ def _bus_for(cfg: Config) -> EventBus:
     )
 
 
+def _diagnostics(cfg: Config) -> bool:
+    """Debug mode only. The overlay is a panel for engineers, and in a
+    classroom the tap would be holding every prompt the robot has sent."""
+    return cfg.is_debug and cfg.debug.enabled
+
+
 def _agents_from(
     cfg: Config,
     bus: EventBus,
@@ -255,17 +274,19 @@ def _agents_from(
     repos: dict[str, Any],
     prompts: PromptLibrary,
     shared: Any,
+    metrics: Metrics | None = None,
 ) -> list[Agent]:
     """One object per name in `agents.enabled`. Drop a name and that agent
     is gone; nothing else in the system notices."""
     built: list[Agent] = []
     for name in cfg.agents.enabled:
         settings = cfg.agents.settings.get(name) or AgentConfig(prompt=name)
+        provider = _provider_for(cfg, settings, shared)
         deps = AgentDeps(
             bus=bus,
             clock=clock,
             prompts=prompts,
-            llm=_provider_for(cfg, settings, shared),
+            llm=metrics.tap(name, provider) if metrics else provider,
             repos=repos,
         )
         built.append(AGENTS.create(name, cfg, settings, deps))

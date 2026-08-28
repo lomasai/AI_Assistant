@@ -44,7 +44,7 @@ OTHER_ORG = "another-school-entirely"
 
 def build(*extra: str):
     cfg = load("config", "debug", [*HEADLESS, *extra], use_env=False)
-    system = container.build(cfg, clock=FakeClock(), bus=EventBus(cfg.runtime.event_replay_size))
+    system = container.build(cfg, clock=FakeClock(), bus=container.event_bus(cfg))
     seed.demo_class(system)
     return system
 

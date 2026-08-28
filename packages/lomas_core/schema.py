@@ -423,6 +423,43 @@ class WebConfig(BaseModel):
     shutdown_seconds: float = Field(default=2.0, gt=0)
 
 
+def _default_latencies() -> dict[str, list[str]]:
+    """Event pairs to time. Adding one - a wake word to its transcript, once
+    there is a microphone loop - is a line here, not a change in code."""
+    return {
+        "speak": ["robot.say", "robot.spoke"],
+        "answer": ["question.asked", "question.answered"],
+        "marking": ["quiz.recorded", "quiz.marked"],
+    }
+
+
+class DebugConfig(BaseModel):
+    """The diagnostics overlay. Served in debug mode and nowhere else."""
+
+    model_config = Strict
+
+    enabled: bool = True
+    rate_window_seconds: float = Field(default=5.0, gt=0)
+    rate_samples: int = Field(default=200, ge=2)
+    rate_events: list[str] = Field(
+        default_factory=lambda: ["vision.tracks", "robot.say", "student.identified"]
+    )
+    latencies: dict[str, list[str]] = Field(default_factory=_default_latencies)
+    keep_samples: int = Field(default=20, ge=1)
+    keep_events: int = Field(default=200, ge=1)
+    tracks_event: str = "vision.tracks"
+
+    # Ten a second would push everything else out of the event list.
+    noisy_events: list[str] = Field(default_factory=lambda: ["vision.tracks"])
+
+    # Empty means unpriced, and the panel says so rather than inventing a
+    # number. Keys are model ids; values are [input, output] per million.
+    cost_per_million: dict[str, list[float]] = Field(default_factory=dict)
+    currency: str = "USD"
+
+    poll_seconds: float = Field(default=1.0, gt=0)
+
+
 class TeacherConfig(BaseModel):
     """The surface that decides whether teachers keep using the product."""
 
@@ -539,6 +576,7 @@ class Config(BaseModel):
     display: DisplayConfig = Field(default_factory=DisplayConfig)
     web: WebConfig = Field(default_factory=WebConfig)
     teacher: TeacherConfig = Field(default_factory=TeacherConfig)
+    debug: DebugConfig = Field(default_factory=DebugConfig)
 
     @property
     def is_debug(self) -> bool:
