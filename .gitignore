@@ -3,5 +3,8 @@ __pycache__/
 .venv/
 data/
 config/site.yaml
+config/secrets.env
+*.env
+!*.env.example
 .pytest_cache/
 *.onnx
