@@ -5,6 +5,10 @@ opencv-python-headless>=4.10
 httpx>=0.27
 fastapi>=0.115
 uvicorn>=0.30
+# uvicorn ships no WebSocket implementation of its own, and without one it
+# answers every socket with 404 - which means every surface sits at
+# "reconnecting" forever and no event ever arrives.
+websockets>=12
 
 # Optional: only for hardware.backend=esp32
 # pyserial>=3.5

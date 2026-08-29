@@ -5,14 +5,17 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+WAIT_POLL_SECONDS = 0.5
 sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(ROOT))
 
 from lomas_core import logging as log  # noqa: E402
 from lomas_core.config import load  # noqa: E402
+from lomas_core.secrets import SECRETS_FILE, is_setting, load_secrets  # noqa: E402
 from lomas_core.errors import LomasError  # noqa: E402
 
 
@@ -28,6 +31,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="override any config key, e.g. --set llm.provider=anthropic",
     )
     parser.add_argument("--config-dir", default=str(ROOT / "config"))
+    parser.add_argument(
+        "--secrets",
+        default="",
+        help=f"file of KEY=value secrets (default: <config-dir>/{SECRETS_FILE})",
+    )
     parser.add_argument("--topic", default="", help="lesson to teach (default from config)")
     parser.add_argument("--language", default="", help="language to teach in")
     parser.add_argument("--teacher", default="", help="name recorded against the session")
@@ -39,6 +47,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+
+    # Before the config, because the config only ever holds the *name* of a
+    # key. An already-exported variable wins.
+    keys = load_secrets(args.secrets or Path(args.config_dir) / SECRETS_FILE)
+
     try:
         cfg = load(args.config_dir, args.mode, args.overrides)
     except LomasError as exc:
@@ -47,6 +60,19 @@ def main(argv: list[str] | None = None) -> int:
 
     log.configure(cfg.runtime)
     logger = log.get("run")
+    if keys:
+        # Settings are named after the config key they set, so they are safe
+        # to print. A key is not: a log line carrying one has leaked it, so
+        # only the count is shown.
+        settings = [name for name in keys if is_setting(name)]
+        secret_count = len(keys) - len(settings)
+        logger.info(
+            "%s: %d key(s), %d setting(s)%s",
+            args.secrets or Path(args.config_dir) / SECRETS_FILE,
+            secret_count,
+            len(settings),
+            f" [{', '.join(settings)}]" if settings else "",
+        )
 
     if args.show_config:
         print(json.dumps(cfg.model_dump(), indent=2, sort_keys=True))
@@ -66,10 +92,18 @@ def main(argv: list[str] | None = None) -> int:
         if system.body is not None:
             system.body.start()
 
+        # The camera comes up with the robot; recognition waits for a class.
+        if system.vision is not None:
+            system.vision.watch()
+
         if system.web is not None:
             system.web.start()
 
         logger.info("LomasAI, %s mode, org %s", cfg.runtime.mode, cfg.active_org_id)
+
+        if not cfg.flow.autostart:
+            return wait(system, logger)
+
         state = system.orchestrator.run(topic=args.topic, language=args.language)
         logger.info("finished: %s", state.value)
         return 0
@@ -78,6 +112,25 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     finally:
         system.close()
+
+
+def wait(system, logger) -> int:
+    """Boot, show a sleeping face, and wait to be told to begin.
+
+    This is what a robot standing in a classroom does. The bench runs one
+    class and exits instead, which is flow.autostart.
+    """
+    if system.web is None:
+        logger.error("flow.autostart is off and there are no surfaces; nothing to wait for")
+        return 2
+
+    logger.info("waiting for a class. Open %s and press Start.", system.web.url)
+    try:
+        while True:
+            time.sleep(WAIT_POLL_SECONDS)
+    except KeyboardInterrupt:
+        logger.info("stopping")
+    return 0
 
 
 if __name__ == "__main__":

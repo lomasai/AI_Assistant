@@ -270,3 +270,14 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .q { padding: 10px 0; border-bottom: 1px solid var(--rule); }
 .q b { display: block; }
 .q span { color: var(--muted); font-size: 15px; }
+
+#topic {
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  font: inherit;
+  background: var(--card);
+  min-width: 220px;
+}
+
+#start.teaching { background: var(--warn); border-color: var(--warn); }

@@ -40,6 +40,34 @@
 
   $('feed').src = '/camera.mjpeg';
 
+  // --- starting and ending a class -----------------------------------------
+
+  let teaching = false;
+
+  fetch('/api/topics').then((r) => r.json()).then((body) => {
+    $('topic').replaceChildren(...body.topics.map((lesson) => {
+      const option = document.createElement('option');
+      option.value = lesson.id;
+      option.textContent = `${lesson.title} (${lesson.segments} parts)`;
+      return option;
+    }));
+  });
+
+  const showTeaching = (on) => {
+    teaching = on;
+    $('start').textContent = on ? 'End class' : 'Start class';
+    $('start').classList.toggle('teaching', on);
+    $('topic').disabled = on;
+  };
+
+  $('start').onclick = async () => {
+    const body = teaching
+      ? await post('/session/stop')
+      : await post('/session/start', { topic: $('topic').value });
+    if (body.error) { $('step').textContent = body.error; return; }
+    showTeaching(!teaching);
+  };
+
   // --- live control --------------------------------------------------------
 
   $('pause').onclick = async () => {
@@ -291,13 +319,14 @@
       drawRoster(body.roster);
       for (const student of body.roster) names.set(student.id, student.name);
       $('step').textContent = body.step ? `${body.state} — ${body.step}` : body.state;
+      showTeaching(body.teaching);
     });
 
   const handlers = {
     'step.entered': (p) => { $('step').textContent = 'running — ' + p.step; },
     'step.skipped': (p) => { $('step').textContent = p.step + ' skipped'; },
     'session.opened': () => refresh(),
-    'session.closed': () => { $('step').textContent = 'class finished'; },
+    'session.closed': () => { $('step').textContent = 'class finished'; showTeaching(false); },
     'student.identified': (p) => mood(p.student_id, 'engaged'),
     'student.left': (p) => mood(p.student_id, 'away'),
     'student.disengaged': (p) => mood(p.student_id, 'drifting'),

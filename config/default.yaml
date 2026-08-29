@@ -280,6 +280,11 @@ llm:
     complex_provider: anthropic
 
 flow:
+  # true teaches one class and exits, which is what a bench run wants.
+  # false boots, shows a sleeping face and waits for the teacher to begin,
+  # which is what a robot standing in a classroom does.
+  autostart: true
+
   # Reordering or dropping a stage is an edit here, never a code change.
   sequence: [attendance, greeting, lesson, interaction, quiz, wrapup]
 

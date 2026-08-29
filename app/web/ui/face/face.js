@@ -14,6 +14,7 @@
   const boxes = document.getElementById('boxes');
   const camera = document.getElementById('camera');
   const feed = document.getElementById('feed');
+  const $ = (id) => document.getElementById(id);
 
   const RECONNECT_MS = 1500;
   const SPEAK_HOLD_MS = 400;
@@ -35,6 +36,15 @@
   fetch('/api/display').then((r) => r.json()).then((cfg) => {
     engagedAt = cfg.attention_threshold;
     document.documentElement.style.setProperty('--base', cfg.base_font_px + 'px');
+
+    // Only invite the phrase when something is actually listening for it.
+    if (cfg.listening) {
+      $('hint').replaceChildren(
+        document.createTextNode('Say '),
+        Object.assign(document.createElement('b'), { textContent: cfg.wake_phrase }),
+        document.createTextNode(' to begin'),
+      );
+    }
   }).catch(() => {});
 
   // --- state ---------------------------------------------------------------

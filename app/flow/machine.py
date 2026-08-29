@@ -31,6 +31,7 @@ class Machine:
         self._resume = threading.Event()
         self._resume.set()
         self._skip = threading.Event()
+        self._finish = threading.Event()
         self.log = log.get("flow")
 
     def pause(self) -> None:
@@ -42,6 +43,13 @@ class Machine:
         if self.state is SessionState.PAUSED:
             self.state = SessionState.RUNNING
             self._resume.set()
+
+    def finish(self) -> None:
+        """End the class early. Not a halt: the session closes properly, so
+        the report is complete and the robot is not left latched."""
+        self._finish.set()
+        self._skip.set()
+        self._resume.set()
 
     def skip(self) -> str:
         """Move on from the current step. The lesson is behind, the bell is in
@@ -72,9 +80,10 @@ class Machine:
             return self.state
 
         self.state = SessionState.RUNNING
+        self._finish.clear()
 
         for step in self.steps:
-            if self.state is SessionState.HALTED:
+            if self.state is SessionState.HALTED or self._finish.is_set():
                 break
 
             self.current = step.name

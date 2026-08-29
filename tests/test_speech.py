@@ -201,3 +201,74 @@ def test_transcript_is_immutable():
     heard = Transcript(text="hello", language="en")
     with pytest.raises(Exception):
         heard.text = "goodbye"
+
+
+# --- the robot has to make a sound ----------------------------------------
+
+
+def test_raw_samples_become_a_playable_wav() -> None:
+    """piper writes headerless PCM to stdout. Every player on every platform
+    wants a header, so this is the one step between a working robot and a
+    silent one."""
+    import wave
+    from io import BytesIO
+
+    from lomas_speech.player import wrap_pcm
+
+    raw = bytes([0, 1]) * 2205
+    body = wrap_pcm(raw, 22050)
+
+    with wave.open(BytesIO(body), "rb") as clip:
+        assert clip.getframerate() == 22050
+        assert clip.getnchannels() == 1
+        assert clip.getsampwidth() == 2
+        assert clip.getnframes() == len(raw) // 2
+
+
+def test_synthesised_audio_is_not_dropped_on_the_floor() -> None:
+    """The bug this exists to prevent: both real engines used to synthesise
+    speech and discard it, so the robot mimed. Nothing in the codebase
+    touched an audio device."""
+    from lomas_speech.ttss.piper import PiperTts
+    from lomas_speech.ttss.gtts import GttsTts
+
+    for engine in (PiperTts, GttsTts):
+        source = __import__("inspect").getsource(engine)
+        assert "self.player" in source, f"{engine.__name__} never reaches a speaker"
+
+
+def test_a_player_that_cannot_find_a_device_says_so_and_stays_quiet() -> None:
+    """A robot with no speaker still teaches. It just does it silently, and
+    the log says why rather than the class stopping."""
+    from lomas_speech.player import Player
+
+    silent = Player(choice="none")
+    assert not silent.available
+    silent.play_pcm(bytes([0, 1]) * 100, 22050)  # must not raise
+    silent.stop()
+
+
+def test_stopping_returns_before_the_clip_would_have_ended() -> None:
+    """The teacher's pause button. A robot that finishes its sentence after
+    being paused is a robot that gets switched off."""
+    import struct
+    import threading
+    import time
+
+    from lomas_speech.player import Player
+
+    player = Player()
+    if not player.available:
+        import pytest
+
+        pytest.skip("no audio device on this machine")
+
+    rate = 22050
+    long_clip = b"".join(struct.pack("<h", 0) for _ in range(rate * 3))
+
+    threading.Thread(target=lambda: (time.sleep(0.2), player.stop()), daemon=True).start()
+    started = time.monotonic()
+    player.play_pcm(long_clip, rate)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 1.0, f"a three second clip took {elapsed:.2f}s to stop"

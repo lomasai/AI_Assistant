@@ -117,6 +117,16 @@ class VisionPipeline:
         self.matcher.load(enrolled)
         self.log.debug("%s enrolled students loaded", len(enrolled))
 
+    def watch(self) -> None:
+        """Open the camera, without recognising anybody.
+
+        The stream and the enrolment sweep both need frames before a class
+        exists - you enrol a child at break, not mid-lesson - while detection
+        and recognition stay tied to a running session.
+        """
+        if self.source_id:
+            self.frames.start()
+
     def start(self) -> None:
         if self._thread is not None:
             return

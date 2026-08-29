@@ -230,6 +230,12 @@ class TtsConfig(BaseModel):
     model_dir: str = "models/piper"
     scratch_file: str = "data/tts-out.mp3"
 
+    # Where the finished audio goes. Synthesising it and dropping it on the
+    # floor is the difference between a robot that teaches and one that mimes.
+    player: str = "auto"  # auto | none | winsound | aplay | afplay | ffplay | mpg123
+    player_command: str = ""  # an exact command line, when auto guesses wrong
+    sample_rate: int = Field(default=22050, ge=8000)  # piper voices are 22.05 kHz
+
 
 class AudioInputConfig(BaseModel):
     model_config = Strict
@@ -351,6 +357,10 @@ def _default_timeouts() -> dict[str, float]:
 
 class FlowConfig(BaseModel):
     model_config = Strict
+
+    # A robot boots, shows a sleeping face and waits to be told to begin.
+    # true teaches one class and exits, which is what a bench run wants.
+    autostart: bool = True
 
     # Reordering or dropping a stage is an edit here, never a code change.
     sequence: list[str] = Field(default_factory=_default_sequence)

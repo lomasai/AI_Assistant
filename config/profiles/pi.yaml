@@ -1,16 +1,56 @@
-# On the robot. Real camera, real hardware, classroom output.
-# Everything else is inherited; this file exists to prove that moving from a
-# laptop to the Pi is a config change and nothing else.
+# On the robot.
+#
+# Everything not listed here is inherited from default.yaml. That is the point
+# of this file: moving from a laptop to the Pi is a config change and nothing
+# else, and this is the whole of the change.
 
 runtime:
-  mode: user
+  mode: user            # quiet output, and a bad subscriber must not end a lesson
   log_level: INFO
+  sinks: [console, jsonl]
+
+# A robot boots, shows a sleeping face and waits for the teacher to begin.
+flow:
+  autostart: false
 
 sources:
   - id: head
-    kind: picamera2
+    kind: picamera2     # sudo apt install -y python3-picamera2
     zone: front
-    width: 1280
-    height: 720
+    width: 1280         # 720p: recognition needs ~80px of face width, which
+    height: 720         # this gives you out to about 2 m
     fps: 15
     zoom: 1.0
+
+face:
+  # Measured: YuNet at 640 wide costs about 28 ms on a Pi 4 core, so eight a
+  # second is roughly a fifth of one core. Chromium is the expensive process
+  # here, not this.
+  detect_fps: 8
+  downscale_width: 640
+
+vision:
+  pipeline:
+    enabled: true
+
+web:
+  host: 0.0.0.0         # so a teacher's tablet can reach it over the room wifi
+  port: 8080
+  surfaces: [face, board, teacher]
+  mjpeg_fps: 12         # about a quarter of a core at 720p
+
+display:
+  face_screen:  {enabled: true,  width: 1024, height: 600}
+  board_screen: {enabled: true,  output: HDMI-2, width: 1920, height: 1080}
+
+speech:
+  tts:
+    engine: piper       # local, and has the Indic voices
+    player: auto        # picks aplay on Raspberry Pi OS
+    model_dir: models/piper
+
+hardware:
+  enabled: true
+  backend: esp32        # pip install pyserial
+  port: /dev/ttyUSB0
+  baud: 921600

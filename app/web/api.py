@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 from fastapi import APIRouter
@@ -14,9 +15,13 @@ from lomas_core.contracts import (
     SafetyHalt,
     StoryRequested,
 )
+from lomas_core.errors import LomasError
+
+from app.flow.states import SessionState
 
 OK = {"ok": True}
 TEACHER = "teacher"
+IDLE = "idle"
 
 
 class Ask(BaseModel):
@@ -33,6 +38,12 @@ class Halt(BaseModel):
     reason: str = Field(default=TEACHER)
 
 
+class StartClass(BaseModel):
+    topic: str = ""
+    language: str = ""
+    teacher: str = ""
+
+
 def router(system) -> APIRouter:
     """Teacher controls, and the state a surface needs on load.
 
@@ -42,6 +53,10 @@ def router(system) -> APIRouter:
     """
     api = APIRouter()
     bus = system.bus
+    running: list[threading.Thread] = []
+
+    def teaching() -> bool:
+        return bool(running) and running[0].is_alive()
 
     @api.get("/state")
     def state() -> dict[str, Any]:
@@ -49,6 +64,7 @@ def router(system) -> APIRouter:
         ctx = system.orchestrator.ctx
         return {
             "mode": system.cfg.runtime.mode,
+            "teaching": teaching(),
             "state": machine.state.value,
             "step": machine.current,
             "halted_because": machine.halt_reason,
@@ -65,6 +81,51 @@ def router(system) -> APIRouter:
             ],
             "agents": system.agents.names() if system.agents else [],
             "vision": system.vision.stats() if system.vision else {},
+        }
+
+    @api.post("/session/start")
+    def start(body: StartClass) -> dict:
+        """Begin a class.
+
+        On its own thread, because a lesson takes forty minutes and the
+        surfaces have to stay answerable throughout.
+        """
+        if teaching():
+            raise LomasError("a class is already running")
+
+        machine = system.extras["machine"]
+        if machine.state is SessionState.HALTED:
+            raise LomasError("the robot is halted; clear it before starting a class")
+
+        thread = threading.Thread(
+            target=system.orchestrator.run,
+            kwargs={"topic": body.topic, "language": body.language},
+            name="class",
+            daemon=True,
+        )
+        running.clear()
+        running.append(thread)
+        thread.start()
+        return {"started": body.topic or system.cfg.content.default_topic}
+
+    @api.post("/session/stop")
+    def stop() -> dict:
+        """End the class early. Not a halt: the session closes properly and
+        the report is complete."""
+        machine = system.extras["machine"]
+        machine.finish()
+        return OK
+
+    @api.get("/topics")
+    def topics() -> dict:
+        language = system.cfg.content.language
+        pack = system.content.load(language)
+        return {
+            "language": language,
+            "topics": [
+                {"id": lesson.id, "title": lesson.title, "segments": len(lesson.segments)}
+                for lesson in pack.lessons.values()
+            ],
         }
 
     @api.post("/pause")
@@ -124,6 +185,12 @@ def router(system) -> APIRouter:
         return {
             **system.cfg.display.model_dump(),
             "attention_threshold": system.cfg.attention.threshold,
+            # Whether anything is actually driving the wake engine. The face
+            # must not invite a child to say a phrase nobody is listening for:
+            # a screen that asks for something and then ignores it is worse
+            # than a screen that asks for nothing.
+            "listening": getattr(system, "listener", None) is not None,
+            "wake_phrase": system.cfg.speech.wake.phrase,
         }
 
     return api

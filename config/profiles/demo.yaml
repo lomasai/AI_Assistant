@@ -1,0 +1,58 @@
+# A laptop. Real webcam, real face detection, no speaker and no API key.
+#
+# The point of this profile is that it needs nothing installed: the offline
+# provider answers from a FAQ file, the null voice records what would have
+# been said, and the simulator moves a robot that is not there. Everything
+# else is the same code a school runs.
+
+runtime:
+  mode: debug
+  log_level: INFO
+
+# The robot boots, shows a sleeping face and waits. Press Start on the
+# teacher screen to begin a class.
+flow:
+  autostart: false
+  attendance_wait_seconds: 6
+  answer_wait_seconds: 12
+  stage_timeout_seconds:
+    attendance: 20.0
+    greeting: 15.0
+    lesson: 240.0
+    interaction: 120.0
+    quiz: 180.0
+    wrapup: 30.0
+
+# Synthetic frames, so the video pane and the whole vision pipeline are live
+# without needing a camera. Swap kind to `usb` and set device: 0 to use the
+# webcam - that is the only change.
+sources:
+  - id: head
+    kind: mock
+    zone: front
+    width: 640
+    height: 480
+    fps: 15
+
+face:
+  detector: yunet
+  downscale_width: 640    # the webcam is already this wide
+  detect_fps: 8
+  # Recognition needs onnxruntime and a face model. Without them the robot
+  # still detects, tracks and watches attention; it just has no names.
+  embedder: mock
+
+speech:
+  tts: {engine: "null"}
+  stt: {engine: keyboard}
+  wake: {engine: keyboard}
+
+llm:
+  provider: offline
+
+hardware:
+  enabled: true
+  backend: simulator
+
+web:
+  surfaces: [face, board, teacher, debug]

@@ -118,6 +118,8 @@ class WebServer:
 
         import uvicorn
 
+        self._check_websockets()
+
         config = uvicorn.Config(
             self.app,
             host=self.cfg.host,
@@ -129,6 +131,29 @@ class WebServer:
         self._thread = threading.Thread(target=self._server.run, name="web", daemon=True)
         self._thread.start()
         self.log.info("surfaces on %s (%s)", self.url, ", ".join(self.cfg.surfaces))
+
+    def _check_websockets(self) -> None:
+        """uvicorn ships no WebSocket implementation of its own.
+
+        Without one it answers every socket with a 404, and every surface
+        sits at "reconnecting" forever while the pages themselves load
+        perfectly. That is a day of debugging, so it is a line at start-up.
+        """
+        try:
+            import websockets  # noqa: F401
+            return
+        except ImportError:
+            pass
+        try:
+            import wsproto  # noqa: F401
+            return
+        except ImportError:
+            pass
+
+        raise LomasError(
+            "uvicorn has no WebSocket implementation, so every surface would "
+            "load and then receive nothing. pip install websockets"
+        )
 
     def stop(self) -> None:
         if self._server is not None:

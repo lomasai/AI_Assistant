@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,7 @@ from lomas_core.contracts import (
     TrackView,
     Utterance,
 )
+from lomas_core.errors import LomasError
 from lomas_core.events import EventBus, to_plain
 
 from app import container, seed
@@ -183,6 +185,66 @@ def test_the_teacher_can_call_for_a_story(client, system) -> None:
 
     requested = [p for _n, p in system.bus.replay(STORY_REQUESTED)]
     assert requested and requested[0].topic == "seeds"
+
+
+# --- the server the browser actually talks to -----------------------------
+
+
+def test_uvicorn_can_actually_serve_a_websocket() -> None:
+    """The bug this exists to prevent.
+
+    uvicorn ships no WebSocket implementation of its own. Without one it
+    answers every socket with a 404 while the pages themselves load
+    perfectly, so every surface sits at "reconnecting" forever and nothing
+    looks broken until you notice nothing moves. TestClient uses Starlette's
+    in-process socket and never touches uvicorn, so only this catches it.
+    """
+    from app.web.server import WebServer
+
+    assert _has_websocket_backend(), (
+        "no WebSocket implementation for uvicorn. pip install websockets"
+    )
+    assert hasattr(WebServer, "_check_websockets")
+
+
+def test_the_server_refuses_to_start_without_one(system, monkeypatch) -> None:
+    """Loudly, at start-up. A silently dead surface is a day of debugging."""
+    from app.web import server as server_module
+
+    def missing(name, *args, **kwargs):
+        if name in ("websockets", "wsproto"):
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
+    monkeypatch.setattr("builtins.__import__", missing)
+
+    with pytest.raises(LomasError, match="websockets"):
+        server_module.WebServer(system)._check_websockets()
+
+
+def _has_websocket_backend() -> bool:
+    for name in ("websockets", "wsproto"):
+        try:
+            __import__(name)
+            return True
+        except ImportError:
+            continue
+    return False
+
+
+def test_every_surface_script_is_syntactically_valid() -> None:
+    """A page whose script fails to parse serves 200 and does nothing. The
+    HTTP check that says the surface is fine is the check that lies."""
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+
+    for script in UI.rglob("*.js"):
+        done = subprocess.run([node, "--check", str(script)], capture_output=True, text=True)
+        assert done.returncode == 0, f"{script}: {done.stderr}"
 
 
 # --- the event stream -----------------------------------------------------

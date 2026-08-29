@@ -7,6 +7,7 @@ from pathlib import Path
 
 from lomas_core.errors import LomasError
 from lomas_core.schema import TtsConfig
+from lomas_speech.player import Player
 from lomas_speech.tts import TTS_ENGINES
 from lomas_speech.types import SpeechHandle
 
@@ -23,6 +24,7 @@ class PiperTts:
 
     def __init__(self, cfg: TtsConfig) -> None:
         self.cfg = cfg
+        self.player = Player(cfg.player, cfg.player_command)
         self._process: subprocess.Popen | None = None
         self._handle: SpeechHandle | None = None
         self._lock = threading.RLock()
@@ -61,14 +63,23 @@ class PiperTts:
         return handle
 
     def _run(self, text: str, handle: SpeechHandle) -> None:
+        """Synthesise, then play.
+
+        piper writes headerless PCM to stdout. Capturing it and stopping there
+        is a robot that mimes, so the samples go to a speaker before the
+        handle is released.
+        """
         try:
-            self._process.communicate(text.encode("utf-8"))
+            audio, _ = self._process.communicate(text.encode("utf-8"))
+            if audio and not handle.cancelled:
+                self.player.play_pcm(audio, self.cfg.sample_rate)
         finally:
             handle.finish()
 
     def stop(self) -> None:
         """Must cut off mid-sentence. The teacher's pause button depends on
         this returning quickly, so the process is killed rather than asked."""
+        self.player.stop()
         with self._lock:
             if self._process is not None and self._process.poll() is None:
                 self._process.kill()
