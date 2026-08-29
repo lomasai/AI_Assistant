@@ -7,4 +7,10 @@ config/secrets.env
 *.env
 !*.env.example
 .pytest_cache/
-*.onnx
+
+# Models are committed so that a clone runs. Two exceptions, both about size:
+# a piper voice is 60-100 MB and a face-recognition model is tens of MB, and
+# git keeps every version of a binary forever.
+models/piper/
+models/vosk/
+models/wake/
