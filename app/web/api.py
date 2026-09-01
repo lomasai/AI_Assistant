@@ -81,6 +81,7 @@ def router(system) -> APIRouter:
             ],
             "agents": system.agents.names() if system.agents else [],
             "vision": system.vision.stats() if system.vision else {},
+            "microphone": system.listener.describe() if system.listener else "none",
         }
 
     @api.post("/session/start")
@@ -189,7 +190,11 @@ def router(system) -> APIRouter:
             # must not invite a child to say a phrase nobody is listening for:
             # a screen that asks for something and then ignores it is worse
             # than a screen that asks for nothing.
+            # Two different things. A microphone the teacher presses is not
+            # a phrase a child can say, and the face must only invite the
+            # second when something is actually waiting for it.
             "listening": getattr(system, "listener", None) is not None,
+            "wake_listening": False,  # true when a wake loop exists
             "wake_phrase": system.cfg.speech.wake.phrase,
         }
 

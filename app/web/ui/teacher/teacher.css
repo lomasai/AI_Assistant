@@ -281,3 +281,7 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 #start.teaching { background: var(--warn); border-color: var(--warn); }
+
+.mic { border-color: var(--accent); color: var(--accent); }
+.mic:disabled { opacity: .45; cursor: not-allowed; }
+.mic.hearing { background: var(--accent); border-color: var(--accent); color: #fff; }

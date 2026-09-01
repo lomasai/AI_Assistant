@@ -43,6 +43,13 @@ class Speaker(BaseModel):
     student_name: str = ""
 
 
+class Listen(BaseModel):
+    seconds: float = 0.0
+    student_id: str = ""
+    student_name: str = ""
+    as_answer: bool = False
+
+
 class Answer(BaseModel):
     response: str
     question_id: str = ""
@@ -147,6 +154,51 @@ def router(system) -> APIRouter:
             ),
         )
         return OK
+
+    # --- hearing a child --------------------------------------------------
+
+    @api.post("/listen")
+    def listen(body: Listen) -> dict:
+        """Press to talk.
+
+        Attribution comes from the tapped name, because in a room of forty
+        the robot cannot tell who spoke and guessing wrong records one
+        child's answer against another.
+        """
+        if system.listener is None:
+            raise LomasError(
+                "no microphone on this machine. On Raspberry Pi OS arecord is "
+                "already there; check speech.audio.device."
+            )
+
+        ctx = system.orchestrator.ctx
+        tapped = ctx.notes.get(SPEAKER, ("", "")) if ctx else ("", "")
+        student_id = body.student_id or tapped[0]
+        student_name = body.student_name or tapped[1]
+
+        heard = system.listener.listen(
+            session_id=session_id(),
+            student_id=student_id,
+            student_name=student_name,
+            seconds=body.seconds,
+            language=ctx.language if ctx else system.cfg.content.language,
+        )
+
+        # A quiz answer and a question are different events. The teacher says
+        # which by pressing listen from the answer box or the question box.
+        if body.as_answer and heard.get("text") and student_id:
+            bus.publish(
+                QUIZ_ANSWERED,
+                QuizAnswered(
+                    session_id=session_id(),
+                    question_id=_posed(ctx),
+                    student_id=student_id,
+                    response=heard["text"],
+                    correct=UNMARKED,
+                    latency_ms=0,
+                ),
+            )
+        return heard
 
     # --- the report -------------------------------------------------------
 

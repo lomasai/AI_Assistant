@@ -103,6 +103,34 @@
     field.value = '';
   };
 
+  // --- hearing a child -----------------------------------------------------
+  // Press to talk. The robot cannot tell who spoke in a room of forty, so the
+  // tapped name is the attribution.
+
+  const hear = async (button, asAnswer) => {
+    if (!speaker) { $('step').textContent = 'Tap a name first, so the answer has an owner.'; return; }
+
+    button.classList.add('hearing');
+    button.disabled = true;
+    const was = button.textContent;
+    button.textContent = 'Listening…';
+    try {
+      const heard = await post('/listen', {
+        student_id: speaker.id, student_name: speaker.name, as_answer: asAnswer,
+      });
+      if (heard.error) $('step').textContent = heard.error;
+      else if (!heard.text) $('step').textContent = heard.reason || 'nothing was said';
+      else $(asAnswer ? 'answer' : 'ask').querySelector('input').value = heard.text;
+    } finally {
+      button.classList.remove('hearing');
+      button.disabled = false;
+      button.textContent = was;
+    }
+  };
+
+  $('listenAsk').onclick = (event) => hear(event.target, false);
+  $('listenAnswer').onclick = (event) => hear(event.target, true);
+
   // --- the roster, and who is speaking -------------------------------------
 
   const chips = new Map();
@@ -320,6 +348,13 @@
       for (const student of body.roster) names.set(student.id, student.name);
       $('step').textContent = body.step ? `${body.state} — ${body.step}` : body.state;
       showTeaching(body.teaching);
+
+      // No microphone is not a broken button, it is an absent one.
+      const deaf = !body.microphone || body.microphone === 'none';
+      for (const id of ['listenAsk', 'listenAnswer']) {
+        $(id).disabled = deaf;
+        $(id).title = deaf ? 'no microphone on this machine' : 'press and speak';
+      }
     });
 
   const handlers = {

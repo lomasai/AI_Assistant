@@ -38,7 +38,7 @@
     document.documentElement.style.setProperty('--base', cfg.base_font_px + 'px');
 
     // Only invite the phrase when something is actually listening for it.
-    if (cfg.listening) {
+    if (cfg.wake_listening) {
       $('hint').replaceChildren(
         document.createTextNode('Say '),
         Object.assign(document.createElement('b'), { textContent: cfg.wake_phrase }),

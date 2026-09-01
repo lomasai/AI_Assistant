@@ -49,6 +49,20 @@ speech:
     player: auto        # picks aplay on Raspberry Pi OS
     model_dir: models/piper
 
+  stt:
+    engine: groq        # whisper, covered by the same key as the tutor
+    fallback_engine: vosk
+
+  audio:
+    recorder: auto      # picks arecord, which Raspberry Pi OS already has
+    # A USB microphone is rarely the default input. Find yours with
+    #     arecord -l
+    # and put it here as plughw:<card>,<device>. Leaving this empty records
+    # from whatever ALSA calls default, which is usually the wrong thing.
+    device: ""
+    sample_rate: 16000  # what whisper wants
+    record_seconds: 6.0
+
 hardware:
   enabled: true
   backend: esp32        # pip install pyserial

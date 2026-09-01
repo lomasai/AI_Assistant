@@ -10,6 +10,7 @@ from lomas_speech.devices import AudioInput, InputSet
 from lomas_speech.duplex import DuplexGate
 from lomas_speech.stt import STT_ENGINES, SpeechToText
 from lomas_speech.player import Player, wrap_pcm
+from lomas_speech.recorder import Recorder
 from lomas_speech.tts import TTS_ENGINES, TextToSpeech
 from lomas_speech.types import SpeechHandle, Transcript, WakeEvent
 from lomas_speech.wake import WAKE_WORDS, WakeWord
@@ -32,6 +33,7 @@ __all__ = [
     "DuplexGate",
     "InputSet",
     "Player",
+    "Recorder",
     "wrap_pcm",
     "SpeechConfig",
     "SpeechHandle",

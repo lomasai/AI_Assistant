@@ -272,6 +272,17 @@ class AudioConfig(BaseModel):
     half_duplex: bool = True
     tail_ms: int = Field(default=250, ge=0)
 
+    # Hearing. arecord is on every Raspberry Pi already, so the default costs
+    # no install; sounddevice is for machines without it.
+    recorder: str = "auto"  # auto | none | arecord | sounddevice
+    recorder_command: str = ""
+    device: str = ""  # ALSA name, e.g. plughw:1,0 for a USB microphone
+    sample_rate: int = Field(default=16000, ge=8000)  # what whisper wants
+
+    # Fixed length, not voice activity: detecting when one child of forty has
+    # finished speaking is a research project, and a button is not.
+    record_seconds: float = Field(default=6.0, gt=0)
+
 
 class SpeechConfig(BaseModel):
     model_config = Strict

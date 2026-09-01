@@ -16,7 +16,14 @@ from lomas_face import (
     Tracker,
 )
 from lomas_llm import PROVIDERS, PromptLibrary, Router
-from lomas_speech import STT_ENGINES, TTS_ENGINES, WAKE_WORDS, DuplexGate, InputSet
+from lomas_speech import (
+    STT_ENGINES,
+    TTS_ENGINES,
+    WAKE_WORDS,
+    DuplexGate,
+    InputSet,
+    Recorder,
+)
 from lomas_store import (
     STORES,
     TenantScope,
@@ -39,6 +46,7 @@ from app.agents.safety import Safety
 from app.body import Body
 from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
+from app.listener import Listener
 from app.observability.metrics import Metrics
 from app.context.assembler import ContextAssembler
 from app.context.mcp_server import ContextServer
@@ -82,6 +90,7 @@ class System:
     enrolment: EnrolmentService | None = None
     report: ReportBuilder | None = None
     metrics: Metrics | None = None
+    listener: Listener | None = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -127,6 +136,21 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     wake = WAKE_WORDS.create(cfg.speech.wake.engine, cfg.speech.wake)
     gate = DuplexGate(cfg.speech.audio, clock)
 
+    # A microphone the teacher presses. Built only when one is actually
+    # reachable, so /api/display can tell the face whether anyone is hearing.
+    recorder = Recorder(cfg.speech.audio.recorder, cfg.speech.audio.device,
+                        cfg.speech.audio.recorder_command)
+    listener = Listener(cfg, bus, clock, recorder, stt, gate) if recorder.available else None
+
+    # At INFO, because "can it hear me" is the first question anyone asks of
+    # a robot and the answer should not need the debug overlay.
+    player = getattr(tts, "player", None)
+    logger.info(
+        "audio: in=%s out=%s",
+        recorder.describe(),
+        player.describe() if player is not None else cfg.speech.tts.engine,
+    )
+
     content = ContentLibrary(cfg.content)
     assembler = ContextAssembler(cfg, repos, content)
 
@@ -166,6 +190,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
         enrolment=enrolment, report=report, metrics=metrics, body=body,
+        listener=listener,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 
@@ -341,6 +366,7 @@ def available() -> dict[str, list[str]]:
         "tts": TTS_ENGINES.keys(),
         "stt": STT_ENGINES.keys(),
         "wake": WAKE_WORDS.keys(),
+        "recorder": ["auto", "none", "arecord", "sounddevice"],
         "detector": DETECTORS.keys(),
         "embedder": EMBEDDERS.keys(),
         "steps": STEPS.keys(),
