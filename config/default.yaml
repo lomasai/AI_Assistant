@@ -27,9 +27,10 @@ runtime:
   # stops thousands of frame events burying the ones a report reads.
   log_event_exclude: ["vision.*"]
 
-  # Debug mode sets this true so a broken handler surfaces immediately.
-  # User mode sets it false so a demo survives one bad subscriber.
-  raise_on_handler_error: true
+  # Left unset on purpose: it follows runtime.mode. Debug raises so a broken
+  # handler surfaces immediately; user logs and carries on so one bad
+  # subscriber cannot end a lesson. Set it here only to override that.
+  #raise_on_handler_error: true
 
 tenancy:
   # Which org, school and class this robot belongs to. A school chain or a

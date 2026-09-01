@@ -4,6 +4,8 @@ import time
 
 import numpy as np
 
+from lomas_core import logging as log
+from lomas_core.errors import LomasError
 from lomas_core.schema import FaceConfig
 from lomas_face.embedder import FaceEmbedder, distance
 from lomas_face.quality import crop_face
@@ -31,6 +33,10 @@ class IdentityMatcher:
         self.matches = 0
         self.unknowns = 0
         self.skipped_too_small = 0
+        # Set when the embedder cannot run at all - no onnxruntime, no model
+        # file. Detection, tracking and attention do not need it.
+        self.unavailable = ""
+        self.log = log.get("identity")
 
     def load(self, enrolled: dict[str, list[np.ndarray]]) -> None:
         self._enrolled = {
@@ -43,7 +49,7 @@ class IdentityMatcher:
         return len(self._enrolled)
 
     def resolve(self, track: Track, frame: np.ndarray, ts: float) -> str | None:
-        if not self._should_embed(track, ts):
+        if self.unavailable or not self._should_embed(track, ts):
             return track.student_id
 
         if track.box.w < self.cfg.recognition_min_face_px:
@@ -56,7 +62,15 @@ class IdentityMatcher:
 
         self.embed_calls += 1
         began = time.perf_counter()
-        vector = self.embedder.embed(crop)
+        try:
+            vector = self.embedder.embed(crop)
+        except LomasError as exc:
+            # Recognition is one feature of vision, not all of it. Losing
+            # names must not cost the boxes, the attention or the head
+            # tracking, so this stops trying and everything else carries on.
+            self.unavailable = str(exc)
+            self.log.error("recognition off, faces stay unnamed: %s", exc)
+            return track.student_id
         self.embed_seconds += time.perf_counter() - began
         track.verified_at = ts
 
@@ -79,6 +93,7 @@ class IdentityMatcher:
             "unknowns": self.unknowns,
             "skipped_too_small": self.skipped_too_small,
             "enrolled": self.enrolled_count,
+            "recognition": "off" if self.unavailable else "on",
         }
 
     def reset(self) -> None:

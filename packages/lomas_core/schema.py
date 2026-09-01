@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # This is the only file in the repository where a default value may be written.
 # Every other module reads its numbers from a Config instance.
@@ -19,11 +19,25 @@ class RuntimeConfig(BaseModel):
     sinks: list[Literal["console", "jsonl"]] = Field(default_factory=lambda: ["console"])
     log_dir: str = "data/logs"
     event_replay_size: int = Field(default=512, ge=1)
-    raise_on_handler_error: bool = True
+
+    # Derived from the mode unless it is set explicitly. A profile that says
+    # `mode: user` and then ends a lesson because one subscriber threw is a
+    # profile that lies, and profiles do not inherit from each other - pi.yaml
+    # is built on default.yaml, not on user.yaml.
+    raise_on_handler_error: bool | None = None
 
     # Vision publishes on every detect cycle. Writing all of that to the
     # session log would bury the events a report actually reads.
     log_event_exclude: list[str] = Field(default_factory=lambda: ["vision.*"])
+
+
+    @model_validator(mode="after")
+    def _error_policy_follows_the_mode(self) -> "RuntimeConfig":
+        if self.raise_on_handler_error is None:
+            # On the bench a broken subscriber should stop everything. In a
+            # classroom it must not end the lesson in front of forty children.
+            object.__setattr__(self, "raise_on_handler_error", self.mode == "debug")
+        return self
 
 
 class TenancyConfig(BaseModel):

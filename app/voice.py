@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from lomas_core import logging as log
+from lomas_core.errors import LomasError
 from lomas_core.contracts import ROBOT_SAY, ROBOT_SPOKE, SESSION_PAUSED, Utterance
 from lomas_core.events import EventBus
 from lomas_speech import DuplexGate, TextToSpeech
@@ -25,6 +26,7 @@ class Voice:
         self.gate = gate
         self.bus = bus
         self.guard = guard
+        self._mute_reported = False
         self.log = log.get("voice")
         bus.subscribe(ROBOT_SAY, self._on_say)
 
@@ -42,6 +44,14 @@ class Voice:
         try:
             handle = self.tts.speak(utterance.text, utterance.language)
             handle.wait()
+        except LomasError as exc:
+            # No voice is not no lesson. A missing piper binary must not end
+            # the class in front of the room; it makes the robot quiet, and
+            # the log says why. Said once - a warning on every sentence is a
+            # log nobody reads.
+            if not self._mute_reported:
+                self._mute_reported = True
+                self.log.error("no voice, teaching silently: %s", exc)
         finally:
             self.gate.on_speech_end()
 

@@ -361,3 +361,90 @@ def _app(system):
     from app.web.server import create_app
 
     return create_app(system)
+
+
+# --- what a half-built robot does -----------------------------------------
+#
+# All three of these were found on a real Pi, and all three had the same
+# shape: something the robot is better with, but can teach without, ended the
+# lesson instead.
+
+
+def test_a_profile_that_says_user_gets_user_behaviour() -> None:
+    """Profiles do not inherit from each other. pi.yaml is built on
+    default.yaml, not on user.yaml, so it said `mode: user` and then raised
+    on a bad subscriber - ending a class on the actual robot."""
+    for name in ["pi", "user"]:
+        cfg = load("config", name, [], use_env=False)
+        assert cfg.runtime.mode == "user"
+        assert cfg.runtime.raise_on_handler_error is False, name
+
+    for name in ["debug", "demo"]:
+        cfg = load("config", name, [], use_env=False)
+        assert cfg.runtime.raise_on_handler_error is True, name
+
+
+def test_the_error_policy_can_still_be_overridden() -> None:
+    """Derived, not dictated. Someone may want debug diagnostics with a
+    classroom's forgiveness, or the reverse."""
+    cfg = load("config", "pi", ["runtime.raise_on_handler_error=true"], use_env=False)
+    assert cfg.runtime.raise_on_handler_error is True
+
+
+def test_a_robot_with_no_voice_still_teaches() -> None:
+    """piper not on PATH used to propagate out of the bus and kill the class
+    thread mid-greeting."""
+    from lomas_core.errors import LomasError
+
+    system = build("user")
+    try:
+        class Mute:
+            def speak(self, text, language=""):
+                raise LomasError("'piper' is not on PATH")
+
+            def stop(self):
+                ...
+
+            def amplitude(self):
+                return 0.0
+
+        system.voice.tts = Mute()
+        assert system.orchestrator.run() is SessionState.CLOSED
+
+        sessions = system.repos["session"].recent(system.orchestrator.scope, 1)
+        assert sessions[0]["status"] == "closed"
+    finally:
+        system.close()
+
+
+def test_no_recognition_is_not_no_vision() -> None:
+    """onnxruntime missing used to fail five detect cycles in a row and stop
+    vision entirely - losing the boxes, the attention and the head tracking
+    along with the names."""
+    import numpy as np
+    from lomas_core.errors import LomasError
+    from lomas_face import IdentityMatcher
+    from lomas_face.types import Detection, Track
+
+    cfg = load("config", "debug", HEADLESS, use_env=False)
+
+    class Missing:
+        dim = 512
+
+        def embed(self, crop):
+            raise LomasError("onnxruntime is not installed")
+
+    matcher = IdentityMatcher(Missing(), cfg.face)
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+    box = Detection(x=100, y=100, w=200, h=200, confidence=0.9)
+    track = Track(track_id=1, box=box, first_seen=0.0, last_seen=0.0)
+
+    assert matcher.resolve(track, frame, 1.0) is None
+    assert matcher.unavailable, "it should remember and stop trying"
+
+    # And it must not keep raising on every later frame.
+    for tick in range(10):
+        assert matcher.resolve(track, frame, 2.0 + tick) is None
+
+    assert matcher.embed_calls == 1, "it kept calling a model that cannot load"
+    assert matcher.stats()["recognition"] == "off"
