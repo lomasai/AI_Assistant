@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from lomas_core.clock import FakeClock
+from lomas_core.errors import LomasError
 from lomas_core.schema import AudioConfig, AudioInputConfig, SttConfig, TtsConfig, WakeConfig
 from lomas_speech import (
     STT_ENGINES,
@@ -272,3 +273,25 @@ def test_stopping_returns_before_the_clip_would_have_ended() -> None:
     elapsed = time.monotonic() - started
 
     assert elapsed < 1.0, f"a three second clip took {elapsed:.2f}s to stop"
+
+
+def test_a_stalled_audio_device_does_not_hang_the_robot() -> None:
+    """Found on a Pi: aplay opened an i2s card with nothing clocked on the
+    far end and never returned. A voice that hangs is a lesson that hangs."""
+    import time
+
+    from lomas_speech.player import Player
+
+    import sys
+
+    player = Player(choice="none")
+    player.backend = "stubborn"
+    # A player that never comes back, whatever it is handed.
+    player.command = f'"{sys.executable}" -c "import time; time.sleep(30)"'
+
+    started = time.monotonic()
+    with pytest.raises(LomasError, match="stalled|did not finish"):
+        player.play_pcm(bytes([0, 1]) * 2205, 22050)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 12, f"it waited {elapsed:.1f}s before giving up"

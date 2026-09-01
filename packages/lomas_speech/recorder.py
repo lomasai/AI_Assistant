@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 import shutil
 import subprocess
 import sys
@@ -78,7 +79,7 @@ class Recorder:
             return choice if shutil.which(choice) else NONE
 
         if self.command:
-            return self.command.split()[0]
+            return shlex.split(self.command)[0]
         if sys.platform != WINDOWS and shutil.which(ARECORD):
             return ARECORD
         if _has_sounddevice():
@@ -89,7 +90,7 @@ class Recorder:
 
     def _argv(self, path: Path, seconds: float, sample_rate: int) -> list[str]:
         if self.command:
-            return [*self.command.split(), str(path)]
+            return [*shlex.split(self.command), str(path)]
 
         argv = [self.backend, "-q", "-f", "S16_LE", "-c", str(MONO),
                 "-r", str(sample_rate), "-t", "wav", "-d", str(int(round(seconds)))]

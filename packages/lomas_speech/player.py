@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import shlex
 import shutil
 import subprocess
 import sys
@@ -43,6 +44,8 @@ DEVICE_FLAG = {"aplay": "-D", "paplay": "-d", "mpg123": "-a"}
 
 SAMPLE_WIDTH = 2  # piper emits signed 16-bit
 MAX_CLIP_SECONDS = 30.0
+# How long past the end of a clip a player may take before it is stuck.
+STALL_GRACE = 5.0
 MONO = 1
 
 
@@ -132,7 +135,7 @@ class Player:
             return choice if shutil.which(choice) else NONE
 
         if self.command:
-            return self.command.split()[0]
+            return shlex.split(self.command)[0]
         if sys.platform == WINDOWS:
             return WINSOUND
         for name in UNIX_PLAYERS:
@@ -144,7 +147,7 @@ class Player:
 
     def _argv(self, path: Path) -> list[str]:
         if self.command:
-            return [*self.command.split(), str(path)]
+            return [*shlex.split(self.command), str(path)]
 
         argv = [*UNIX_PLAYERS.get(self.backend, [self.backend])]
         if self.device and self.backend in DEVICE_FLAG:
@@ -162,8 +165,22 @@ class Player:
                 self._process = subprocess.Popen(
                     self._argv(path), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
                 )
-            _, complaint = self._process.communicate()
-            code = self._process.returncode
+            # A timeout, because some devices accept the open and then never
+            # return - an i2s card with nothing clocked on the far end will
+            # block aplay forever, and a robot whose voice hangs is a robot
+            # whose lesson hangs.
+            waited = _seconds(path) + STALL_GRACE
+            try:
+                _, complaint = self._process.communicate(timeout=waited)
+                code = self._process.returncode
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+                self._process.communicate()
+                raise LomasError(
+                    f"{self.backend} did not finish within {waited:.0f}s on "
+                    f"'{self.device or 'default'}'. The card accepted the audio "
+                    "and then stalled; try another with --sweep."
+                ) from None
         except OSError as exc:
             raise LomasError(f"cannot run the audio player '{self.backend}': {exc}") from exc
         finally:
