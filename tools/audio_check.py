@@ -89,9 +89,11 @@ def main() -> int:
     print("\n=== what the config asks for ===")
     print(f"  recorder      {audio.recorder}   device={audio.device or '(default)'}")
     print(f"  sample rate   {audio.sample_rate}")
-    print(f"  tts engine    {cfg.speech.tts.engine}   player={cfg.speech.tts.player}")
+    print(f"  tts engine    {cfg.speech.tts.engine}   player={cfg.speech.tts.player}"
+          f"   device={cfg.speech.tts.player_device or '(default)'}")
 
-    player = Player(cfg.speech.tts.player, cfg.speech.tts.player_command)
+    player = Player(cfg.speech.tts.player, cfg.speech.tts.player_command,
+                    cfg.speech.tts.player_device)
     recorder = Recorder(audio.recorder, audio.device, audio.recorder_command)
 
     print("\n=== what the robot actually resolved to ===")

@@ -247,6 +247,10 @@ class TtsConfig(BaseModel):
     # Where the finished audio goes. Synthesising it and dropping it on the
     # floor is the difference between a robot that teaches and one that mimes.
     player: str = "auto"  # auto | none | winsound | aplay | afplay | ffplay | mpg123
+    # A Pi has four playback cards - the jack, two HDMI, often a DAC - and
+    # ALSA's `default` is rarely the one with a speaker on it. `aplay -l`
+    # gives the number; this is plughw:<card>,0.
+    player_device: str = ""
     player_command: str = ""  # an exact command line, when auto guesses wrong
     sample_rate: int = Field(default=22050, ge=8000)  # piper voices are 22.05 kHz
 

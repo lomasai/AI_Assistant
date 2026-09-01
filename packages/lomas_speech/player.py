@@ -37,6 +37,10 @@ UNIX_PLAYERS = {
 # Only these can handle an mp3, which is what the cloud voice returns.
 MP3_PLAYERS = ("ffplay", "mpg123", "afplay")
 
+# How each one is told which card to use. afplay and winsound have no such
+# flag; they follow the system default and that is all they offer.
+DEVICE_FLAG = {"aplay": "-D", "paplay": "-d", "mpg123": "-a"}
+
 SAMPLE_WIDTH = 2  # piper emits signed 16-bit
 MAX_CLIP_SECONDS = 30.0
 MONO = 1
@@ -66,9 +70,10 @@ class Player:
     that gets switched off.
     """
 
-    def __init__(self, choice: str = AUTO, command: str = "") -> None:
+    def __init__(self, choice: str = AUTO, command: str = "", device: str = "") -> None:
         self.log = log.get("audio")
         self.command = command
+        self.device = device
         self.backend = self._choose(choice)
         self._process: subprocess.Popen | None = None
         self._stopped = threading.Event()
@@ -79,7 +84,7 @@ class Player:
         return self.backend != NONE
 
     def describe(self) -> str:
-        return self.backend
+        return f"{self.backend}:{self.device}" if self.device else self.backend
 
     def play_pcm(self, raw: bytes, sample_rate: int) -> None:
         if raw:
@@ -140,7 +145,11 @@ class Player:
     def _argv(self, path: Path) -> list[str]:
         if self.command:
             return [*self.command.split(), str(path)]
-        return [*UNIX_PLAYERS.get(self.backend, [self.backend]), str(path)]
+
+        argv = [*UNIX_PLAYERS.get(self.backend, [self.backend])]
+        if self.device and self.backend in DEVICE_FLAG:
+            argv += [DEVICE_FLAG[self.backend], self.device]
+        return [*argv, str(path)]
 
     def _play_command(self, path: Path) -> None:
         if path.suffix == MP3 and self.backend not in MP3_PLAYERS:

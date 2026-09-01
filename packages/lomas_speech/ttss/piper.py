@@ -24,7 +24,7 @@ class PiperTts:
 
     def __init__(self, cfg: TtsConfig) -> None:
         self.cfg = cfg
-        self.player = Player(cfg.player, cfg.player_command)
+        self.player = Player(cfg.player, cfg.player_command, cfg.player_device)
         self._process: subprocess.Popen | None = None
         self._handle: SpeechHandle | None = None
         self._lock = threading.RLock()

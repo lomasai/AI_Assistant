@@ -49,6 +49,11 @@ speech:
     player: auto        # picks aplay on Raspberry Pi OS
     model_dir: models/piper
 
+    # A Pi has four playback cards - the jack, two HDMI, often a DAC - and
+    # ALSA's `default` is rarely the one with a speaker on it. Find the jack
+    # with `aplay -l` and set plughw:<card>,0. Card 0 is usually Headphones.
+    player_device: plughw:0,0
+
   stt:
     engine: groq        # whisper, covered by the same key as the tutor
     fallback_engine: vosk
