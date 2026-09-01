@@ -89,12 +89,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.seed:
             seed.demo_class(system)
 
+        # A missing body or a missing camera is not a missing lesson. Both
+        # degrade: the robot teaches without moving, and attendance falls back
+        # to the roster. A loose serial cable must not stop a class.
         if system.body is not None:
-            system.body.start()
+            optional(logger, "body", system.body.start)
 
         # The camera comes up with the robot; recognition waits for a class.
         if system.vision is not None:
-            system.vision.watch()
+            optional(logger, "camera", system.vision.watch)
 
         if system.web is not None:
             system.web.start()
@@ -112,6 +115,21 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     finally:
         system.close()
+
+
+def optional(logger, what: str, start) -> None:
+    """Start something the robot is better with and can teach without.
+
+    The web server and the flow are not in here on purpose: without those
+    there is no product, and failing loudly is right. A body and a camera are
+    different - a school with the ESP32 unplugged should still get a lesson.
+    """
+    try:
+        start()
+    except LomasError as exc:
+        logger.error("%s unavailable, continuing without it: %s", what, exc)
+    except Exception as exc:  # a driver, not us
+        logger.error("%s failed to start, continuing without it: %s", what, exc)
 
 
 def wait(system, logger) -> int:
