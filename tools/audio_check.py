@@ -48,6 +48,31 @@ def devices(command: str) -> str:
         return f"({command} is not on PATH)"
 
 
+def mixer(device: str) -> list[str]:
+    """Volume and mute for the card the robot is speaking through.
+
+    A Pi ships with the headphone output at zero, and a muted control is the
+    single most common reason a correct configuration makes no sound.
+    """
+    card = device.split(":")[-1].split(",")[0] if ":" in device else "0"
+    try:
+        done = subprocess.run(["amixer", "-c", card], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return ["(amixer is not available)"]
+
+    if done.returncode:
+        return [f"(card {card}: {done.stderr.strip()[:120]})"]
+
+    lines = [f"card {card}"]
+    for line in done.stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Simple mixer control") or "Playback" in stripped and "%" in stripped:
+            lines.append(stripped)
+        if "[off]" in stripped:
+            lines.append("  ^ MUTED - press M on it in alsamixer")
+    return lines
+
+
 def tone(rate: int) -> bytes:
     frames = int(TONE_SECONDS * rate)
     return b"".join(
@@ -107,11 +132,16 @@ def main() -> int:
         else:
             try:
                 player.play_pcm(tone(audio.sample_rate), audio.sample_rate)
-                print("  sent to the device. If you heard nothing, the robot is not the")
-                print("  problem - check alsamixer for a muted or zeroed output, and")
-                print("  that the jack is selected rather than HDMI.")
+                print("  the device accepted it and reported no error.")
+                print("  If you heard nothing, the sound reached the card and stopped")
+                print("  there - see the mixer below.")
             except LomasError as exc:
-                print(f"  failed: {exc}")
+                print(f"  FAILED: {exc}")
+                print("  This is the card refusing the audio, not the robot.")
+
+    print("\n=== mixer for the chosen output ===")
+    for line in mixer(cfg.speech.tts.player_device):
+        print(f"  {line}")
 
     seconds = args.seconds or audio.record_seconds
     print(f"\n=== recording {seconds:g}s - say something ===")

@@ -160,14 +160,23 @@ class Player:
         try:
             with self._lock:
                 self._process = subprocess.Popen(
-                    self._argv(path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    self._argv(path), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
                 )
-            self._process.wait()
+            _, complaint = self._process.communicate()
+            code = self._process.returncode
         except OSError as exc:
             raise LomasError(f"cannot run the audio player '{self.backend}': {exc}") from exc
         finally:
             with self._lock:
                 self._process = None
+
+        # Swallowing this is how a robot ends up silently miming: aplay exits
+        # non-zero for a busy or invalid device and says exactly why.
+        if code and not self._stopped.is_set():
+            raise LomasError(
+                f"{self.backend} failed ({code}): "
+                f"{complaint.decode(errors='ignore').strip()[:200] or 'no message'}"
+            )
 
     def _play_winsound(self, path: Path) -> None:
         """Asynchronous, then waited on here.
