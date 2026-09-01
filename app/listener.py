@@ -12,6 +12,7 @@ from lomas_core.contracts import (
 from lomas_core.errors import LomasError
 from lomas_core.events import EventBus
 from lomas_core.schema import Config
+from lomas_speech.recorder import loudness
 
 LISTENING = "listening"
 IDLE = "idle"
@@ -76,6 +77,14 @@ class Listener:
         if not audio:
             return {"text": "", "reason": "nothing was recorded"}
 
+        # Checked before the network, not after. Whisper hallucinates on
+        # silence, and a sentence nobody said, attributed to a named child,
+        # is worse than no answer at all.
+        peak, rms = loudness(audio)
+        if peak < self.cfg.speech.audio.silence_peak:
+            self.log.info("too quiet to send: peak %.3f", peak)
+            return {"text": "", "reason": "nothing was heard", "peak": round(peak, 3)}
+
         language = language or self.cfg.content.language
         try:
             heard = self.stt.transcribe(audio, language)
@@ -84,21 +93,26 @@ class Listener:
         except Exception as exc:
             raise LomasError(f"could not transcribe: {exc}") from exc
 
-        if not heard:
-            return {"text": "", "reason": "nothing was said"}
+        spoken = heard.text.strip()
+        if len(_letters(spoken)) < self.cfg.speech.stt.min_characters:
+            # "." and "So, let's go." are what whisper returns for a room that
+            # said nothing. They are not questions and must not become ones.
+            self.log.info("discarded as noise: %r", spoken)
+            return {"text": "", "reason": "nothing was said", "discarded": spoken}
 
         self.heard += 1
-        self.log.info("heard: %s", heard.text)
+        self.log.info("heard: %s", spoken)
         self.bus.publish(
             QUESTION_ASKED,
             QuestionAsked(
                 session_id=session_id,
-                text=heard.text,
+                text=spoken,
                 student_id=student_id,
                 student_name=student_name,
             ),
         )
-        return {"text": heard.text, "language": heard.language, "student_id": student_id}
+        return {"text": spoken, "language": heard.language, "student_id": student_id,
+                "peak": round(peak, 3)}
 
     def _capture(self, session_id: str, seconds: float) -> bytes:
         audio = self.cfg.speech.audio
@@ -116,3 +130,8 @@ class Listener:
             ROBOT_STATE,
             {"session_id": session_id, "state": state, "by": SOURCE, "seconds": seconds},
         )
+
+
+def _letters(text: str) -> str:
+    """Punctuation is not speech. A transcript of "." carries no letters."""
+    return "".join(c for c in text if c.isalnum())

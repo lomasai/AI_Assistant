@@ -223,6 +223,8 @@ class SttConfig(BaseModel):
     api_key_env: str = "GROQ_API_KEY"  # the name is config, the secret is not
     sample_rate: int = Field(default=16000, ge=8000)
     silence_timeout_ms: int = Field(default=1200, ge=1)
+    # A transcript this short is punctuation or a hallucination, not a child.
+    min_characters: int = Field(default=3, ge=0)
     max_utterance_seconds: int = Field(default=20, ge=1)
     timeout_seconds: float = Field(default=15.0, gt=0)
 
@@ -240,6 +242,11 @@ class TtsConfig(BaseModel):
     # adding a language content work rather than code work.
     voice: dict[str, str] = Field(default_factory=_default_voices)
     fallback_language: str = "en"
+
+    # gtts only. Google serves a different accent per domain, and co.in is
+    # Indian English - the one a class here will find familiar. piper has no
+    # Indian English voice at all, which is why this exists.
+    accent: str = "com"
     binary: str = "piper"
     model_dir: str = "models/piper"
     scratch_file: str = "data/tts-out.mp3"
@@ -286,6 +293,10 @@ class AudioConfig(BaseModel):
     # Fixed length, not voice activity: detecting when one child of forty has
     # finished speaking is a research project, and a button is not.
     record_seconds: float = Field(default=6.0, gt=0)
+
+    # Below this a clip is silence. Whisper invents words when given silence -
+    # a full stop, or a stray "So, let's go." - so quiet audio is never sent.
+    silence_peak: float = Field(default=0.02, ge=0.0, le=1.0)
 
 
 class SpeechConfig(BaseModel):

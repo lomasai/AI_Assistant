@@ -61,6 +61,8 @@ from app.voice import Voice, allow_everything
 from app import agents as _agents  # noqa: F401
 from app.flow import steps as _steps  # noqa: F401
 
+OFFLINE = "offline"
+
 STEPS.discover("app.flow.steps")
 AGENTS.discover("app.agents")
 
@@ -129,6 +131,14 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
 
     prompts = PromptLibrary(cfg.llm.prompts_path, cfg.llm.fallback_language)
     llm = PROVIDERS.create(cfg.llm.provider, cfg.llm)
+    if cfg.llm.provider == OFFLINE:
+        # Otherwise the robot answers every question with the same sentence
+        # and nothing says why. It is a fallback, not a default anyone chose.
+        logger.warning(
+            "llm.provider is offline: answers come from %s.yaml, not a model. "
+            "Set LOMAS__llm__provider in config/secrets.env to use one.",
+            cfg.llm.offline_faq,
+        )
     router = Router(cfg.llm.router)
 
     tts = TTS_ENGINES.create(cfg.speech.tts.engine, cfg.speech.tts)

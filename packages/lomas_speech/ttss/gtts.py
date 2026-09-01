@@ -33,7 +33,7 @@ class GttsTts:
         language = language or self.cfg.fallback_language
         handle = SpeechHandle(text=text, language=language)
         # Saved and then played. The file on its own is a robot that mimes.
-        gTTS(text=text, lang=language).save(self.cfg.scratch_file)
+        gTTS(text=text, lang=language, tld=self.cfg.accent).save(self.cfg.scratch_file)
         self._handle = handle
         try:
             self.player.play_file(Path(self.cfg.scratch_file))

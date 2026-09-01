@@ -39,9 +39,25 @@ SPOKEN = "why do leaves look green"
 MICROPHONE = "microphone"
 
 
+def spoken_audio(peak: float = 0.4, seconds: float = 1.0, rate: int = 16000) -> bytes:
+    """A WAV with real signal in it. The listener measures loudness before it
+    spends a network call, so a fixture of zeroes now reads as silence."""
+    import math
+    import struct
+
+    from lomas_speech.player import wrap_pcm
+
+    level = int(peak * 32767)
+    pcm = b"".join(
+        struct.pack("<h", int(level * math.sin(2 * math.pi * 220 * i / rate)))
+        for i in range(int(seconds * rate))
+    )
+    return wrap_pcm(pcm, rate)
+
+
 class FakeMic:
-    def __init__(self, audio: bytes = b"RIFF----WAVEfake") -> None:
-        self.audio = audio
+    def __init__(self, audio: bytes | None = None) -> None:
+        self.audio = spoken_audio() if audio is None else audio
         self.calls: list[tuple[float, int]] = []
         self.available = True
 
@@ -266,3 +282,52 @@ def test_nothing_empty_reaches_the_report(client, system) -> None:
     report = client.get(f"/api/report/{ctx.session_id}").json()
     for question in report["questions"]:
         assert question["text"], "an empty question reached the report"
+
+
+# --- silence must not become a sentence -----------------------------------
+
+
+def test_a_quiet_room_never_reaches_the_model(system, listening) -> None:
+    """Found on a Pi: whisper returned "." and "So, let's go." for a room
+    that said nothing, and both were published as questions from a named
+    child. Loudness is checked before the network, not after."""
+    listening.recorder = FakeMic(audio=spoken_audio(peak=0.001))
+    ears = listening.stt
+
+    heard = listening.listen(session_id="s", student_id="s1")
+
+    assert heard["text"] == ""
+    assert heard["reason"] == "nothing was heard"
+    assert not ears.given, "silence was sent to the transcriber anyway"
+    assert not seen(system, QUESTION_ASKED)
+
+
+def test_punctuation_is_not_a_question(system, listening) -> None:
+    """What whisper returns for noise. It is not a child asking something."""
+    listening.stt = FakeEars(text=".")
+
+    heard = listening.listen(session_id="s", student_id="s1")
+
+    assert heard["text"] == ""
+    assert heard["discarded"] == "."
+    assert not seen(system, QUESTION_ASKED)
+
+
+def test_a_real_sentence_still_gets_through(system, listening) -> None:
+    """The gate must not be so keen that it eats actual speech."""
+    heard = listening.listen(session_id="s", student_id="s1")
+
+    assert heard["text"] == SPOKEN
+    assert heard["peak"] > system.cfg.speech.audio.silence_peak
+    assert seen(system, QUESTION_ASKED)
+
+
+def test_the_threshold_is_config(system, listening) -> None:
+    quiet = spoken_audio(peak=0.05)
+    listening.recorder = FakeMic(audio=quiet)
+
+    system.cfg.speech.audio.silence_peak = 0.5
+    assert listening.listen(session_id="s")["text"] == ""
+
+    system.cfg.speech.audio.silence_peak = 0.01
+    assert listening.listen(session_id="s")["text"] == SPOKEN

@@ -24,6 +24,33 @@ SOUNDDEVICE = "sounddevice"
 SAMPLE_WIDTH = 2
 MONO = 1
 KILL_GRACE = 0.5
+FULL_SCALE = 32768.0
+
+
+def loudness(wav: bytes) -> tuple[float, float]:
+    """Peak and RMS of a WAV, as a share of full scale.
+
+    Whisper invents words when handed silence - a full stop, or a stray
+    "So, let's go." - so knowing how loud a clip is before sending it saves
+    both an API call and a sentence nobody said.
+    """
+    import struct
+    import wave
+    from io import BytesIO
+
+    try:
+        with wave.open(BytesIO(wav), "rb") as clip:
+            raw = clip.readframes(clip.getnframes())
+    except (wave.Error, EOFError):
+        return 0.0, 0.0
+    if not raw:
+        return 0.0, 0.0
+
+    usable = len(raw) // SAMPLE_WIDTH
+    samples = struct.unpack(f"<{usable}h", raw[: usable * SAMPLE_WIDTH])
+    peak = max(abs(s) for s in samples) / FULL_SCALE
+    rms = (sum(s * s for s in samples) / len(samples)) ** 0.5 / FULL_SCALE
+    return peak, rms
 
 
 class Recorder:
