@@ -48,6 +48,50 @@ def devices(command: str) -> str:
         return f"({command} is not on PATH)"
 
 
+def playback_cards() -> list[tuple[str, str]]:
+    """Every card aplay can see, as (number, name)."""
+    import re
+
+    found = []
+    for line in devices("aplay").splitlines():
+        match = re.match(r"card (\d+): (\S+)", line.strip())
+        if match:
+            found.append((match.group(1), match.group(2)))
+    return found
+
+
+def sweep(rate: int) -> int:
+    """Play through each card in turn and say which one is which.
+
+    Four playback devices and one speaker: the fastest way to find the pair
+    is to try them all and listen, and that is two minutes rather than an
+    afternoon of reading forum posts about config.txt.
+    """
+    cards = playback_cards()
+    if not cards:
+        print("  no playback cards at all.")
+        return 1
+
+    samples = tone(rate)
+    for number, name in cards:
+        device = f"plughw:{number},0"
+        print(f"\n  card {number}  {name}   ->  {device}")
+        player = Player("aplay", device=device)
+        if not player.available:
+            print("    aplay is not available")
+            continue
+        try:
+            player.play_pcm(samples, rate)
+            print("    played with no error. Heard it? Then set:")
+            print(f"      LOMAS__speech__tts__player_device={device}")
+        except LomasError as exc:
+            print(f"    refused: {exc}")
+
+    print("\n  Silence on every card means the speaker is not powered, not")
+    print("  plugged into the socket you think, or the cable is faulty.")
+    return 0
+
+
 def mixer(device: str) -> list[str]:
     """Volume and mute for the card the robot is speaking through.
 
@@ -101,11 +145,21 @@ def main() -> int:
     parser.add_argument("--config-dir", default=str(ROOT / "config"))
     parser.add_argument("--seconds", type=float, default=0.0)
     parser.add_argument("--skip-play", action="store_true")
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="play a tone through every playback card in turn, to find the "
+             "one your speaker is actually wired to",
+    )
     args = parser.parse_args()
 
     load_secrets(Path(args.config_dir) / SECRETS_FILE)
     cfg = load(args.config_dir, args.mode)
     audio = cfg.speech.audio
+
+    if args.sweep:
+        print("=== playing a tone through every playback card in turn ===")
+        return sweep(cfg.speech.audio.sample_rate)
 
     print("=== devices the operating system can see ===")
     print("-- playback --\n" + devices("aplay"))
