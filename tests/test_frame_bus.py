@@ -133,3 +133,43 @@ def test_zoom_crops_the_centre():
 
 def test_zoom_is_clamped():
     assert crop_rectangle(9.0, 3280, 2464, 1.0, 2.5) == crop_rectangle(2.5, 3280, 2464, 1.0, 2.5)
+
+
+# --- a dark picture from a good sensor ------------------------------------
+
+
+def test_camera_controls_default_to_letting_the_sensor_decide() -> None:
+    """Zero means auto throughout. A config that pins exposure by accident is
+    a camera that cannot adapt to the afternoon."""
+    from lomas_core.schema import SourceConfig
+
+    controls = SourceConfig(id="head").controls
+
+    assert controls.auto_exposure is True
+    assert controls.auto_white_balance is True
+    assert controls.exposure_time_us == 0
+    assert controls.analogue_gain == 0.0
+    assert controls.exposure_value == 0.0
+    assert controls.warmup_seconds > 0, "no warm-up is why the first frames are dark"
+
+
+def test_the_pi_profile_waits_for_auto_exposure() -> None:
+    from lomas_core.config import load
+
+    controls = load("config", "pi", [], use_env=False).sources[0].controls
+
+    assert controls.warmup_seconds >= 1.0
+    assert controls.auto_exposure is True
+
+
+def test_exposure_compensation_is_bounded() -> None:
+    """Stops, not an arbitrary number. Past this range libcamera refuses and
+    the camera fails to open at all."""
+    import pytest
+    from pydantic import ValidationError
+
+    from lomas_core.schema import CameraControls
+
+    assert CameraControls(exposure_value=2.0).exposure_value == 2.0
+    with pytest.raises(ValidationError):
+        CameraControls(exposure_value=99.0)

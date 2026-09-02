@@ -59,6 +59,37 @@ class StorageConfig(BaseModel):
     busy_timeout_ms: int = Field(default=5000, ge=0)
 
 
+class CameraControls(BaseModel):
+    """Exposure and colour, per camera.
+
+    A classroom in the afternoon and the same room at four o'clock are two
+    different cameras, and the answer is a number here rather than a brighter
+    bulb. Zero means "let the sensor decide" throughout.
+    """
+
+    model_config = Strict
+
+    # Auto-exposure needs a second or two of real frames before it settles.
+    # Grabbing immediately after start is why a good sensor produces a dark
+    # picture, and it is the single most common camera complaint on a Pi.
+    warmup_seconds: float = Field(default=2.5, ge=0.0)
+
+    auto_exposure: bool = True
+    auto_white_balance: bool = True
+
+    # AE compensation in stops. The first thing to raise in a dim room: +1.0
+    # is twice the light, and it costs nothing but a little noise.
+    exposure_value: float = Field(default=0.0, ge=-8.0, le=8.0)
+
+    # Both zero lets auto-exposure choose. Set them only to pin it.
+    exposure_time_us: int = Field(default=0, ge=0)
+    analogue_gain: float = Field(default=0.0, ge=0.0, le=16.0)
+
+    brightness: float = Field(default=0.0, ge=-1.0, le=1.0)
+    contrast: float = Field(default=1.0, ge=0.0, le=32.0)
+    saturation: float = Field(default=1.0, ge=0.0, le=32.0)
+
+
 class SourceConfig(BaseModel):
     """One camera. `sources` is a list from the first commit, even with a
     single entry, so classroom CCTV and multi-angle capture arrive as config
@@ -79,6 +110,7 @@ class SourceConfig(BaseModel):
     path: str | None = None  # file or folder source
     url: str | None = None  # rtsp source
     loop: bool = True  # replay sources start over at the end
+    controls: CameraControls = Field(default_factory=CameraControls)
 
 
 class PipelineConfig(BaseModel):

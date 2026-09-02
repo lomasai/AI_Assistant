@@ -22,6 +22,26 @@ sources:
     fps: 15
     zoom: 1.0
 
+    controls:
+      # Auto-exposure needs real frames before it settles. Grabbing straight
+      # after start is why a good sensor gives a dark picture.
+      warmup_seconds: 2.5
+
+      auto_exposure: true
+      auto_white_balance: true
+
+      # Stops of compensation. Raise this first for a dim classroom - +1.0 is
+      # twice the light, and costs only a little noise. Try 1.0 then 2.0.
+      exposure_value: 0.0
+
+      # Both zero lets auto-exposure choose. Set them only to pin it.
+      exposure_time_us: 0
+      analogue_gain: 0.0
+
+      brightness: 0.0     # -1 to 1, on top of exposure
+      contrast: 1.0
+      saturation: 1.0
+
 face:
   # Measured: YuNet at 640 wide costs about 28 ms on a Pi 4 core, so eight a
   # second is roughly a fifth of one core. Chromium is the expensive process
