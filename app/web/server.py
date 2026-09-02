@@ -156,8 +156,24 @@ class WebServer:
         )
 
     def stop(self) -> None:
-        if self._server is not None:
-            self._server.should_exit = True
+        """Ask, then insist.
+
+        An open WebSocket keeps uvicorn waiting for connections to close, and
+        every surface holds one - so a robot with a browser pointed at it
+        would hang on Ctrl-C until someone pressed it again and killed the
+        process mid-shutdown. The second press should not be needed.
+        """
+        if self._server is None:
+            return
+
+        self._server.should_exit = True
         if self._thread is not None:
             self._thread.join(timeout=self.cfg.shutdown_seconds)
+
+            if self._thread.is_alive():
+                self.log.debug("browsers still attached; closing anyway")
+                self._server.force_exit = True
+                self._thread.join(timeout=self.cfg.shutdown_seconds)
+
             self._thread = None
+        self._server = None

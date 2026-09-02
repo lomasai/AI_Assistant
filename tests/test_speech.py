@@ -295,3 +295,33 @@ def test_a_stalled_audio_device_does_not_hang_the_robot() -> None:
     elapsed = time.monotonic() - started
 
     assert elapsed < 12, f"it waited {elapsed:.1f}s before giving up"
+
+
+def test_the_format_picks_the_player_not_the_other_way_round() -> None:
+    """aplay is the right default on a Pi and cannot play an mp3, which is
+    exactly what the cloud voice returns. Found on the robot: the greeting
+    failed with "aplay cannot play mp3" and the class went silent."""
+    from pathlib import Path as _Path
+
+    from lomas_speech.player import Player
+
+    player = Player(choice="none")
+    player.backend = "aplay"
+    player.mp3_backend = "mpg123"
+
+    assert player._argv(_Path("a.wav"), "aplay")[0] == "aplay"
+    assert player._argv(_Path("a.mp3"), "mpg123")[0] == "mpg123"
+    assert "mp3" in player.describe()
+
+
+def test_no_mp3_player_says_what_to_install() -> None:
+    from pathlib import Path as _Path
+
+    from lomas_speech.player import Player
+
+    player = Player(choice="none")
+    player.backend = "aplay"
+    player.mp3_backend = "none"
+
+    with pytest.raises(LomasError, match="mpg123"):
+        player.play_file(_Path("a.mp3"))

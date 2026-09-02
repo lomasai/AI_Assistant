@@ -78,6 +78,10 @@ class Player:
         self.command = command
         self.device = device
         self.backend = self._choose(choice)
+        # aplay is the right default and cannot play an mp3, which is what the
+        # cloud voice returns. Resolving a second backend now means the format
+        # picks the player rather than the player rejecting the format.
+        self.mp3_backend = self._choose_mp3(choice)
         self._process: subprocess.Popen | None = None
         self._stopped = threading.Event()
         self._lock = threading.RLock()
@@ -87,7 +91,10 @@ class Player:
         return self.backend != NONE
 
     def describe(self) -> str:
-        return f"{self.backend}:{self.device}" if self.device else self.backend
+        shown = f"{self.backend}:{self.device}" if self.device else self.backend
+        if self.mp3_backend and self.mp3_backend != self.backend:
+            shown = f"{shown} (+{self.mp3_backend} for mp3)"
+        return shown
 
     def play_pcm(self, raw: bytes, sample_rate: int) -> None:
         if raw:
@@ -106,13 +113,17 @@ class Player:
 
     def play_file(self, path: Path) -> None:
         """Blocks until the sound has finished or `stop` cuts it off."""
-        if self.backend == NONE:
+        backend = self.mp3_backend if path.suffix == MP3 else self.backend
+        if backend == NONE:
+            # An mp3 with nothing to play it is worth saying out loud; no
+            # speaker at all is a robot teaching quietly, which is allowed.
+            self._refuse(path)
             return
         self._stopped.clear()
-        if self.backend == WINSOUND:
+        if backend == WINSOUND:
             self._play_winsound(path)
             return
-        self._play_command(path)
+        self._play_command(path, backend)
 
     def stop(self) -> None:
         self._stopped.set()
@@ -125,6 +136,26 @@ class Player:
             self._process = None
 
     # --- backends ---------------------------------------------------------
+
+    def _refuse(self, path: Path) -> None:
+        if path.suffix != MP3:
+            return
+        raise LomasError(
+            "nothing installed can play an mp3, which is what the cloud voice "
+            "returns. sudo apt install -y mpg123, or use "
+            "speech.tts.engine: piper."
+        )
+
+    def _choose_mp3(self, choice: str) -> str:
+        """The first installed player that understands mp3."""
+        if self.backend in MP3_PLAYERS or self.command:
+            return self.backend
+        if choice == NONE:
+            return NONE
+        for name in MP3_PLAYERS:
+            if shutil.which(name):
+                return name
+        return NONE
 
     def _choose(self, choice: str) -> str:
         if choice == NONE:
@@ -145,25 +176,20 @@ class Player:
         self.log.warning("no audio player found; the robot will be silent")
         return NONE
 
-    def _argv(self, path: Path) -> list[str]:
+    def _argv(self, path: Path, backend: str) -> list[str]:
         if self.command:
             return [*shlex.split(self.command), str(path)]
 
-        argv = [*UNIX_PLAYERS.get(self.backend, [self.backend])]
-        if self.device and self.backend in DEVICE_FLAG:
-            argv += [DEVICE_FLAG[self.backend], self.device]
+        argv = [*UNIX_PLAYERS.get(backend, [backend])]
+        if self.device and backend in DEVICE_FLAG:
+            argv += [DEVICE_FLAG[backend], self.device]
         return [*argv, str(path)]
 
-    def _play_command(self, path: Path) -> None:
-        if path.suffix == MP3 and self.backend not in MP3_PLAYERS:
-            raise LomasError(
-                f"'{self.backend}' cannot play mp3. Install ffplay or mpg123, "
-                "or use speech.tts.engine: piper."
-            )
+    def _play_command(self, path: Path, backend: str) -> None:
         try:
             with self._lock:
                 self._process = subprocess.Popen(
-                    self._argv(path), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+                    self._argv(path, backend), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
                 )
             # A timeout, because some devices accept the open and then never
             # return - an i2s card with nothing clocked on the far end will
@@ -177,7 +203,7 @@ class Player:
                 self._process.kill()
                 self._process.communicate()
                 raise LomasError(
-                    f"{self.backend} did not finish within {waited:.0f}s on "
+                    f"{backend} did not finish within {waited:.0f}s on "
                     f"'{self.device or 'default'}'. The card accepted the audio "
                     "and then stalled; try another with --sweep."
                 ) from None
@@ -191,7 +217,7 @@ class Player:
         # non-zero for a busy or invalid device and says exactly why.
         if code and not self._stopped.is_set():
             raise LomasError(
-                f"{self.backend} failed ({code}): "
+                f"{backend} failed ({code}): "
                 f"{complaint.decode(errors='ignore').strip()[:200] or 'no message'}"
             )
 
