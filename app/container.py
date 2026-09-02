@@ -152,8 +152,11 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
                         cfg.speech.audio.recorder_command)
     listener = Listener(cfg, bus, clock, recorder, stt, gate) if recorder.available else None
 
-    # At INFO, because "can it hear me" is the first question anyone asks of
-    # a robot and the answer should not need the debug overlay.
+    # Both at INFO, because "can it hear me" and "does it fit" are the first
+    # two questions anyone asks of a robot, and neither answer should need the
+    # debug overlay - which user mode does not serve.
+    _log_memory(logger)
+
     player = getattr(tts, "player", None)
     logger.info(
         "audio: in=%s out=%s",
@@ -308,6 +311,20 @@ def _body(cfg: Config, bus: EventBus, clock: Clock) -> Body | None:
     if not cfg.hardware.enabled:
         return None
     return Body(cfg, bus, clock, BACKENDS.create(cfg.hardware.backend, cfg.hardware, clock))
+
+
+def _log_memory(logger) -> None:
+    from app.observability.host import Host
+
+    memory = Host().memory()
+    if not memory:
+        return
+    logger.info(
+        "memory: %.0f MB this process, %s MB free of %s MB",
+        memory.get("process_mb", 0.0),
+        memory.get("available_mb", 0),
+        memory.get("total_mb", 0),
+    )
 
 
 def _diagnostics(cfg: Config) -> bool:

@@ -448,3 +448,16 @@ def test_no_recognition_is_not_no_vision() -> None:
 
     assert matcher.embed_calls == 1, "it kept calling a model that cannot load"
     assert matcher.stats()["recognition"] == "off"
+
+
+def test_memory_reports_this_process_not_just_the_machine() -> None:
+    """System free memory says what the whole Pi is doing, Chromium included.
+    The robot's own resident size is what decides whether 2 GB is enough."""
+    reading = Host().memory()
+
+    if not reading:
+        pytest.skip("no /proc on this machine")
+
+    assert set(reading) == {"total_mb", "available_mb", "used_mb", "process_mb"}
+    assert reading["process_mb"] > 0
+    assert reading["used_mb"] == reading["total_mb"] - reading["available_mb"]

@@ -13,6 +13,7 @@ from pathlib import Path
 PROC_STAT = Path("/proc/stat")
 THERMAL = Path("/sys/class/thermal/thermal_zone0/temp")
 MEMINFO = Path("/proc/meminfo")
+STATUS = Path("/proc/self/status")
 VCGENCMD = "vcgencmd"
 
 CPU_PREFIX = "cpu"
@@ -21,6 +22,7 @@ KILOBYTES = 1024.0
 IDLE_FIELDS = (3, 4)  # idle and iowait, in the order /proc/stat lists them
 PERCENT = 100.0
 UNAVAILABLE = None
+UNAVAILABLE_MB = 0.0
 
 # What each bit of `vcgencmd get_throttled` means. The sticky ones matter as
 # much as the live ones: a Pi that throttled ten minutes ago explains a frame
@@ -104,7 +106,28 @@ class Host:
             return {}
         total = fields.get("MemTotal", 0.0) / KILOBYTES
         available = fields.get("MemAvailable", 0.0) / KILOBYTES
-        return {"total_mb": round(total), "available_mb": round(available)}
+        return {
+            "total_mb": round(total),
+            "available_mb": round(available),
+            "used_mb": round(total - available),
+            # The number that actually answers "will this fit on a Pi".
+            "process_mb": self.process_mb(),
+        }
+
+    def process_mb(self) -> float:
+        """Resident memory of this process.
+
+        System free memory says what the whole machine is doing, including
+        Chromium. This says what the robot itself costs, which is the figure
+        that decides whether a 2 GB Pi is enough.
+        """
+        try:
+            for line in STATUS.read_text().splitlines():
+                if line.startswith("VmRSS:"):
+                    return round(float(line.split()[1]) / KILOBYTES, 1)
+        except (OSError, ValueError, IndexError):
+            pass
+        return UNAVAILABLE_MB
 
     def load(self) -> list[float]:
         try:
