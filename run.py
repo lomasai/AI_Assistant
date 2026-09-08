@@ -103,6 +103,9 @@ def main(argv: list[str] | None = None) -> int:
             system.web.start()
 
         logger.info("LomasAI, %s mode, org %s", cfg.runtime.mode, cfg.active_org_id)
+        if system.trace is not None:
+            logger.info("tracing to %s - push data/logs/ when the run is done",
+                        system.trace.path)
 
         if not cfg.flow.autostart:
             return wait(system, logger)

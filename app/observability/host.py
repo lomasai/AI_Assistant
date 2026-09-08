@@ -14,6 +14,7 @@ PROC_STAT = Path("/proc/stat")
 THERMAL = Path("/sys/class/thermal/thermal_zone0/temp")
 MEMINFO = Path("/proc/meminfo")
 STATUS = Path("/proc/self/status")
+PROC = Path("/proc")
 VCGENCMD = "vcgencmd"
 
 CPU_PREFIX = "cpu"
@@ -48,6 +49,8 @@ class Host:
 
     def __init__(self) -> None:
         self._previous: dict[str, tuple[int, int]] = {}
+        self._process_time: dict[int, int] = {}
+        self._sampled_at = 0.0
         self._at = 0.0
 
     def snapshot(self) -> dict:
@@ -129,6 +132,50 @@ class Host:
             pass
         return UNAVAILABLE_MB
 
+    def processes(self, top: int) -> list[dict]:
+        """Every process on the machine, busiest first.
+
+        Read from /proc rather than shelling out to ps. Once a second for an
+        hour is 3600 forks otherwise, and a sampler that shows up in its own
+        measurements is worse than no sampler.
+
+        CPU is a share since the previous call, so the first one reports
+        nothing - the same shape as the per-core reading above.
+        """
+        now = time.monotonic()
+        elapsed = now - self._sampled_at if self._sampled_at else 0.0
+        self._sampled_at = now
+
+        try:
+            entries = list(PROC.iterdir())
+        except OSError:
+            return []  # no /proc, which is every machine that is not Linux
+
+        seen: list[dict] = []
+        ticks = _clock_ticks()
+        for entry in entries:
+            if not entry.name.isdigit():
+                continue
+            reading = _read_process(entry)
+            if reading is None:
+                continue
+
+            pid, name, jiffies, rss_mb = reading
+            before = self._process_time.get(pid)
+            self._process_time[pid] = jiffies
+            if before is None or elapsed <= 0:
+                continue
+
+            busy = PERCENT * (jiffies - before) / ticks / elapsed
+            seen.append({"pid": pid, "name": name, "cpu": round(busy, 1), "rss_mb": rss_mb})
+
+        live = {p["pid"] for p in seen}
+        for gone in set(self._process_time) - live:
+            del self._process_time[gone]
+
+        seen.sort(key=lambda p: p["cpu"], reverse=True)
+        return seen[:top]
+
     def load(self) -> list[float]:
         try:
             return [round(value, 2) for value in os.getloadavg()]
@@ -151,3 +198,39 @@ def _cpu_times() -> dict[str, tuple[int, int]]:
         idle = sum(values[i] for i in IDLE_FIELDS if i < len(values))
         readings[parts[0]] = (sum(values), idle)
     return readings
+
+
+# The kernel counts process time in jiffies, and how many make a second is a
+# build-time constant. 100 is right on every Pi image; asking is still better.
+DEFAULT_TICKS = 100.0
+STAT_NAME_START = "("
+STAT_NAME_END = ")"
+UTIME_FIELD = 11  # after the name has been cut off, 0-indexed
+STIME_FIELD = 12
+PAGE_KB = 4.0
+
+
+def _clock_ticks() -> float:
+    try:
+        return float(os.sysconf("SC_CLK_TCK")) or DEFAULT_TICKS
+    except (ValueError, OSError, AttributeError):
+        return DEFAULT_TICKS
+
+
+def _read_process(entry: Path) -> tuple[int, str, int, float] | None:
+    """pid, name, cpu jiffies, resident MB. None for a process that ended
+    while we were looking at it, which happens constantly and is not news."""
+    try:
+        stat = (entry / "stat").read_text()
+        # The name is in brackets and may itself contain spaces or brackets,
+        # so it is cut out before anything is split.
+        opened = stat.index(STAT_NAME_START)
+        closed = stat.rindex(STAT_NAME_END)
+        name = stat[opened + 1 : closed]
+        fields = stat[closed + 2 :].split()
+
+        jiffies = int(fields[UTIME_FIELD]) + int(fields[STIME_FIELD])
+        pages = int((entry / "statm").read_text().split()[1])
+        return int(entry.name), name, jiffies, round(pages * PAGE_KB / KILOBYTES, 1)
+    except (OSError, ValueError, IndexError):
+        return None

@@ -48,6 +48,7 @@ from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
 from app.listener import Listener
 from app.observability.metrics import Metrics
+from app.observability.trace import Trace, build_trace
 from app.context.assembler import ContextAssembler
 from app.context.mcp_server import ContextServer
 from app.flow.machine import Machine
@@ -92,6 +93,7 @@ class System:
     enrolment: EnrolmentService | None = None
     report: ReportBuilder | None = None
     metrics: Metrics | None = None
+    trace: Trace | None = None
     listener: Listener | None = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
@@ -103,6 +105,10 @@ class System:
     def close(self) -> None:
         if self.web is not None:
             self.web.stop()
+        # Last thing built, first thing stopped, so the file records the
+        # shutdown of everything else.
+        if self.trace is not None:
+            self.trace.stop()
         if self.body is not None:
             self.body.stop()
         # Signal the pipeline first, then close the bus that wakes it. The
@@ -170,6 +176,12 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     # Built before the agents so their providers can be tapped on the way
     # past. In user mode there is no tap, so no prompt is ever held in memory.
     metrics = Metrics(cfg, bus, clock) if _diagnostics(cfg) else None
+
+    # Subscribed before anything else is built, so the file has the start-up
+    # of every other subsystem in it.
+    trace = build_trace(cfg, bus, clock)
+    if trace is not None:
+        trace.start()
     built = _agents_from(cfg, bus, clock, repos, prompts, llm, metrics)
     runner = AgentRunner(built, assembler, bus, clock, cfg) if built else None
 
@@ -202,7 +214,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         llm=llm, router=router, tts=tts, stt=stt, wake=wake, voice=voice,
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
-        enrolment=enrolment, report=report, metrics=metrics, body=body,
+        enrolment=enrolment, report=report, metrics=metrics, body=body, trace=trace,
         listener=listener,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )

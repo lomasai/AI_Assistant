@@ -54,6 +54,10 @@ def load(
     for override in overrides:
         _apply_override(tree, override)
 
+    # Recorded rather than inferred. Several profiles share a mode, and a
+    # trace that cannot say which one produced it cannot be compared.
+    tree.setdefault("runtime", {})["profile"] = mode
+
     try:
         return Config.model_validate(tree)
     except ValidationError as exc:

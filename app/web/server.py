@@ -49,6 +49,26 @@ def create_app(system) -> FastAPI:
     app.state.hub = hub
     app.state.system = system
 
+    if system.trace is not None:
+        @app.middleware("http")
+        async def timed(request: Request, call_next):
+            """Every request, with how long the browser waited.
+
+            "The UI is slow" is either the server being slow to answer or the
+            page being slow to draw, and those have opposite fixes. This
+            settles which.
+            """
+            import time as _time
+
+            began = _time.perf_counter()
+            response = await call_next(request)
+            system.trace.span(
+                "http",
+                _time.perf_counter() - began,
+                {"path": request.url.path, "status": response.status_code},
+            )
+            return response
+
     app.include_router(api_module.router(system), prefix=API_PREFIX)
     if system.cfg.teacher.enabled:
         app.include_router(teacher_module.router(system), prefix=API_PREFIX)

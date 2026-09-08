@@ -349,6 +349,33 @@ hardware:
     question.asked: thinking
     quiz.marked: celebrate
 
+# A timeline of one run, written to a file so it can be read on another
+# machine. Off by default: turn it on for a session when something feels
+# slow, then push data/logs/. Measuring first is the only way to tell a real
+# improvement from a believed one.
+trace:
+  enabled: false
+  directory: data/logs
+  name_format: "%Y-%m-%d_%H%M"
+
+  # Bounded and drop-oldest, counted in the summary. A tool for finding
+  # slowness must never become the slowness.
+  queue_size: 4096
+  shutdown_seconds: 5.0
+
+  # The machine, once a second: per-core CPU, memory, temperature, throttle
+  # flags, and every process - so the answer can be "it was Chromium".
+  sample_seconds: 1.0
+  processes: true
+  top_processes: 15
+
+  # Keep one line in N for events that fire constantly.
+  sample_every:
+    vision.tracks: 8
+
+  # Timing is the point; these payloads are large and add nothing to it.
+  payload_exclude: [vision.tracks]
+
 # The diagnostics overlay. Served in debug mode and nowhere else - it is a
 # panel for engineers, not a screen for children.
 debug:

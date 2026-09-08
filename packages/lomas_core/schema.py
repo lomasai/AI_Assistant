@@ -14,6 +14,11 @@ class RuntimeConfig(BaseModel):
     model_config = Strict
 
     mode: Literal["debug", "user"] = "user"
+
+    # Which profile produced this config. Set by the loader, not by hand:
+    # pi and demo both resolve to a mode, and "which run was this" is not
+    # answerable from the mode alone when comparing two traces.
+    profile: str = ""
     locale: str = "en"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     sinks: list[Literal["console", "jsonl"]] = Field(default_factory=lambda: ["console"])
@@ -587,6 +592,40 @@ class DebugConfig(BaseModel):
     poll_seconds: float = Field(default=1.0, gt=0)
 
 
+def _default_sampling() -> dict[str, int]:
+    """Keep one line in N. Vision publishes eight times a second and would
+    otherwise bury the events that explain a slow answer."""
+    return {"vision.tracks": 8}
+
+
+class TraceConfig(BaseModel):
+    """A timeline of one run, written to a file for reading elsewhere.
+
+    Off by default. Turned on for a session when something feels slow, then
+    pushed - measuring first is the only way to tell a real improvement from
+    a believed one.
+    """
+
+    model_config = Strict
+
+    enabled: bool = False
+    directory: str = "data/logs"
+    name_format: str = "%Y-%m-%d_%H%M"
+
+    # Bounded, drop-oldest, counted. A tool for finding slowness must never
+    # become the slowness.
+    queue_size: int = Field(default=4096, ge=16)
+    shutdown_seconds: float = Field(default=5.0, gt=0)
+
+    sample_seconds: float = Field(default=1.0, ge=0.0)  # 0 turns sampling off
+    processes: bool = True
+    top_processes: int = Field(default=15, ge=1)
+
+    sample_every: dict[str, int] = Field(default_factory=_default_sampling)
+    # Timing is what this is for. A few payloads are large and add nothing.
+    payload_exclude: list[str] = Field(default_factory=lambda: ["vision.tracks"])
+
+
 class TeacherConfig(BaseModel):
     """The surface that decides whether teachers keep using the product."""
 
@@ -704,6 +743,7 @@ class Config(BaseModel):
     web: WebConfig = Field(default_factory=WebConfig)
     teacher: TeacherConfig = Field(default_factory=TeacherConfig)
     debug: DebugConfig = Field(default_factory=DebugConfig)
+    trace: TraceConfig = Field(default_factory=TraceConfig)
     hardware: HardwareConfig = Field(default_factory=HardwareConfig)
 
     @property

@@ -1,7 +1,16 @@
 __pycache__/
 *.py[cod]
 .venv/
-data/
+# data/* rather than data/, because git cannot re-include anything inside a
+# directory it has been told to ignore wholesale - and traces are meant to be
+# pushed. That is the entire point of writing them.
+data/*
+!data/logs/
+data/logs/*
+!data/logs/*.jsonl
+!data/logs/*.md
+data/logs/lomas.jsonl
+
 config/site.yaml
 config/secrets.env
 *.env
