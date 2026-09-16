@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Protocol, runtime_checkable
 
 from lomas_core import logging as log
@@ -18,6 +18,7 @@ from lomas_core.events import EventBus
 from lomas_core.registry import Registry
 from lomas_core.schema import AgentConfig, Config
 from lomas_llm import Completion, PromptLibrary
+from lomas_llm.plain import plain_text
 from lomas_store import TenantScope
 
 from app.context.assembler import AgentContext, ContextAssembler
@@ -67,7 +68,10 @@ class BaseAgent:
     def ask(self, ctx: AgentContext, role: str = NOTHING, **values: Any) -> Completion:
         prompt = self.settings.prompts.get(role, self.settings.prompt) if role else self.settings.prompt
         messages = self.deps.prompts.messages(prompt, ctx.language, **values)
-        return self.deps.llm.complete(messages, language=ctx.language, **self._options())
+        completion = self.deps.llm.complete(messages, language=ctx.language, **self._options())
+        # Once, here, so what is spoken, shown on the board and stored are
+        # the same words.
+        return replace(completion, text=plain_text(completion.text)) if completion else completion
 
     def say(self, ctx: AgentContext, text: str, student_name: str = NOTHING) -> None:
         if not text.strip():

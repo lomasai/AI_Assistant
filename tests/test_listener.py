@@ -61,7 +61,7 @@ class FakeMic:
         self.calls: list[tuple[float, int]] = []
         self.available = True
 
-    def record(self, seconds: float, sample_rate: int) -> bytes:
+    def record(self, seconds: float, sample_rate: int, endpoint=None) -> bytes:
         self.calls.append((seconds, sample_rate))
         return self.audio
 
@@ -179,7 +179,7 @@ def test_the_face_stops_listening_even_when_the_microphone_fails(system) -> None
     class Broken:
         available = True
 
-        def record(self, seconds, sample_rate):
+        def record(self, seconds, sample_rate, endpoint=None):
             raise LomasError("the device went away")
 
         def describe(self) -> str:

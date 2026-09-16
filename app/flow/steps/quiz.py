@@ -46,7 +46,10 @@ class QuizStep(BaseStep):
                 latency_ms=answered.latency_ms,
             )
             ctx.notes["quiz_recorded"] += 1
-            ctx.notes["quiz_posed"] = None
+            # Only the question still waiting. A late answer to the last one
+            # must not cut short the wait on this one.
+            if answered.question_id == ctx.notes["quiz_posed"]:
+                ctx.notes["quiz_posed"] = None
 
             # Announced after the row exists, so whoever marks free text is
             # updating something rather than racing the insert.
@@ -75,7 +78,6 @@ class QuizStep(BaseStep):
 
         question = quiz.questions[index]
         ctx.notes["quiz_posed"] = question.id
-        ctx.notes["quiz_posed_at"] = now
         ctx.notes["quiz_index"] = index + 1
 
         ctx.bus.publish(
@@ -88,6 +90,10 @@ class QuizStep(BaseStep):
             ),
         )
         ctx.say(question.ask)
+        # From when the question has been heard, not when it was queued. On
+        # the Pi the first question waited nineteen seconds behind an answer
+        # still being read aloud, and the class got a second and a half.
+        ctx.notes["quiz_posed_at"] = ctx.clock.now()
         return StepResult.CONTINUE
 
     def exit(self, ctx) -> None:

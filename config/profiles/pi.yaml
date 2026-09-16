@@ -91,7 +91,9 @@ speech:
     # from whatever ALSA calls default, which is usually the wrong thing.
     device: ""
     sample_rate: 16000  # what whisper wants
-    record_seconds: 6.0
+    record_seconds: 15.0        # the longest a child may speak
+    stop_after_silence_ms: 1200 # ...and it stops this long after they finish
+    no_speech_seconds: 5.0
 
 hardware:
   enabled: true

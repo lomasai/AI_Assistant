@@ -24,6 +24,7 @@ from lomas_speech.types import SpeechHandle
 
 import app.observability.host as host
 from app import container, seed
+from app.listener import Listener
 from app.voice import Voice
 from app.web.server import create_app
 
@@ -483,3 +484,187 @@ def test_the_real_voice_speaks_a_sentence_at_a_time(monkeypatch) -> None:
 
     assert not handle.error
     assert rates == [22050, 22050]
+
+
+# --- the third run: a quiz that did not wait, and a mic that heard itself --
+
+
+def test_model_typography_becomes_plain_text() -> None:
+    """The Pi console printed "Don?t", "CO?" and "carbon?dioxide"."""
+    from lomas_llm.plain import plain_text
+
+    said = "Leaves don\u2019t change water.  \nThey use CO\u2082 and carbon\u2011dioxide \u2014 **really**."
+    assert plain_text(said) == "Leaves don't change water. They use CO2 and carbon-dioxide - really."
+    assert plain_text("पत्ती हरी होती है") == "पत्ती हरी होती है", "other scripts pass through"
+
+
+def test_what_an_agent_says_is_already_plain() -> None:
+    system = build()
+    try:
+        ctx = system.orchestrator.open_session()
+        tutor = next(a for a in system.agents.agents if a.name == "tutor")
+        from lomas_core.contracts import QUESTION_ASKED
+        from lomas_llm import Completion
+
+        tutor.deps.llm.complete = lambda *_a, **_k: Completion(text="It\u2019s CO\u2082.", provider="fake")
+        assembled = system.agents.assembler.for_agent("tutor", ctx.scope, ctx.session_id)
+        system.orchestrator.ctx = ctx
+        from lomas_core.contracts import QuestionAsked
+
+        tutor.handle(QUESTION_ASKED, QuestionAsked(session_id=ctx.session_id, text="x"), assembled)
+        said = [p.text for _n, p in system.bus.replay(ROBOT_SAY) if p.reason == "tutor"]
+        assert said == ["It's CO2."]
+    finally:
+        system.close()
+
+
+def pcm(peaks: list[float], chunk_ms: int = 100, rate: int = 16000) -> bytes:
+    import struct
+
+    per_chunk = rate * chunk_ms // 1000
+    return b"".join(struct.pack("<h", int(p * 32767)) * per_chunk for p in peaks)
+
+
+def reader(data: bytes):
+    import io
+
+    return io.BytesIO(data).read
+
+
+def endpoint(**given):
+    from lomas_speech.recorder import Endpoint
+
+    return Endpoint(**{"level": 0.02, "silence_ms": 300, "no_speech_seconds": 1.0,
+                       "chunk_ms": 100, **given})
+
+
+def test_recording_stops_at_the_pause_after_speaking() -> None:
+    """Six fixed seconds cut one child off and made every short answer wait."""
+    from lomas_speech.recorder import read_until_quiet
+
+    talk = pcm([0.0, 0.0, 0.4, 0.4, 0.4, 0.0, 0.0, 0.0, 0.0] + [0.4] * 50)
+    got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
+
+    assert len(got) == len(pcm([0.0] * 8)), "stopped three quiet chunks after the voice"
+
+
+def test_a_child_who_pauses_briefly_is_not_cut_off() -> None:
+    from lomas_speech.recorder import read_until_quiet
+
+    talk = pcm([0.4, 0.0, 0.0, 0.4, 0.4, 0.0, 0.0, 0.0])
+    got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
+
+    assert len(got) == len(talk)
+
+
+def test_nobody_speaking_gives_up_early() -> None:
+    from lomas_speech.recorder import read_until_quiet
+
+    got = read_until_quiet(reader(pcm([0.0] * 100)), 16000, 15.0, endpoint(no_speech_seconds=1.0))
+    assert len(got) == len(pcm([0.0] * 10))
+
+
+def test_the_longest_turn_is_still_a_limit() -> None:
+    from lomas_speech.recorder import read_until_quiet
+
+    got = read_until_quiet(reader(pcm([0.4] * 100)), 16000, 2.0, endpoint())
+    assert len(got) == len(pcm([0.4] * 20))
+
+
+def test_listening_waits_for_the_robot_to_finish() -> None:
+    """Pressed mid-question, the answer came back as "Sunlight What is the
+    green colour inside a leaf called?" - the robot's own voice."""
+    from tests.test_listener import FakeEars, FakeMic
+
+    class Talking:
+        def __init__(self, polls: int) -> None:
+            self.polls = polls
+
+        def is_muted(self) -> bool:
+            self.polls -= 1
+            return self.polls >= 0
+
+    system = build()
+    try:
+        gate = Talking(polls=5)
+        mic = FakeMic()
+        mic.record = lambda seconds, rate, endpoint=None: (mic.calls.append(gate.polls), mic.audio)[1]
+        listener = Listener(system.cfg, system.bus, system.clock, mic, FakeEars(), gate)
+
+        listener.listen()
+
+        assert mic.calls == [-1], "recording started only once the robot was quiet"
+    finally:
+        system.close()
+
+
+def test_a_listen_during_a_quiz_question_is_its_answer() -> None:
+    """The tutor answered each quiz answer as if it were a question, and its
+    explanation played over the next quiz question."""
+    from lomas_core.contracts import QUESTION_ASKED, QUIZ_ANSWERED
+    from tests.test_listener import FakeEars, FakeMic
+
+    system = build()
+    try:
+        system.listener = Listener(system.cfg, system.bus, system.clock, FakeMic(), FakeEars())
+        with TestClient(create_app(system)) as client:
+            ctx = system.orchestrator.open_session()
+            system.orchestrator.ctx = ctx
+            student = system.repos["student"].list_for_class(ctx.scope)[0]
+            client.post("/api/speaker", json={"student_id": student["id"]})
+            ctx.notes["quiz_posed"] = "q3"
+
+            client.post("/api/listen", json={})
+
+            answers = [p for _n, p in system.bus.replay(QUIZ_ANSWERED)]
+            assert [a.question_id for a in answers] == ["q3"]
+            assert not system.bus.replay(QUESTION_ASKED), "the tutor was not asked"
+    finally:
+        system.close()
+
+
+def test_the_answer_wait_starts_once_the_question_is_heard() -> None:
+    """q1 was queued behind a nineteen second answer and the wait ran out a
+    second and a half after the class heard it."""
+    from lomas_core.contracts import ROBOT_SAY
+    from app.flow.states import StepResult
+    from app.flow.steps.quiz import QuizStep
+
+    system = build("flow.answer_wait_seconds=20")
+    try:
+        ctx = system.orchestrator.open_session()
+        system.bus.subscribe(ROBOT_SAY, lambda *_: system.clock.advance(19))
+        step = QuizStep(system.cfg)
+        step.enter(ctx)
+
+        step.tick(ctx, system.clock.now())
+        assert ctx.notes["quiz_index"] == 1
+        system.clock.advance(2)
+        step.tick(ctx, system.clock.now())
+
+        assert ctx.notes["quiz_index"] == 1, "moved on before anyone could answer"
+        step.exit(ctx)
+    finally:
+        system.close()
+
+
+def test_a_late_answer_does_not_end_the_wait_on_the_next_question() -> None:
+    from lomas_core.contracts import QUIZ_ANSWERED, QuizAnswered
+    from app.flow.steps.quiz import QuizStep
+
+    system = build()
+    try:
+        ctx = system.orchestrator.open_session()
+        step = QuizStep(system.cfg)
+        step.enter(ctx)
+        student = system.repos["student"].list_for_class(ctx.scope)[0]
+        ctx.notes["quiz_posed"] = "q4"
+
+        system.bus.publish(QUIZ_ANSWERED, QuizAnswered(
+            session_id=ctx.session_id, question_id="q3", student_id=student["id"],
+            response="chlorophyll", correct=None, latency_ms=0))
+
+        assert ctx.notes["quiz_posed"] == "q4"
+        step.exit(ctx)
+    finally:
+        system.close()

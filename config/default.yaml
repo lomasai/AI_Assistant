@@ -232,6 +232,15 @@ speech:
     half_duplex: true
     tail_ms: 250
 
+    # Press to talk: waits for the robot to finish, then records until the
+    # child stops speaking.
+    record_seconds: 15.0          # the longest turn
+    stop_after_silence_ms: 1200   # 0 records the full length every time
+    no_speech_seconds: 5.0        # nobody started speaking
+    chunk_ms: 100
+    wait_for_robot_seconds: 30.0
+    quiet_poll_seconds: 0.05
+
 llm:
   # offline is the default so the whole system runs with no API key at all,
   # and so a school whose internet drops mid-lesson keeps teaching.

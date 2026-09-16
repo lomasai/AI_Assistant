@@ -175,6 +175,13 @@ def router(system) -> APIRouter:
         tapped = ctx.notes.get(SPEAKER, ("", "")) if ctx else ("", "")
         student_id = body.student_id or tapped[0]
         student_name = body.student_name or tapped[1]
+        # While a quiz question waits, what a child says is its answer, from
+        # either button. Only an attributed answer can be recorded; without a
+        # name it is still worth hearing as a question.
+        # Taken now: listening waits for the robot, and the quiz may have
+        # moved on by the time the child has finished.
+        posed = _posed(ctx)
+        as_answer = bool(student_id) and (body.as_answer or bool(posed))
 
         heard = system.listener.listen(
             session_id=session_id(),
@@ -182,16 +189,15 @@ def router(system) -> APIRouter:
             student_name=student_name,
             seconds=body.seconds,
             language=ctx.language if ctx else system.cfg.content.language,
+            as_question=not as_answer,
         )
 
-        # A quiz answer and a question are different events. The teacher says
-        # which by pressing listen from the answer box or the question box.
-        if body.as_answer and heard.get("text") and student_id:
+        if as_answer and heard.get("text"):
             bus.publish(
                 QUIZ_ANSWERED,
                 QuizAnswered(
                     session_id=session_id(),
-                    question_id=_posed(ctx),
+                    question_id=posed,
                     student_id=student_id,
                     response=heard["text"],
                     correct=UNMARKED,

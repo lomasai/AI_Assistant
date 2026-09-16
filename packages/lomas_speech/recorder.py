@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 
 from lomas_core import logging as log
@@ -25,6 +26,56 @@ SAMPLE_WIDTH = 2
 MONO = 1
 KILL_GRACE = 0.5
 FULL_SCALE = 32768.0
+
+
+@dataclass(frozen=True, slots=True)
+class Endpoint:
+    """When a turn is over. `silence_ms` 0 means never early."""
+
+    level: float
+    silence_ms: int
+    no_speech_seconds: float
+    chunk_ms: int
+
+
+def chunk_peak(pcm: bytes) -> float:
+    import array
+
+    samples = array.array("h", pcm[: len(pcm) // SAMPLE_WIDTH * SAMPLE_WIDTH])
+    return max((abs(s) for s in samples), default=0) / FULL_SCALE
+
+
+def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint) -> bytes:
+    """Raw PCM from `read(n)` until the speaker stops, runs out, or never starts.
+
+    Loudness per chunk, nothing cleverer. The teacher has already decided a
+    child is about to speak; all this has to notice is the pause after.
+    """
+    chunk = max(SAMPLE_WIDTH, int(sample_rate * endpoint.chunk_ms / 1000) * SAMPLE_WIDTH)
+    limit = int(seconds * sample_rate) * SAMPLE_WIDTH
+    waiting = int(endpoint.no_speech_seconds * sample_rate) * SAMPLE_WIDTH
+    enough_quiet = int(endpoint.silence_ms * sample_rate / 1000) * SAMPLE_WIDTH
+
+    captured = bytearray()
+    heard = False
+    quiet = 0
+    while len(captured) < limit:
+        block = read(chunk)
+        if not block:
+            break
+        captured += block
+        if chunk_peak(block) >= endpoint.level:
+            heard, quiet = True, 0
+        else:
+            quiet += len(block)
+
+        if not enough_quiet:
+            continue
+        if heard and quiet >= enough_quiet:
+            break
+        if not heard and len(captured) >= waiting:
+            break
+    return bytes(captured[:limit])
 
 
 def loudness(wav: bytes) -> tuple[float, float]:
@@ -54,11 +105,11 @@ def loudness(wav: bytes) -> tuple[float, float]:
 
 
 class Recorder:
-    """Captures a stretch of microphone audio as WAV bytes.
+    """Captures a child's turn as WAV bytes.
 
-    Fixed-length on purpose. Voice activity detection in a room of forty
-    children is a research project; a teacher deciding when a child is
-    speaking is a button, and the button is right far more often.
+    The teacher's button decides who speaks and when; with an `Endpoint`,
+    arecord stops at the pause after they finish rather than at a fixed
+    length. A custom command and sounddevice still record the full length.
     """
 
     def __init__(self, choice: str = AUTO, device: str = "", command: str = "") -> None:
@@ -76,9 +127,9 @@ class Recorder:
     def describe(self) -> str:
         return self.backend
 
-    def record(self, seconds: float, sample_rate: int) -> bytes:
-        """Blocks for `seconds` and returns a WAV. Empty if nothing captured -
-        a silent room is not an error."""
+    def record(self, seconds: float, sample_rate: int, endpoint: Endpoint | None = None) -> bytes:
+        """Blocks for at most `seconds` and returns a WAV. Empty if nothing
+        captured - a silent room is not an error."""
         if self.backend == NONE:
             raise LomasError(
                 "no microphone backend. On Raspberry Pi OS arecord is already "
@@ -87,6 +138,8 @@ class Recorder:
             )
         if self.backend == SOUNDDEVICE:
             return self._with_sounddevice(seconds, sample_rate)
+        if endpoint is not None and endpoint.silence_ms and self.backend == ARECORD and not self.command:
+            return self._streaming(seconds, sample_rate, endpoint)
         return self._with_command(seconds, sample_rate)
 
     def stop(self) -> None:
@@ -152,6 +205,37 @@ class Recorder:
             with self._lock:
                 self._process = None
             path.unlink(missing_ok=True)
+
+    def _streaming(self, seconds: float, sample_rate: int, endpoint: Endpoint) -> bytes:
+        from lomas_speech.player import wrap_pcm
+
+        argv = [ARECORD, "-q", "-f", "S16_LE", "-c", str(MONO), "-r", str(sample_rate),
+                "-t", "raw", "-d", str(int(seconds) + 1)]
+        if self.device:
+            argv += ["-D", self.device]
+        try:
+            with self._lock:
+                process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                self._process = process
+        except OSError as exc:
+            raise LomasError(f"cannot run '{self.backend}': {exc}") from exc
+
+        try:
+            pcm = read_until_quiet(process.stdout.read, sample_rate, seconds, endpoint)
+        finally:
+            if process.poll() is None:
+                process.kill()
+            try:
+                _, complaint = process.communicate(timeout=KILL_GRACE * 4)
+            except subprocess.TimeoutExpired:
+                complaint = b""
+            with self._lock:
+                if self._process is process:
+                    self._process = None
+
+        if not pcm and complaint:
+            raise LomasError(f"{self.backend} failed: {complaint.decode(errors='ignore').strip()[:160]}")
+        return wrap_pcm(pcm, sample_rate) if pcm else b""
 
     def _with_sounddevice(self, seconds: float, sample_rate: int) -> bytes:
         import sounddevice

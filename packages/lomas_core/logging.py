@@ -47,6 +47,10 @@ def configure(cfg: RuntimeConfig) -> logging.Logger:
     root.propagate = False
 
     if "console" in cfg.sinks:
+        # A Pi reached over ssh often has no UTF-8 locale, and Python then
+        # prints every non-ASCII letter as "?" - Hindi included.
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         console = logging.StreamHandler(sys.stdout)
         console.setFormatter(DebugFormatter() if cfg.mode == "debug" else HumanFormatter())
         root.addHandler(console)

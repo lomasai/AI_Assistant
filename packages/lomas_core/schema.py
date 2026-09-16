@@ -342,9 +342,22 @@ class AudioConfig(BaseModel):
     device: str = ""  # ALSA name, e.g. plughw:CARD=Device,DEV=0 for a USB microphone
     sample_rate: int = Field(default=16000, ge=8000)  # what whisper wants
 
-    # Fixed length, not voice activity: detecting when one child of forty has
-    # finished speaking is a research project, and a button is not.
-    record_seconds: float = Field(default=6.0, gt=0)
+    # The teacher's button says who and when to start; the pause at the end
+    # of a sentence says when to stop. A fixed six seconds on the Pi cut one
+    # child off mid-question ("How could we...") and made every short answer
+    # wait out the rest of the clip. record_seconds is now the longest turn.
+    record_seconds: float = Field(default=15.0, gt=0)
+    # Stop this long after the voice goes quiet. 0 records the full length.
+    stop_after_silence_ms: int = Field(default=1200, ge=0)
+    # Give up when nobody has started speaking by then.
+    no_speech_seconds: float = Field(default=5.0, gt=0)
+    chunk_ms: int = Field(default=100, ge=10)
+
+    # Recording while the robot talks hears the robot: "Sunlight What is the
+    # green colour inside a leaf called?" was a child's answer with the next
+    # question in it. Listening waits for the voice to finish, up to this.
+    wait_for_robot_seconds: float = Field(default=30.0, ge=0)
+    quiet_poll_seconds: float = Field(default=0.05, gt=0)
 
     # Below this a clip is silence. Whisper invents words when given silence -
     # a full stop, or a stray "So, let's go." - so quiet audio is never sent.

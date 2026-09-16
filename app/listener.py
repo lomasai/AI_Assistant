@@ -12,7 +12,7 @@ from lomas_core.contracts import (
 from lomas_core.errors import LomasError
 from lomas_core.events import EventBus
 from lomas_core.schema import Config
-from lomas_speech.recorder import loudness
+from lomas_speech.recorder import Endpoint, loudness
 
 LISTENING = "listening"
 IDLE = "idle"
@@ -64,6 +64,7 @@ class Listener:
         student_name: str = "",
         seconds: float = 0.0,
         language: str = "",
+        as_question: bool = True,
     ) -> dict:
         """Record, transcribe, publish. Blocking, because the caller is a web
         request and the teacher is standing there waiting for it."""
@@ -102,6 +103,12 @@ class Listener:
 
         self.heard += 1
         self.log.info("heard: %s", spoken)
+        if not as_question:
+            # An answer, published by whoever asked for one. As a question as
+            # well, the tutor explained the answer back to the child while
+            # the quiz moved on, and the two talked over each other.
+            return {"text": spoken, "language": heard.language, "student_id": student_id,
+                    "peak": round(peak, 3)}
         self.bus.publish(
             QUESTION_ASKED,
             QuestionAsked(
@@ -116,14 +123,34 @@ class Listener:
 
     def _capture(self, session_id: str, seconds: float) -> bytes:
         audio = self.cfg.speech.audio
+        self._wait_for_robot()
 
         # The face widens its eyes and shows that it is hearing you. It is the
         # most reassuring screen in the product, and it costs one event.
         self._state(session_id, LISTENING, seconds)
         try:
-            return self.recorder.record(seconds, audio.sample_rate)
+            return self.recorder.record(seconds, audio.sample_rate, endpoint=Endpoint(
+                level=audio.silence_peak,
+                silence_ms=audio.stop_after_silence_ms,
+                no_speech_seconds=audio.no_speech_seconds,
+                chunk_ms=audio.chunk_ms,
+            ))
         finally:
             self._state(session_id, IDLE, 0.0)
+
+    def _wait_for_robot(self) -> None:
+        """Start hearing once the robot has stopped talking.
+
+        Pressed mid-sentence, the recording carried the robot's own next
+        question into a child's answer. Bounded, because a voice that never
+        ends must not leave the teacher's button hanging.
+        """
+        if self.gate is None:
+            return
+        audio = self.cfg.speech.audio
+        deadline = self.clock.now() + audio.wait_for_robot_seconds
+        while self.gate.is_muted() and self.clock.now() < deadline:
+            self.clock.sleep(audio.quiet_poll_seconds)
 
     def _state(self, session_id: str, state: str, seconds: float) -> None:
         self.bus.publish(
