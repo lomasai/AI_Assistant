@@ -30,52 +30,114 @@ FULL_SCALE = 32768.0
 
 @dataclass(frozen=True, slots=True)
 class Endpoint:
-    """When a turn is over. `silence_ms` 0 means never early."""
+    """When a turn is over. `silence_ms` 0 means never early.
 
-    level: float
+    Speech is measured against the room, not a fixed number. On the Pi a
+    fixed peak of 0.02 sat below the USB microphone's own hiss, so every
+    chunk counted as speech and every recording ran its full fifteen seconds.
+    """
+
     silence_ms: int
     no_speech_seconds: float
     chunk_ms: int
+    # A chunk is speech when it is this many times louder than the room...
+    speech_ratio: float = 3.0
+    # ...and never quieter than this, so a silent room is not "speech".
+    min_rms: float = 0.005
+    # Always speech, whatever the room. A child who starts talking the moment
+    # the button is pressed and never pauses makes their own voice the room's
+    # "floor", and without this would be cut off as nobody speaking.
+    voice_rms: float = 0.03
 
 
-def chunk_peak(pcm: bytes) -> float:
+@dataclass(slots=True)
+class Turn:
+    """What happened while listening. Traced, so the next run shows the
+    room's real numbers instead of leaving them to be guessed."""
+
+    pcm: bytes = b""
+    stopped: str = "ended"  # pause | no_speech | limit | ended
+    seconds: float = 0.0
+    floor_rms: float = 0.0
+    loudest_rms: float = 0.0
+    spoke_seconds: float = 0.0
+
+    def summary(self) -> dict:
+        return {
+            "stopped": self.stopped,
+            "seconds": round(self.seconds, 2),
+            "floor_rms": round(self.floor_rms, 4),
+            "loudest_rms": round(self.loudest_rms, 4),
+            "spoke_seconds": round(self.spoke_seconds, 2),
+        }
+
+
+def chunk_rms(pcm: bytes) -> float:
     import array
 
     samples = array.array("h", pcm[: len(pcm) // SAMPLE_WIDTH * SAMPLE_WIDTH])
-    return max((abs(s) for s in samples), default=0) / FULL_SCALE
+    if not samples:
+        return 0.0
+    return (sum(s * s for s in samples) / len(samples)) ** 0.5 / FULL_SCALE
 
 
-def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint) -> bytes:
+def room_floor(levels: list[float]) -> float:
+    """The quiet end of what has been heard so far - the lower quartile, not
+    the minimum, so one dead buffer does not make every breath "speech"."""
+    ordered = sorted(levels)
+    return ordered[len(ordered) // 4] if ordered else 0.0
+
+
+def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint) -> Turn:
     """Raw PCM from `read(n)` until the speaker stops, runs out, or never starts.
 
-    Loudness per chunk, nothing cleverer. The teacher has already decided a
-    child is about to speak; all this has to notice is the pause after.
+    Loudness per chunk against the room, nothing cleverer. The teacher has
+    already decided a child is about to speak; all this has to notice is the
+    pause after.
     """
     chunk = max(SAMPLE_WIDTH, int(sample_rate * endpoint.chunk_ms / 1000) * SAMPLE_WIDTH)
     limit = int(seconds * sample_rate) * SAMPLE_WIDTH
     waiting = int(endpoint.no_speech_seconds * sample_rate) * SAMPLE_WIDTH
     enough_quiet = int(endpoint.silence_ms * sample_rate / 1000) * SAMPLE_WIDTH
+    per_second = sample_rate * SAMPLE_WIDTH
 
+    turn = Turn(stopped="limit")
     captured = bytearray()
+    levels: list[float] = []
     heard = False
     quiet = 0
+    spoke = 0
     while len(captured) < limit:
         block = read(chunk)
         if not block:
+            turn.stopped = "ended"
             break
         captured += block
-        if chunk_peak(block) >= endpoint.level:
+        level = chunk_rms(block)
+        levels.append(level)
+        turn.loudest_rms = max(turn.loudest_rms, level)
+
+        relative = max(endpoint.min_rms, room_floor(levels) * endpoint.speech_ratio)
+        if level >= min(relative, endpoint.voice_rms):
             heard, quiet = True, 0
+            spoke += len(block)
         else:
             quiet += len(block)
 
         if not enough_quiet:
             continue
         if heard and quiet >= enough_quiet:
+            turn.stopped = "pause"
             break
         if not heard and len(captured) >= waiting:
+            turn.stopped = "no_speech"
             break
-    return bytes(captured[:limit])
+
+    turn.pcm = bytes(captured[:limit])
+    turn.seconds = len(turn.pcm) / per_second
+    turn.floor_rms = room_floor(levels)
+    turn.spoke_seconds = spoke / per_second
+    return turn
 
 
 def loudness(wav: bytes) -> tuple[float, float]:
@@ -119,6 +181,7 @@ class Recorder:
         self.backend = self._choose(choice)
         self._process: subprocess.Popen | None = None
         self._lock = threading.RLock()
+        self.last_turn: Turn | None = None
 
     @property
     def available(self) -> bool:
@@ -130,6 +193,7 @@ class Recorder:
     def record(self, seconds: float, sample_rate: int, endpoint: Endpoint | None = None) -> bytes:
         """Blocks for at most `seconds` and returns a WAV. Empty if nothing
         captured - a silent room is not an error."""
+        self.last_turn = None
         if self.backend == NONE:
             raise LomasError(
                 "no microphone backend. On Raspberry Pi OS arecord is already "
@@ -221,7 +285,9 @@ class Recorder:
             raise LomasError(f"cannot run '{self.backend}': {exc}") from exc
 
         try:
-            pcm = read_until_quiet(process.stdout.read, sample_rate, seconds, endpoint)
+            turn = read_until_quiet(process.stdout.read, sample_rate, seconds, endpoint)
+            self.last_turn = turn
+            pcm = turn.pcm
         finally:
             if process.poll() is None:
                 process.kill()

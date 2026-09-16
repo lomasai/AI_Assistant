@@ -18,6 +18,8 @@ from fastapi.testclient import TestClient
 from lomas_core.clock import FakeClock
 from lomas_core.config import load
 from lomas_core.contracts import (
+    STEP_ENTERED,
+    StepChanged,
     LESSON_SEGMENT,
     QUESTION_ASKED,
     QUIZ_ANSWERED,
@@ -404,6 +406,8 @@ def test_the_teacher_can_silence_nudging_for_the_session(client, system) -> None
     student = system.repos["student"].list_for_class(ctx.scope)[0]
 
     def drift() -> None:
+        system.bus.publish(STEP_ENTERED, StepChanged(session_id=system.orchestrator.ctx.session_id
+                                                     if system.orchestrator.ctx else "", step="lesson", at=1.0))
         system.bus.publish(
             STUDENT_DISENGAGED,
             StudentDisengaged(track_id=1, student_id=student["id"], score=0.1,
@@ -427,6 +431,7 @@ def test_the_nudging_switch_is_per_session_not_sticky(client, system) -> None:
 
     ctx = system.orchestrator.open_session()
     student = system.repos["student"].list_for_class(ctx.scope)[0]
+    system.bus.publish(STEP_ENTERED, StepChanged(session_id=ctx.session_id, step="lesson", at=1.0))
     system.bus.publish(
         STUDENT_DISENGAGED,
         StudentDisengaged(track_id=2, student_id=student["id"], score=0.1,

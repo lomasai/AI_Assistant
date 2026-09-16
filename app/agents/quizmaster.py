@@ -15,6 +15,8 @@ from app.agents.base import AGENTS, BaseAgent
 from app.context.assembler import AgentContext
 
 MARK = "mark"
+RIGHT = "right"
+WRONG = "wrong"
 CORRECT = "correct"
 GENERATED = "generated"
 
@@ -39,6 +41,8 @@ class Quizmaster(BaseAgent):
 
     def _mark(self, answered: QuizAnswered, ctx: AgentContext) -> None:
         if answered.correct is not None:
+            self._feedback(answered.correct, ctx)
+            self._announce(answered, answered.correct, "", ctx)
             return
 
         verdict = self.ask(
@@ -59,6 +63,23 @@ class Quizmaster(BaseAgent):
         self.deps.repos["answer"].mark(
             ctx.scope, ctx.session_id, answered.student_id, answered.question_id, correct
         )
+        self._feedback(correct, ctx)
+        self._announce(answered, correct, verdict.text.strip(), ctx)
+
+    def _feedback(self, correct: bool, ctx: AgentContext) -> None:
+        """A word to the child before the next question. Silence after an
+        answer was the Pi's quiz: five answers, and the robot never said
+        whether any of them was right.
+
+        Queued before `quiz.marked` is announced, and the quiz waits for that
+        event, so this is always heard ahead of the next question."""
+        prompt = self.settings.prompts.get(RIGHT if correct else WRONG)
+        name = ctx.student_name
+        if not prompt or not name:
+            return
+        self.say(ctx, self.deps.prompts.line(prompt, ctx.language, name=name), student_name=name)
+
+    def _announce(self, answered: QuizAnswered, correct: bool, comment: str, ctx: AgentContext) -> None:
         self.deps.bus.publish(
             QUIZ_MARKED,
             QuizMarked(
@@ -66,7 +87,7 @@ class Quizmaster(BaseAgent):
                 question_id=answered.question_id,
                 student_id=answered.student_id,
                 correct=correct,
-                comment=verdict.text.strip(),
+                comment=comment,
             ),
         )
 

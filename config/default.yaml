@@ -238,6 +238,9 @@ speech:
     stop_after_silence_ms: 1200   # 0 records the full length every time
     no_speech_seconds: 5.0        # nobody started speaking
     chunk_ms: 100
+    speech_ratio: 3.0             # speech is this many times louder than the room
+    min_rms: 0.005
+    voice_rms: 0.03               # always counts as a voice, whatever the room
     wait_for_robot_seconds: 30.0
     quiet_poll_seconds: 0.05
 
@@ -315,6 +318,7 @@ flow:
 
   questions_per_lesson: 6
   answer_wait_seconds: 20.0   # move on if nobody answers
+  mark_wait_seconds: 8.0      # wait for an answer to be marked before the next question
   quiz_length: 6
   pass_mark: 0.6
 
@@ -473,9 +477,11 @@ agents:
     # provider and model empty means inherit llm.*, so one agent can be
     # pinned to a cheap fast model without touching the others.
     tutor:      {provider: "", model: "", prompt: tutor}
-    quizmaster: {provider: "", model: "", prompt: quizmaster, prompts: {mark: marking}}
+    quizmaster: {provider: "", model: "", prompt: quizmaster, prompts: {mark: marking, right: answer_right, wrong: answer_wrong}}
     narrator:   {provider: "", model: "", prompt: narrator}
-    engagement: {provider: "", model: "", prompt: nudge}
+    # Only while teaching. On the Pi it asked a child "what would you guess
+    # the answer is?" during attendance, before there was any question.
+    engagement: {provider: "", model: "", prompt: nudge, during: [lesson]}
     safety:     {provider: "", model: "", prompt: safety}
 
   safety:

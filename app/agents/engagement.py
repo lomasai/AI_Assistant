@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from lomas_core.contracts import (
     SESSION_OPENED,
+    STEP_ENTERED,
     STUDENT_DISENGAGED,
     TEACHER_NUDGING,
     NudgingSet,
@@ -25,11 +26,12 @@ class Engagement(BaseAgent):
     """
 
     name = "engagement"
-    subscribes = [STUDENT_DISENGAGED, TEACHER_NUDGING, SESSION_OPENED]
+    subscribes = [STUDENT_DISENGAGED, TEACHER_NUDGING, SESSION_OPENED, STEP_ENTERED]
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.nudging = True
+        self.step = ""
 
     def handle(self, event: str, payload, ctx: AgentContext) -> None:
         if isinstance(payload, NudgingSet):
@@ -39,9 +41,16 @@ class Engagement(BaseAgent):
 
         if event == SESSION_OPENED:
             self.nudging = True  # the switch is per session, never sticky
+            self.step = ""
+            return
+
+        if event == STEP_ENTERED:
+            self.step = payload.step
             return
 
         if not self.nudging:
+            return
+        if self.settings.during and self.step not in self.settings.during:
             return
         self._invite(payload, ctx)
 

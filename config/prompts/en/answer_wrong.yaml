@@ -1,0 +1,7 @@
+# Said after a quiz answer is marked wrong. In front of the whole class, so
+# never "wrong", never "no". The child tried; that is what gets said.
+
+lines:
+  - "Not quite, {name}, but good try."
+  - "Nearly, {name}. We will look at that one again."
+  - "Good effort, {name}. That one is a little different."

@@ -534,8 +534,8 @@ def reader(data: bytes):
 def endpoint(**given):
     from lomas_speech.recorder import Endpoint
 
-    return Endpoint(**{"level": 0.02, "silence_ms": 300, "no_speech_seconds": 1.0,
-                       "chunk_ms": 100, **given})
+    return Endpoint(**{"silence_ms": 300, "no_speech_seconds": 1.0, "chunk_ms": 100,
+                       "speech_ratio": 3.0, "min_rms": 0.005, "voice_rms": 0.03, **given})
 
 
 def test_recording_stops_at_the_pause_after_speaking() -> None:
@@ -545,7 +545,7 @@ def test_recording_stops_at_the_pause_after_speaking() -> None:
     talk = pcm([0.0, 0.0, 0.4, 0.4, 0.4, 0.0, 0.0, 0.0, 0.0] + [0.4] * 50)
     got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
 
-    assert len(got) == len(pcm([0.0] * 8)), "stopped three quiet chunks after the voice"
+    assert len(got.pcm) == len(pcm([0.0] * 8)), "stopped three quiet chunks after the voice"
 
 
 def test_a_child_who_pauses_briefly_is_not_cut_off() -> None:
@@ -554,21 +554,21 @@ def test_a_child_who_pauses_briefly_is_not_cut_off() -> None:
     talk = pcm([0.4, 0.0, 0.0, 0.4, 0.4, 0.0, 0.0, 0.0])
     got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
 
-    assert len(got) == len(talk)
+    assert len(got.pcm) == len(talk)
 
 
 def test_nobody_speaking_gives_up_early() -> None:
     from lomas_speech.recorder import read_until_quiet
 
     got = read_until_quiet(reader(pcm([0.0] * 100)), 16000, 15.0, endpoint(no_speech_seconds=1.0))
-    assert len(got) == len(pcm([0.0] * 10))
+    assert len(got.pcm) == len(pcm([0.0] * 10))
 
 
 def test_the_longest_turn_is_still_a_limit() -> None:
     from lomas_speech.recorder import read_until_quiet
 
     got = read_until_quiet(reader(pcm([0.4] * 100)), 16000, 2.0, endpoint())
-    assert len(got) == len(pcm([0.4] * 20))
+    assert len(got.pcm) == len(pcm([0.4] * 20))
 
 
 def test_listening_waits_for_the_robot_to_finish() -> None:
@@ -665,6 +665,106 @@ def test_a_late_answer_does_not_end_the_wait_on_the_next_question() -> None:
             response="chlorophyll", correct=None, latency_ms=0))
 
         assert ctx.notes["quiz_posed"] == "q4"
+        step.exit(ctx)
+    finally:
+        system.close()
+
+
+def test_a_hissing_microphone_still_ends_the_turn() -> None:
+    """The Pi's case: the room itself above the old fixed threshold, so every
+    recording ran fifteen seconds. Against the room, the pause is found."""
+    from lomas_speech.recorder import read_until_quiet
+
+    hiss, voice = 0.012, 0.08
+    talk = pcm([hiss] * 5 + [voice] * 10 + [hiss] * 5 + [voice] * 100)
+    got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
+
+    assert got.stopped == "pause"
+    assert got.seconds == 1.8
+    assert got.floor_rms < voice
+
+
+def test_a_child_who_talks_without_pausing_is_not_cut_off() -> None:
+    from lomas_speech.recorder import read_until_quiet
+
+    got = read_until_quiet(reader(pcm([0.08] * 80 + [0.0] * 5)), 16000, 15.0, endpoint())
+
+    assert got.stopped == "pause"
+    assert got.spoke_seconds == 8.0
+
+
+def test_the_trace_says_how_each_turn_ended(tmp_path) -> None:
+    from lomas_core.contracts import ROBOT_STATE
+    from lomas_speech.recorder import Turn
+    from tests.test_listener import FakeEars, FakeMic
+
+    system = build()
+    try:
+        mic = FakeMic()
+
+        def record(seconds, rate, endpoint=None):
+            mic.last_turn = Turn(stopped="pause", seconds=2.4, floor_rms=0.011, loudest_rms=0.09)
+            return mic.audio
+
+        mic.record = record
+        Listener(system.cfg, system.bus, system.clock, mic, FakeEars()).listen()
+
+        idle = [p for _n, p in system.bus.replay(ROBOT_STATE) if p["state"] == "idle"][-1]
+        assert idle["stopped"] == "pause" and idle["floor_rms"] == 0.011
+    finally:
+        system.close()
+
+
+def test_the_quiz_waits_while_a_child_is_answering() -> None:
+    """q4's answer was still being recorded when q5 was asked."""
+    from app.flow.steps.quiz import LISTENING, QuizStep
+
+    system = build("flow.answer_wait_seconds=5")
+    try:
+        ctx = system.orchestrator.open_session()
+        step = QuizStep(system.cfg)
+        step.enter(ctx)
+        step.tick(ctx, system.clock.now())
+
+        ctx.notes[LISTENING] = True
+        system.clock.advance(60)
+        step.tick(ctx, system.clock.now())
+        assert ctx.notes["quiz_index"] == 1, "moved on while a child was answering"
+
+        ctx.notes[LISTENING] = False
+        step.tick(ctx, system.clock.now())
+        assert ctx.notes["quiz_index"] == 2
+        step.exit(ctx)
+    finally:
+        system.close()
+
+
+def test_an_answer_is_told_right_or_wrong_before_the_next_question() -> None:
+    """Five answers on the Pi, and the robot never said whether any was right."""
+    from lomas_core.contracts import QUIZ_ANSWERED, QuizAnswered
+    from lomas_llm import Completion
+    from app.flow.steps.quiz import QuizStep
+
+    system = build()
+    try:
+        ctx = system.orchestrator.open_session()
+        quizmaster = next(a for a in system.agents.agents if a.name == "quizmaster")
+        quizmaster.deps.llm.complete = lambda *_a, **_k: Completion(text="CORRECT", provider="fake")
+        step = QuizStep(system.cfg)
+        step.enter(ctx)
+        step.tick(ctx, system.clock.now())
+        student = system.repos["student"].list_for_class(ctx.scope)[0]
+
+        system.bus.publish(QUIZ_ANSWERED, QuizAnswered(
+            session_id=ctx.session_id, question_id="q1", student_id=student["id"],
+            response="it makes its own", correct=None, latency_ms=0))
+        step.tick(ctx, system.clock.now())
+
+        said = [(p.reason, p.text) for _n, p in system.bus.replay(ROBOT_SAY)]
+        feedback = [i for i, (who, _t) in enumerate(said) if who == "quizmaster"]
+        assert feedback, "nothing was said about the answer"
+        assert student["name"].split()[0] in said[feedback[0]][1]
+        assert said[-1][0] == "", "the next question comes after the feedback"
         step.exit(ctx)
     finally:
         system.close()

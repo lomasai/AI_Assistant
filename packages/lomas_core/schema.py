@@ -352,6 +352,13 @@ class AudioConfig(BaseModel):
     # Give up when nobody has started speaking by then.
     no_speech_seconds: float = Field(default=5.0, gt=0)
     chunk_ms: int = Field(default=100, ge=10)
+    # Speech is a chunk this many times louder than the room's own noise,
+    # and never below min_rms. Measured per recording, because a USB mic's
+    # hiss sat above the old fixed threshold and nothing ever ended early.
+    speech_ratio: float = Field(default=3.0, gt=1.0)
+    min_rms: float = Field(default=0.005, ge=0.0, le=1.0)
+    # Loud enough to be a voice in any room; see Endpoint.voice_rms.
+    voice_rms: float = Field(default=0.03, ge=0.0, le=1.0)
 
     # Recording while the robot talks hears the robot: "Sunlight What is the
     # green colour inside a leaf called?" was a child's answer with the next
@@ -478,6 +485,10 @@ class FlowConfig(BaseModel):
     # How long to wait on a quiz question before moving on. A class where
     # nobody answers still has to reach the end of the lesson.
     answer_wait_seconds: float = Field(default=20.0, gt=0)
+    # How long an answer may take to be marked, and its feedback queued,
+    # before the next question is asked anyway. A model that never answers
+    # must not stop the quiz.
+    mark_wait_seconds: float = Field(default=8.0, gt=0)
     quiz_length: int = Field(default=6, ge=0)
     pass_mark: float = Field(default=0.6, ge=0.0, le=1.0)
 
@@ -684,14 +695,18 @@ class AgentConfig(BaseModel):
     # writing a question are different jobs and want different instructions.
     prompts: dict[str, str] = Field(default_factory=dict)
     max_tokens: int = Field(default=0, ge=0)  # 0 inherits llm.max_tokens
+    # Steps this agent may speak in. Empty means any. For an agent that acts
+    # on its own initiative rather than when asked.
+    during: list[str] = Field(default_factory=list)
 
 
 def _default_agent_settings() -> dict[str, AgentConfig]:
     return {
         "tutor": AgentConfig(prompt="tutor"),
-        "quizmaster": AgentConfig(prompt="quizmaster", prompts={"mark": "marking"}),
+        "quizmaster": AgentConfig(prompt="quizmaster", prompts={"mark": "marking", "right": "answer_right",
+                                                                 "wrong": "answer_wrong"}),
         "narrator": AgentConfig(prompt="narrator"),
-        "engagement": AgentConfig(prompt="nudge"),
+        "engagement": AgentConfig(prompt="nudge", during=["lesson"]),
         "safety": AgentConfig(prompt="safety"),
     }
 

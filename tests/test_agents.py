@@ -14,6 +14,8 @@ import yaml
 from lomas_core.clock import FakeClock
 from lomas_core.config import load
 from lomas_core.contracts import (
+    STEP_ENTERED,
+    StepChanged,
     AGENT_FAILED,
     QUESTION_ANSWERED,
     QUESTION_ASKED,
@@ -206,7 +208,8 @@ def test_multiple_choice_never_reaches_a_model(system) -> None:
     marked_step()
 
     assert not stub.asked
-    assert not seen(system, QUIZ_MARKED)
+    marked = seen(system, QUIZ_MARKED)
+    assert [m.correct for m in marked] == [True], "announced, so the quiz can move on"
 
 
 def test_the_quizmaster_writes_a_question_when_asked(system) -> None:
@@ -239,6 +242,8 @@ def test_a_story_is_bracketed_by_a_change_of_posture(system) -> None:
 
 
 def drift(system, ctx, student_id: str) -> None:
+    # Nudges belong to the lesson; anywhere else they are ignored.
+    system.bus.publish(STEP_ENTERED, StepChanged(session_id=ctx.session_id, step="lesson", at=1.0))
     system.bus.publish(
         STUDENT_DISENGAGED,
         StudentDisengaged(track_id=7, student_id=student_id, score=0.1,
@@ -477,3 +482,18 @@ def _quiz_step(system, ctx):
     step = STEPS.create("quiz", system.cfg)
     step.enter(ctx)
     return lambda: step.exit(ctx)
+
+
+def test_nobody_is_nudged_outside_the_lesson(system) -> None:
+    """On the Pi a child was asked "what would you guess the answer is?"
+    during attendance, before there was a question to guess at."""
+    ctx = system.orchestrator.open_session()
+    student = system.repos["student"].list_for_class(ctx.scope)[0]
+
+    system.bus.publish(STEP_ENTERED, StepChanged(session_id=ctx.session_id, step="attendance", at=1.0))
+    system.bus.publish(
+        STUDENT_DISENGAGED,
+        StudentDisengaged(track_id=7, student_id=student["id"], score=0.1, drifting_for=8.0, at=1.0),
+    )
+
+    assert not [u for u in seen(system, ROBOT_SAY) if u.reason == "engagement"]

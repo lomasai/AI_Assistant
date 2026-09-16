@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from lomas_core.contracts import (
     QUIZ_ANSWERED,
+    QUIZ_MARKED,
     QUIZ_POSED,
     QUIZ_RECORDED,
     QuizAnswered,
+    QuizMarked,
     QuizPosed,
 )
 
@@ -12,6 +14,8 @@ from app.flow.states import StepResult
 from app.flow.step import STEPS, BaseStep
 
 FIRST = 0
+# Set by whoever is recording a child, so the quiz does not move on under them.
+LISTENING = "listening"
 
 
 @STEPS.register("quiz")
@@ -32,7 +36,12 @@ class QuizStep(BaseStep):
         ctx.notes["quiz_recorded"] = FIRST
         ctx.notes["quiz_unanswered"] = FIRST
         ctx.notes["quiz_posed_at"] = 0.0
-        self._unsubscribe = ctx.bus.subscribe(QUIZ_ANSWERED, self._on_answer(ctx))
+        ctx.notes["quiz_marking"] = None
+        ctx.notes["quiz_marking_since"] = 0.0
+        self._unsubscribe = [
+            ctx.bus.subscribe(QUIZ_ANSWERED, self._on_answer(ctx)),
+            ctx.bus.subscribe(QUIZ_MARKED, self._on_marked(ctx)),
+        ]
 
     def _on_answer(self, ctx):
         def handler(_event, answered: QuizAnswered) -> None:
@@ -50,10 +59,21 @@ class QuizStep(BaseStep):
             # must not cut short the wait on this one.
             if answered.question_id == ctx.notes["quiz_posed"]:
                 ctx.notes["quiz_posed"] = None
+                # Held until it is marked, so what the robot says about this
+                # answer comes before the next question and not over it.
+                ctx.notes["quiz_marking"] = answered.question_id
+                ctx.notes["quiz_marking_since"] = ctx.clock.now()
 
             # Announced after the row exists, so whoever marks free text is
             # updating something rather than racing the insert.
             ctx.bus.publish(QUIZ_RECORDED, answered)
+
+        return handler
+
+    def _on_marked(self, ctx):
+        def handler(_event, marked: QuizMarked) -> None:
+            if marked.question_id == ctx.notes["quiz_marking"]:
+                ctx.notes["quiz_marking"] = None
 
         return handler
 
@@ -66,6 +86,16 @@ class QuizStep(BaseStep):
         asked_so_far = min(len(quiz.questions), ctx.cfg.flow.quiz_length)
         if index >= asked_so_far:
             return StepResult.DONE
+
+        if ctx.notes.get(LISTENING):
+            # A child mid-answer. On the Pi the next question was asked while
+            # the answer to this one was still being recorded.
+            return StepResult.CONTINUE
+
+        if ctx.notes["quiz_marking"] is not None:
+            if now - ctx.notes["quiz_marking_since"] < ctx.cfg.flow.mark_wait_seconds:
+                return StepResult.CONTINUE
+            ctx.notes["quiz_marking"] = None
 
         if ctx.notes["quiz_posed"] is not None:
             # A class where nobody answers still has to reach the end of the
@@ -97,4 +127,5 @@ class QuizStep(BaseStep):
         return StepResult.CONTINUE
 
     def exit(self, ctx) -> None:
-        self._unsubscribe()
+        for unsubscribe in self._unsubscribe:
+            unsubscribe()

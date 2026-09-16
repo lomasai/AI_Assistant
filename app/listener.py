@@ -130,13 +130,21 @@ class Listener:
         self._state(session_id, LISTENING, seconds)
         try:
             return self.recorder.record(seconds, audio.sample_rate, endpoint=Endpoint(
-                level=audio.silence_peak,
                 silence_ms=audio.stop_after_silence_ms,
                 no_speech_seconds=audio.no_speech_seconds,
                 chunk_ms=audio.chunk_ms,
+                speech_ratio=audio.speech_ratio,
+                min_rms=audio.min_rms,
+                voice_rms=audio.voice_rms,
             ))
         finally:
-            self._state(session_id, IDLE, 0.0)
+            # How the turn ended and how loud the room was, in the trace. The
+            # last run could only say "fifteen seconds, every time".
+            turn = getattr(self.recorder, "last_turn", None)
+            heard = turn.summary() if turn is not None else {}
+            if heard:
+                self.log.info("recorded %.1fs, stopped: %s", heard["seconds"], heard["stopped"])
+            self._state(session_id, IDLE, 0.0, heard)
 
     def _wait_for_robot(self) -> None:
         """Start hearing once the robot has stopped talking.
@@ -152,10 +160,11 @@ class Listener:
         while self.gate.is_muted() and self.clock.now() < deadline:
             self.clock.sleep(audio.quiet_poll_seconds)
 
-    def _state(self, session_id: str, state: str, seconds: float) -> None:
+    def _state(self, session_id: str, state: str, seconds: float, heard: dict | None = None) -> None:
         self.bus.publish(
             ROBOT_STATE,
-            {"session_id": session_id, "state": state, "by": SOURCE, "seconds": seconds},
+            {"session_id": session_id, "state": state, "by": SOURCE, "seconds": seconds,
+             **(heard or {})},
         )
 
 

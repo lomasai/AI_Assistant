@@ -1,0 +1,8 @@
+# Said after a quiz answer is marked correct. Short: the next question is
+# waiting behind it, and praise that runs longer than the answer is noise.
+
+lines:
+  - "That's right, {name}. Well done."
+  - "Yes, {name}, exactly."
+  - "Correct. Good thinking, {name}."
+  - "That's it, {name}."
