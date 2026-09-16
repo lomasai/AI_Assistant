@@ -65,7 +65,9 @@ display:
 
 speech:
   tts:
-    engine: piper       # local, and has the Indic voices
+    # Local, has the Indic voices, and loaded once. The `piper` command cost
+    # six seconds loading per paragraph on a Pi 4 before a sound was made.
+    engine: piper_python
     player: auto        # picks aplay on Raspberry Pi OS
     model_dir: models/piper
 

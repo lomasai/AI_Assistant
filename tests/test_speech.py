@@ -39,7 +39,7 @@ def tts():
 def test_every_engine_is_registered():
     assert set(WAKE_WORDS.keys()) == {"openwakeword", "porcupine", "keyboard"}
     assert set(STT_ENGINES.keys()) == {"groq", "vosk", "keyboard"}
-    assert set(TTS_ENGINES.keys()) == {"piper", "gtts", "null"}
+    assert set(TTS_ENGINES.keys()) == {"piper", "piper_python", "gtts", "null"}
 
 
 def test_cloud_engines_import_without_their_dependencies():

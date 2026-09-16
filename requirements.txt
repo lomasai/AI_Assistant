@@ -12,3 +12,7 @@ websockets>=12
 
 # Optional: only for hardware.backend=esp32
 # pyserial>=3.5
+
+# The local voice, loaded once inside the robot (speech.tts.engine: piper_python).
+# Pulls in onnxruntime, which the arcface embedder can use too.
+piper-tts>=1.3

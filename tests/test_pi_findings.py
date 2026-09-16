@@ -367,3 +367,119 @@ def test_piper_puts_its_failure_on_the_handle(tmp_path, monkeypatch) -> None:
     tts._run("x", handle)
 
     assert handle.done and "524" in handle.error
+
+
+# --- fourteen seconds of silence before every paragraph -------------------
+
+
+class Chunk:
+    def __init__(self, text: str) -> None:
+        self.audio_int16_bytes = text.encode()
+        self.sample_rate = 22050
+
+
+class FakeVoice:
+    """Yields a sentence at a time, like piper, slowly enough to race."""
+
+    def __init__(self, delay: float = 0.0, fail_after: int = -1) -> None:
+        self.delay = delay
+        self.fail_after = fail_after
+
+    def synthesize(self, text: str):
+        for index, sentence in enumerate(s for s in text.split(". ") if s):
+            if index == self.fail_after:
+                raise RuntimeError("onnx went away")
+            time.sleep(self.delay)
+            yield Chunk(sentence)
+
+
+def in_process(voice: FakeVoice, tmp_path):
+    from lomas_core.schema import TtsConfig
+    from lomas_speech.ttss.piper_python import PiperPythonTts
+
+    model = tmp_path / "en_US-lessac-medium.onnx"
+    model.write_bytes(b"")
+    tts = PiperPythonTts(TtsConfig(engine="piper_python", player="none", preload=False,
+                                   model_dir=str(tmp_path)))
+    tts._voices[model] = voice
+    played: list[tuple[str, float]] = []
+    tts.player.play_pcm = lambda raw, rate: (played.append((raw.decode(), time.monotonic())),
+                                             time.sleep(0.05))
+    return tts, played
+
+
+def test_the_pi_speaks_with_the_voice_already_loaded() -> None:
+    cfg = load("config", "pi", [], use_env=False)
+    assert cfg.speech.tts.engine == "piper_python"
+    assert cfg.speech.tts.preload
+
+
+def test_the_first_sentence_plays_before_the_last_is_made(tmp_path) -> None:
+    """The piper command synthesised a whole paragraph before any of it was
+    heard. A sentence at a time, the class hears the first almost at once."""
+    tts, played = in_process(FakeVoice(delay=0.1), tmp_path)
+
+    started = time.monotonic()
+    handle = tts.speak("One. Two. Three. Four", "en")
+    assert handle.wait(5)
+
+    assert [text for text, _ in played] == ["One", "Two", "Three", "Four"]
+    assert played[0][1] - started < 0.3, "the first sentence waited for the rest"
+    assert not handle.error
+
+
+def test_pausing_stops_the_sentences_still_to_come(tmp_path) -> None:
+    tts, played = in_process(FakeVoice(delay=0.1), tmp_path)
+
+    handle = tts.speak("One. Two. Three. Four. Five. Six", "en")
+    time.sleep(0.15)
+    tts.stop()
+    assert handle.cancelled
+    time.sleep(0.8)
+
+    assert len(played) < 6
+    assert tts.amplitude() == 0.0
+
+
+def test_a_synthesis_failure_reaches_the_handle(tmp_path) -> None:
+    tts, played = in_process(FakeVoice(fail_after=1), tmp_path)
+
+    handle = tts.speak("One. Two. Three", "en")
+    assert handle.wait(5)
+
+    assert [text for text, _ in played] == ["One"]
+    assert "onnx went away" in handle.error
+
+
+def test_without_piper_installed_it_says_what_to_install(tmp_path, monkeypatch) -> None:
+    import sys
+
+    from lomas_core.schema import TtsConfig
+    from lomas_speech.ttss.piper_python import PiperPythonTts
+
+    (tmp_path / "en_US-lessac-medium.onnx").write_bytes(b"")
+    monkeypatch.setitem(sys.modules, "piper", None)
+    tts = PiperPythonTts(TtsConfig(engine="piper_python", player="none", preload=False,
+                                   model_dir=str(tmp_path)))
+
+    with pytest.raises(LomasError, match="pip install piper-tts"):
+        tts.speak("hello", "en")
+
+
+def test_the_real_voice_speaks_a_sentence_at_a_time(monkeypatch) -> None:
+    pytest.importorskip("piper")
+    if not Path("models/piper/en_US-lessac-medium.onnx").exists():
+        pytest.skip("run python tools/fetch_models.py to test against the real voice")
+
+    from lomas_core.schema import TtsConfig
+    from lomas_speech.ttss.piper_python import PiperPythonTts
+
+    tts = PiperPythonTts(TtsConfig(engine="piper_python", player="none", preload=False))
+    rates: list[int] = []
+    monkeypatch.setattr(tts.player, "play_pcm", lambda raw, rate: rates.append(rate) if raw else None)
+
+    handle = tts.speak("A leaf needs three things. Sunlight, water, and air.", "en")
+    assert handle.wait(60)
+
+    assert not handle.error
+    assert rates == [22050, 22050]

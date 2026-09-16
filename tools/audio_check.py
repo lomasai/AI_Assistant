@@ -50,10 +50,18 @@ def devices(command: str) -> str:
 
 def playback_cards() -> list[tuple[str, str]]:
     """Every card aplay can see, as (number, name)."""
+    return cards("aplay")
+
+
+def capture_cards() -> list[tuple[str, str]]:
+    return cards("arecord")
+
+
+def cards(command: str) -> list[tuple[str, str]]:
     import re
 
     found = []
-    for line in devices("aplay").splitlines():
+    for line in devices(command).splitlines():
         match = re.match(r"card (\d+): (\S+)", line.strip())
         if match:
             found.append((match.group(1), match.group(2)))
@@ -218,6 +226,15 @@ def main() -> int:
 
     peak, rms = loudness(captured)
     print(f"  {len(captured)} bytes   peak {peak:.3f}   rms {rms:.4f}")
+
+    if peak < HEARD_SOMETHING and not capture_cards():
+        # arecord records silence from `default` when there is nothing behind
+        # it, which reads as a quiet room rather than a missing microphone.
+        print("\n  NO MICROPHONE. The system lists no capture device at all, so")
+        print("  this silence is not a level or a setting. Unplug the USB mic,")
+        print("  plug it into a different USB port, and check `arecord -l`")
+        print("  shows a card before running this again.")
+        return 1
 
     if peak < HEARD_SOMETHING:
         print("\n  SILENT. The recording worked but carried no sound, which is")

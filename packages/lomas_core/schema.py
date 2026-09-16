@@ -279,7 +279,7 @@ def _default_voices() -> dict[str, str]:
 class TtsConfig(BaseModel):
     model_config = Strict
 
-    engine: Literal["piper", "gtts", "null"] = "piper"
+    engine: Literal["piper", "piper_python", "gtts", "null"] = "piper"
     rate: float = Field(default=1.0, gt=0)
     # A map per language, never a single voice string - that is what keeps
     # adding a language content work rather than code work.
@@ -292,6 +292,9 @@ class TtsConfig(BaseModel):
     accent: str = "com"
     binary: str = "piper"
     model_dir: str = "models/piper"
+    # piper_python only. Load the voice at boot rather than on the first
+    # sentence, so the greeting is not the thing that waits.
+    preload: bool = True
     scratch_file: str = "data/tts-out.mp3"
 
     # Where the finished audio goes. Synthesising it and dropping it on the

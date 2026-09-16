@@ -204,7 +204,7 @@ speech:
     timeout_seconds: 15.0
 
   tts:
-    engine: piper           # piper | gtts | null
+    engine: piper           # piper | piper_python | gtts | null
     rate: 1.0
 
     # A voice per language, never one voice string. This is what keeps adding
@@ -215,6 +215,7 @@ speech:
     fallback_language: en
     binary: piper
     model_dir: models/piper
+    preload: true           # piper_python: load the voice at boot
     scratch_file: data/tts-out.mp3
 
   audio:
