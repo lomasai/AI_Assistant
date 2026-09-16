@@ -71,8 +71,10 @@ speech:
 
     # A Pi has four playback cards - the jack, two HDMI, often a DAC - and
     # ALSA's `default` is rarely the one with a speaker on it. Find the jack
-    # with `aplay -l` and set plughw:<card>,0. Card 0 is usually Headphones.
-    player_device: plughw:0,0
+    # with `aplay -l`. By name, never by number: the numbers are handed out
+    # at boot and moved on a real Pi, which left plughw:0,0 pointing at an
+    # HDMI port ("audio open error: Unknown error 524") and the robot mute.
+    player_device: plughw:CARD=Headphones,DEV=0
 
   stt:
     engine: groq        # whisper, covered by the same key as the tutor
@@ -82,7 +84,8 @@ speech:
     recorder: auto      # picks arecord, which Raspberry Pi OS already has
     # A USB microphone is rarely the default input. Find yours with
     #     arecord -l
-    # and put it here as plughw:<card>,<device>. Leaving this empty records
+    # and put it here by name, plughw:CARD=<name>,DEV=0 - card numbers change
+    # between boots. Leaving this empty records
     # from whatever ALSA calls default, which is usually the wrong thing.
     device: ""
     sample_rate: 16000  # what whisper wants

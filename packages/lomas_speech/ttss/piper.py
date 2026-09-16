@@ -70,11 +70,20 @@ class PiperTts:
         piper writes headerless PCM to stdout. Capturing it and stopping there
         is a robot that mimes, so the samples go to a speaker before the
         handle is released.
+
+        A failure is put on the handle, not raised. Raised on this thread it
+        reaches nobody - on the Pi it printed a traceback per sentence while
+        the voice worker carried on as if the robot had spoken.
         """
         try:
             audio, _ = self._process.communicate(text.encode("utf-8"))
             if audio and not handle.cancelled:
                 self.player.play_pcm(audio, self.cfg.sample_rate)
+        except (LomasError, OSError, ValueError, AttributeError) as exc:
+            # ValueError and AttributeError are stop() closing or clearing
+            # the process under us, which is a pause and not a fault.
+            if not handle.cancelled:
+                handle.fail(str(exc))
         finally:
             handle.finish()
 

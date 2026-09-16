@@ -44,6 +44,9 @@ class SpeechHandle:
     id: int = field(default_factory=lambda: next(_handles))
     _done: threading.Event = field(default_factory=threading.Event)
     _cancelled: bool = False
+    # Set when the sound failed somewhere the caller cannot catch it, such as
+    # a playback thread. Read after `wait`.
+    error: str = ""
 
     @property
     def done(self) -> bool:
@@ -54,6 +57,10 @@ class SpeechHandle:
         return self._cancelled
 
     def finish(self) -> None:
+        self._done.set()
+
+    def fail(self, error: str) -> None:
+        self.error = error
         self._done.set()
 
     def cancel(self) -> None:

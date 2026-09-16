@@ -83,6 +83,8 @@ class Voice:
         try:
             handle = self.tts.speak(utterance.text, utterance.language)
             handle.wait()
+            if handle.error:
+                raise LomasError(handle.error)
         except LomasError as exc:
             # A player killed on the way out is shutting down, not broken.
             # No voice is not no lesson either: a missing piper binary makes

@@ -74,7 +74,8 @@ def sweep(rate: int) -> int:
 
     samples = tone(rate)
     for number, name in cards:
-        device = f"plughw:{number},0"
+        # By name: the number is only true until the next boot.
+        device = f"plughw:CARD={name},DEV=0"
         print(f"\n  card {number}  {name}   ->  {device}")
         player = Player("aplay", device=device)
         if not player.available:
@@ -98,7 +99,8 @@ def mixer(device: str) -> list[str]:
     A Pi ships with the headphone output at zero, and a muted control is the
     single most common reason a correct configuration makes no sound.
     """
-    card = device.split(":")[-1].split(",")[0] if ":" in device else "0"
+    # plughw:0,0 and plughw:CARD=Headphones,DEV=0 both; amixer takes either.
+    card = device.split(":")[-1].split(",")[0].removeprefix("CARD=") if ":" in device else "0"
     try:
         done = subprocess.run(["amixer", "-c", card], capture_output=True, text=True, timeout=5)
     except (OSError, subprocess.SubprocessError):
@@ -221,7 +223,7 @@ def main() -> int:
         print("\n  SILENT. The recording worked but carried no sound, which is")
         print("  almost always one of three things:")
         print("    * the wrong device - run `arecord -l` and set")
-        print("      LOMAS__speech__audio__device=plughw:<card>,0")
+        print("      LOMAS__speech__audio__device=plughw:CARD=<name>,DEV=0")
         print("    * the capture level muted or at zero - `alsamixer`, F4 for")
         print("      capture, then arrow up and press M to unmute")
         print("    * a microphone that is not the one you think it is")

@@ -302,3 +302,68 @@ def test_a_git_lfs_pointer_is_not_mistaken_for_a_model(tmp_path, monkeypatch) ->
 
     (tmp_path / "thing.onnx").write_bytes(b"\0" * 250_000)
     assert fetch.present(model)
+
+
+# --- the second run: mute, with a traceback per sentence ------------------
+
+
+def test_the_speaker_is_named_not_numbered() -> None:
+    """Card numbers are handed out at boot. After a reboot plughw:0,0 was an
+    HDMI port, aplay said "Unknown error 524", and the robot taught mute."""
+    cfg = load("config", "pi", [], use_env=False)
+
+    assert "CARD=" in cfg.speech.tts.player_device
+
+
+def test_a_playback_failure_reaches_the_voice_once(caplog) -> None:
+    """piper plays on its own thread, so the failure was raised where nobody
+    could catch it: a traceback per sentence, and no "no voice" line."""
+    from lomas_speech.types import SpeechHandle
+
+    class Failing:
+        def speak(self, text: str, language: str = "") -> SpeechHandle:
+            handle = SpeechHandle(text=text, language=language)
+            threading.Thread(target=handle.fail, args=("aplay failed (1): error 524",)).start()
+            return handle
+
+        def stop(self) -> None: ...
+
+        def amplitude(self) -> float:
+            return 0.0
+
+    system = build()
+    system.voice.stop()
+    system.voice = Voice(Failing(), system.extras["gate"], system.bus, wait_seconds=5.0)
+    try:
+        with caplog.at_level("ERROR"):
+            for text in ("one", "two", "three"):
+                system.bus.publish(ROBOT_SAY, Utterance(text=text, language="en"))
+
+        reported = [r for r in caplog.records if "no voice" in r.getMessage()]
+        assert len(reported) == 1
+        assert "524" in reported[0].getMessage()
+        assert len(system.bus.replay(ROBOT_SPOKE)) == 3, "the lesson carries on"
+    finally:
+        system.voice.stop()
+        system.close()
+
+
+def test_piper_puts_its_failure_on_the_handle(tmp_path, monkeypatch) -> None:
+    from lomas_core.schema import TtsConfig
+    from lomas_speech.ttss.piper import PiperTts
+
+    tts = PiperTts(TtsConfig(engine="piper", player="none"))
+    handle = SpeechHandle(text="x", language="en")
+
+    class Process:
+        def communicate(self, _data):
+            return b"\0\0" * 100, b""
+
+    def refuse(_raw, _rate):
+        raise LomasError("aplay failed (1): Unknown error 524")
+
+    tts._process = Process()
+    monkeypatch.setattr(tts.player, "play_pcm", refuse)
+    tts._run("x", handle)
+
+    assert handle.done and "524" in handle.error

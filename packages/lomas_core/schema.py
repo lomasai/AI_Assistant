@@ -299,7 +299,8 @@ class TtsConfig(BaseModel):
     player: str = "auto"  # auto | none | winsound | aplay | afplay | ffplay | mpg123
     # A Pi has four playback cards - the jack, two HDMI, often a DAC - and
     # ALSA's `default` is rarely the one with a speaker on it. `aplay -l`
-    # gives the number; this is plughw:<card>,0.
+    # gives the name; this is plughw:CARD=<name>,DEV=0. Not the number, which
+    # moves between boots.
     player_device: str = ""
     player_command: str = ""  # an exact command line, when auto guesses wrong
 
@@ -335,7 +336,7 @@ class AudioConfig(BaseModel):
     # no install; sounddevice is for machines without it.
     recorder: str = "auto"  # auto | none | arecord | sounddevice
     recorder_command: str = ""
-    device: str = ""  # ALSA name, e.g. plughw:1,0 for a USB microphone
+    device: str = ""  # ALSA name, e.g. plughw:CARD=Device,DEV=0 for a USB microphone
     sample_rate: int = Field(default=16000, ge=8000)  # what whisper wants
 
     # Fixed length, not voice activity: detecting when one child of forty has

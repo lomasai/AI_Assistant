@@ -150,7 +150,10 @@ def wait(system, logger) -> int:
         while True:
             time.sleep(WAIT_POLL_SECONDS)
     except KeyboardInterrupt:
-        logger.info("stopping")
+        # Browsers, the trace file and the camera each get a moment to close.
+        # A second Ctrl-C inside that moment is what turns a clean stop into
+        # a traceback, so say so.
+        logger.info("stopping - this takes a few seconds, no need to press Ctrl-C again")
     return 0
 
 
