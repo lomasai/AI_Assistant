@@ -119,10 +119,12 @@ face:
   # Recognition. Identity is resolved when a track is new and then carried by
   # the tracker, so the embedder runs once or twice per child per minute
   # rather than fifteen times a second.
-  embedder: arcface_onnx        # arcface_onnx | mock
-  embedder_model_path: models/mobilefacenet.onnx
-  embedding_dim: 512
-  match_threshold: 0.38         # cosine distance; lower is stricter
+  # sface runs on the OpenCV already installed for the detector; nothing
+  # extra to install. Fetch the model with: python tools/fetch_models.py
+  embedder: sface               # sface | arcface_onnx | mock
+  embedder_model_path: models/face_recognition_sface_2021dec.onnx
+  embedding_dim: 128
+  match_threshold: 0.6          # cosine distance; lower is stricter
   reverify_seconds: 20.0        # re-check an established track occasionally
   unknown_after_attempts: 3     # then stop spending CPU on a stranger
   recognition_min_face_px: 80   # below this the crop is too poor to match
@@ -375,6 +377,9 @@ trace:
 
   # Timing is the point; these payloads are large and add nothing to it.
   payload_exclude: [vision.tracks]
+
+  # An endless response has no useful duration.
+  http_skip: [/camera.mjpeg]
 
 # The diagnostics overlay. Served in debug mode and nowhere else - it is a
 # panel for engineers, not a screen for children.

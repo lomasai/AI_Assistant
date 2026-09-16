@@ -177,10 +177,16 @@ class FaceConfig(BaseModel):
 
     # Recognition. Identity is resolved on new tracks and then carried by the
     # tracker, so these govern how rarely the embedder runs.
-    embedder: Literal["arcface_onnx", "mock"] = "arcface_onnx"
-    embedder_model_path: str = "models/mobilefacenet.onnx"
-    embedding_dim: int = Field(default=512, ge=1)
-    match_threshold: float = Field(default=0.38, gt=0.0, le=2.0)
+    # sface by default: it runs on the OpenCV already installed for the
+    # detector. arcface_onnx needs onnxruntime and a model with no one obvious
+    # place to get it, which is why a Pi showed "recognition off" for weeks.
+    embedder: Literal["sface", "arcface_onnx", "mock"] = "sface"
+    embedder_model_path: str = "models/face_recognition_sface_2021dec.onnx"
+    embedding_dim: int = Field(default=128, ge=1)
+    # Cosine distance, lower is stricter. SFace's published same-person line is
+    # a similarity of 0.363, a distance of 0.637; this sits a little inside it
+    # because the crops are resized rather than aligned.
+    match_threshold: float = Field(default=0.6, gt=0.0, le=2.0)
     reverify_seconds: float = Field(default=20.0, gt=0)
     unknown_after_attempts: int = Field(default=3, ge=1)
     recognition_min_face_px: int = Field(default=80, ge=1)
@@ -296,6 +302,11 @@ class TtsConfig(BaseModel):
     # gives the number; this is plughw:<card>,0.
     player_device: str = ""
     player_command: str = ""  # an exact command line, when auto guesses wrong
+
+    # The longest a lesson waits on one sentence before moving on. A cloud
+    # voice that never answers must not stop the class.
+    utterance_timeout_seconds: float = Field(default=60.0, gt=0)
+    stop_seconds: float = Field(default=2.0, gt=0)
     sample_rate: int = Field(default=22050, ge=8000)  # piper voices are 22.05 kHz
 
 
@@ -624,6 +635,10 @@ class TraceConfig(BaseModel):
     sample_every: dict[str, int] = Field(default_factory=_default_sampling)
     # Timing is what this is for. A few payloads are large and add nothing.
     payload_exclude: list[str] = Field(default_factory=lambda: ["vision.tracks"])
+
+    # Endless responses have no duration worth recording - the video stream
+    # would read as one request lasting the whole run.
+    http_skip: list[str] = Field(default_factory=lambda: ["/camera.mjpeg"])
 
 
 class TeacherConfig(BaseModel):

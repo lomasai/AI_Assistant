@@ -41,8 +41,9 @@ class ArcFaceEmbedder:
         model = Path(self.cfg.embedder_model_path)
         if not model.exists():
             raise LomasError(
-                f"face embedding model not found at {model}. Fetch a MobileFaceNet "
-                "or ArcFace ONNX model and point face.embedder_model_path at it."
+                f"face embedding model not found at {model}. Use face.embedder: "
+                "sface, which `python tools/fetch_models.py` downloads, or point "
+                "face.embedder_model_path at an ArcFace ONNX model."
             )
         self._session = onnxruntime.InferenceSession(
             str(model), providers=["CPUExecutionProvider"]

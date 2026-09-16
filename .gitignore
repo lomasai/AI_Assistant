@@ -23,3 +23,5 @@ config/secrets.env
 models/piper/
 models/vosk/
 models/wake/
+models/face_recognition_*.onnx
+models/**/*.part

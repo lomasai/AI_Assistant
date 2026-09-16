@@ -102,6 +102,10 @@ class Utterance:
     session_id: str = ""
     student_name: str = ""
     reason: str = ""
+    # Whether whoever said it waits until it has been heard. A lesson does -
+    # the next sentence must not start over this one. An answer from a web
+    # request does not, or the browser holds for as long as the answer lasts.
+    blocking: bool = True
 
 
 @dataclass(frozen=True, slots=True)

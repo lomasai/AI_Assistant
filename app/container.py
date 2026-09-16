@@ -188,7 +188,9 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     # The filter is asked before a sound is made, so it is an argument to the
     # voice rather than another subscriber racing it.
     guard = next((a.approve for a in built if isinstance(a, Safety)), allow_everything)
-    voice = Voice(tts, gate, bus, guard=guard)
+    voice = Voice(tts, gate, bus, guard=guard,
+                  wait_seconds=cfg.speech.tts.utterance_timeout_seconds)
+    voice.stop_seconds = cfg.speech.tts.stop_seconds
     steps = [STEPS.create(name, cfg) for name in cfg.flow.sequence]
     machine = Machine(steps, cfg.flow, bus, clock)
 

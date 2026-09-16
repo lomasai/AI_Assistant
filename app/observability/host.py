@@ -152,6 +152,7 @@ class Host:
             return []  # no /proc, which is every machine that is not Linux
 
         seen: list[dict] = []
+        alive: set[int] = set()
         ticks = _clock_ticks()
         for entry in entries:
             if not entry.name.isdigit():
@@ -161,6 +162,7 @@ class Host:
                 continue
 
             pid, name, jiffies, rss_mb = reading
+            alive.add(pid)
             before = self._process_time.get(pid)
             self._process_time[pid] = jiffies
             if before is None or elapsed <= 0:
@@ -169,8 +171,11 @@ class Host:
             busy = PERCENT * (jiffies - before) / ticks / elapsed
             seen.append({"pid": pid, "name": name, "cpu": round(busy, 1), "rss_mb": rss_mb})
 
-        live = {p["pid"] for p in seen}
-        for gone in set(self._process_time) - live:
+        # Forget processes that exited, not processes that went unreported.
+        # Pruning by what was reported threw away every baseline on the first
+        # call - it has nothing to report yet - so no later call ever had one,
+        # and every sample from the Pi came back empty.
+        for gone in set(self._process_time) - alive:
             del self._process_time[gone]
 
         seen.sort(key=lambda p: p["cpu"], reverse=True)

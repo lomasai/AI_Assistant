@@ -27,6 +27,44 @@ INDEX = "index.html"
 API_PREFIX = "/api"
 NO_CAMERA = b""
 BAD_REQUEST = 400
+HTTP = "http"
+RESPONSE_START = "http.response.start"
+
+
+class Timed:
+    """How long the browser waited on each request.
+
+    Plain ASGI, not @app.middleware("http"). That one pipes every body chunk
+    through a second stream, which on the Pi meant every MJPEG frame paid an
+    extra copy to be measured - and on shutdown it was the stream that raised.
+    This watches the response start and passes the body through untouched.
+    """
+
+    def __init__(self, app, trace, skip: list[str]) -> None:
+        self.app = app
+        self.trace = trace
+        self.skip = set(skip)
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != HTTP or scope["path"] in self.skip:
+            await self.app(scope, receive, send)
+            return
+
+        import time as _time
+
+        began = _time.perf_counter()
+        status = {}
+
+        async def watched(message) -> None:
+            if message["type"] == RESPONSE_START:
+                status["code"] = message["status"]
+            await send(message)
+
+        try:
+            await self.app(scope, receive, watched)
+        finally:
+            self.trace.span("http", _time.perf_counter() - began,
+                            {"path": scope["path"], "status": status.get("code", 0)})
 
 
 def create_app(system) -> FastAPI:
@@ -50,24 +88,7 @@ def create_app(system) -> FastAPI:
     app.state.system = system
 
     if system.trace is not None:
-        @app.middleware("http")
-        async def timed(request: Request, call_next):
-            """Every request, with how long the browser waited.
-
-            "The UI is slow" is either the server being slow to answer or the
-            page being slow to draw, and those have opposite fixes. This
-            settles which.
-            """
-            import time as _time
-
-            began = _time.perf_counter()
-            response = await call_next(request)
-            system.trace.span(
-                "http",
-                _time.perf_counter() - began,
-                {"path": request.url.path, "status": response.status_code},
-            )
-            return response
+        app.add_middleware(Timed, trace=system.trace, skip=system.cfg.trace.http_skip)
 
     app.include_router(api_module.router(system), prefix=API_PREFIX)
     if system.cfg.teacher.enabled:

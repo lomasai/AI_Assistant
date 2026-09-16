@@ -80,6 +80,10 @@ class BaseAgent:
                 session_id=ctx.session_id,
                 student_name=student_name,
                 reason=self.name,
+                # Queued behind whatever the robot is already saying, but the
+                # agent returns now. It was called from a web request or the
+                # vision thread, and neither should wait out a paragraph.
+                blocking=False,
             ),
         )
 

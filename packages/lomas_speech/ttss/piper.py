@@ -49,7 +49,9 @@ class PiperTts:
 
         model = self._voice_for(language)
         if not model.exists():
-            raise LomasError(f"piper voice not found at {model}")
+            raise LomasError(
+                f"piper voice not found at {model}. Run `python tools/fetch_models.py`."
+            )
 
         self.stop()
         handle = SpeechHandle(text=text, language=language)

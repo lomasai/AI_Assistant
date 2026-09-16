@@ -188,20 +188,29 @@ class Player:
     def _play_command(self, path: Path, backend: str) -> None:
         try:
             with self._lock:
-                self._process = subprocess.Popen(
-                    self._argv(path, backend), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+                # Its own session, so Ctrl-C in the terminal reaches the robot
+                # and not the player. The robot then stops the player itself;
+                # otherwise ffplay dies of the signal first and reports it as
+                # a failure on the way out.
+                process = subprocess.Popen(
+                    self._argv(path, backend), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                    start_new_session=sys.platform != WINDOWS,
                 )
+                self._process = process
             # A timeout, because some devices accept the open and then never
             # return - an i2s card with nothing clocked on the far end will
             # block aplay forever, and a robot whose voice hangs is a robot
             # whose lesson hangs.
             waited = _seconds(path) + STALL_GRACE
+            # The local, never self._process: stop() may clear that from another
+            # thread mid-call, which on the Pi read as "NoneType has no
+            # attribute returncode" and lost the sentence.
             try:
-                _, complaint = self._process.communicate(timeout=waited)
-                code = self._process.returncode
+                _, complaint = process.communicate(timeout=waited)
+                code = process.returncode
             except subprocess.TimeoutExpired:
-                self._process.kill()
-                self._process.communicate()
+                process.kill()
+                process.communicate()
                 raise LomasError(
                     f"{backend} did not finish within {waited:.0f}s on "
                     f"'{self.device or 'default'}'. The card accepted the audio "
@@ -211,7 +220,8 @@ class Player:
             raise LomasError(f"cannot run the audio player '{self.backend}': {exc}") from exc
         finally:
             with self._lock:
-                self._process = None
+                if self._process is process:
+                    self._process = None
 
         # Swallowing this is how a robot ends up silently miming: aplay exits
         # non-zero for a busy or invalid device and says exactly why.

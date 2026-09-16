@@ -73,7 +73,7 @@ def enrol(config: FaceConfig, people: list[int]) -> tuple[IdentityMatcher, objec
 
 
 def test_every_embedder_is_registered():
-    assert set(EMBEDDERS.keys()) == {"arcface_onnx", "mock"}
+    assert set(EMBEDDERS.keys()) == {"sface", "arcface_onnx", "mock"}
 
 
 def test_recognises_once_per_track():
