@@ -326,6 +326,48 @@ def _default_inputs() -> list[AudioInputConfig]:
     return [AudioInputConfig()]
 
 
+class SpeakerConfig(BaseModel):
+    """Who just spoke, and how hard the robot may work to find out.
+
+    The chain is a list so an experiment is an edit: `[mouth_motion]` alone
+    tests mouth movement, `[tapped]` is the teacher tapping a name and
+    nothing else.
+    """
+
+    model_config = Strict
+
+    resolvers: list[str] = Field(
+        default_factory=lambda: ["tapped", "single_face", "recent", "spoken_name", "ask"]
+    )
+
+    # How long a face counts as being in front of the robot after the camera
+    # last saw it. Shorter than a blink is a robot that forgets mid-sentence.
+    visible_seconds: float = Field(default=6.0, gt=0)
+
+    # How long one speaker keeps the turn. This is what makes saying a name
+    # bearable: once, then a conversation.
+    recent_seconds: float = Field(default=90.0, ge=0)
+
+    # 1.0 demands the spelling in the register. Speech to text returns
+    # Akshaya, Akash and action for the same child, so it does not.
+    name_match: float = Field(default=0.75, ge=0.0, le=1.0)
+    # Asked for on a name with no lead-in before it, which is easier to get
+    # wrong: "Meera" said by anyone, in a lesson about Meera's garden.
+    no_cue_extra: float = Field(default=0.1, ge=0.0, le=1.0)
+    name_window_words: int = Field(default=6, ge=1)
+    name_cues: list[str] = Field(
+        default_factory=lambda: ["i am", "i'm", "my name is", "this is", "here is",
+                                 "मेरा नाम", "मैं"]
+    )
+    # Taken off the front of what is left, so the tutor is asked the question
+    # and not the preamble.
+    question_lead_ins: list[str] = Field(
+        default_factory=lambda: ["my question is", "i want to ask", "i wanted to ask",
+                                 "i have a question", "and", "so"]
+    )
+    strip_name: bool = True
+
+
 class AudioConfig(BaseModel):
     model_config = Strict
 
@@ -378,6 +420,7 @@ class SpeechConfig(BaseModel):
     stt: SttConfig = Field(default_factory=SttConfig)
     tts: TtsConfig = Field(default_factory=TtsConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
+    speaker: SpeakerConfig = Field(default_factory=SpeakerConfig)
 
 
 class EndpointConfig(BaseModel):

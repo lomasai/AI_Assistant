@@ -178,12 +178,10 @@ def router(system) -> APIRouter:
         student_id = body.student_id or tapped[0]
         student_name = body.student_name or tapped[1]
         # While a quiz question waits, what a child says is its answer, from
-        # either button. Only an attributed answer can be recorded; without a
-        # name it is still worth hearing as a question.
-        # Taken now: listening waits for the robot, and the quiz may have
-        # moved on by the time the child has finished.
+        # either button. Taken now: listening waits for the robot, and the
+        # quiz may have moved on by the time the child has finished.
         posed = _posed(ctx)
-        as_answer = bool(student_id) and (body.as_answer or bool(posed))
+        as_answer = body.as_answer or bool(posed)
 
         # The quiz holds its next question while a child is being heard.
         if ctx is not None:
@@ -197,9 +195,12 @@ def router(system) -> APIRouter:
                 language=ctx.language if ctx else system.cfg.content.language,
                 as_question=not as_answer,
             )
+            # Attribution comes back from the listener, which asked the
+            # speaker chain: a tap is one opinion in it, not the only one.
+            student_id = heard.get("student_id") or student_id
             # Inside the hold: released first, the quiz could time the
             # question out in the moment before its answer arrived.
-            if as_answer and heard.get("text"):
+            if as_answer and student_id and heard.get("text"):
                 bus.publish(
                     QUIZ_ANSWERED,
                     QuizAnswered(

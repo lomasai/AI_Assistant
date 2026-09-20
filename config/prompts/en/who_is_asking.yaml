@@ -1,0 +1,10 @@
+# Said when the robot cannot work out who spoke. It is the last thing in the
+# chain, so by here the camera, the recent speaker and the name all failed.
+#
+# Never "identify yourself". A child is being asked their name, not cleared
+# through security.
+
+lines:
+  - "Sorry, who is asking?"
+  - "Tell me your name first, and then your question."
+  - "Who was that? Say your name, then ask again."

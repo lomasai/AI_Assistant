@@ -47,6 +47,7 @@ from app.body import Body
 from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
 from app.listener import Listener
+from app.speaker import Room, SpeakerChain
 from app.observability.metrics import Metrics
 from app.observability.trace import Trace, build_trace
 from app.context.assembler import ContextAssembler
@@ -95,6 +96,7 @@ class System:
     metrics: Metrics | None = None
     trace: Trace | None = None
     listener: Listener | None = None
+    speakers: SpeakerChain | None = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -169,6 +171,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         recorder.describe(),
         player.describe() if player is not None else cfg.speech.tts.engine,
     )
+    logger.info("who spoke: %s", " -> ".join(cfg.speech.speaker.resolvers) or "whoever is tapped")
 
     content = ContentLibrary(cfg.content)
     assembler = ContextAssembler(cfg, repos, content)
@@ -199,6 +202,14 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         prompts=prompts, llm=llm, content=content,
     )
 
+    # After the orchestrator, because a resolver asks it which class is in
+    # the room, and attached to the listener rather than passed in: the
+    # microphone is built before there is a session to attribute to.
+    speakers = SpeakerChain(cfg, bus, clock, prompts, repos, Room(cfg.speech.speaker, bus, clock),
+                            scope_of=lambda: orchestrator.scope)
+    if listener is not None:
+        listener.speakers = speakers
+
     vision = build_vision(cfg, bus, clock, repos)
     report = ReportBuilder(cfg, repos, content)
     body = _body(cfg, bus, clock)
@@ -217,7 +228,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
         enrolment=enrolment, report=report, metrics=metrics, body=body, trace=trace,
-        listener=listener,
+        listener=listener, speakers=speakers,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 

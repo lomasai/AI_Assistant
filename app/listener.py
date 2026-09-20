@@ -40,6 +40,7 @@ class Listener:
         recorder: Any,
         stt: Any,
         gate: Any = None,
+        speakers: Any = None,
     ) -> None:
         self.cfg = cfg
         self.bus = bus
@@ -47,6 +48,9 @@ class Listener:
         self.recorder = recorder
         self.stt = stt
         self.gate = gate
+        # Who spoke, worked out rather than tapped. None keeps the old
+        # behaviour: whoever the caller named.
+        self.speakers = speakers
         self.log = log.get("listen")
         self.heard = 0
 
@@ -101,14 +105,17 @@ class Listener:
             self.log.info("discarded as noise: %r", spoken)
             return {"text": "", "reason": "nothing was said", "discarded": spoken}
 
+        student_id, student_name, spoken, how = self._who(
+            spoken, student_id, student_name, session_id, language)
+
         self.heard += 1
-        self.log.info("heard: %s", spoken)
+        self.log.info("heard: %s%s", spoken, f" [{student_name}]" if student_name else "")
         if not as_question:
             # An answer, published by whoever asked for one. As a question as
             # well, the tutor explained the answer back to the child while
             # the quiz moved on, and the two talked over each other.
             return {"text": spoken, "language": heard.language, "student_id": student_id,
-                    "peak": round(peak, 3)}
+                    "student_name": student_name, "how": how, "peak": round(peak, 3)}
         self.bus.publish(
             QUESTION_ASKED,
             QuestionAsked(
@@ -119,7 +126,18 @@ class Listener:
             ),
         )
         return {"text": spoken, "language": heard.language, "student_id": student_id,
-                "peak": round(peak, 3)}
+                "student_name": student_name, "how": how, "peak": round(peak, 3)}
+
+    def _who(self, spoken: str, student_id: str, student_name: str,
+             session_id: str, language: str) -> tuple[str, str, str, str]:
+        """Who said it. The tapped name goes in as one more opinion, and
+        comes back out first - `tapped` is the head of the chain."""
+        if self.speakers is None:
+            return student_id, student_name, spoken, "caller"
+
+        found = self.speakers.resolve(
+            spoken, tapped=(student_id, student_name), session_id=session_id, language=language)
+        return found.student_id, found.name, found.text or spoken, found.how
 
     def _capture(self, session_id: str, seconds: float) -> bytes:
         audio = self.cfg.speech.audio

@@ -104,11 +104,22 @@
   };
 
   // --- hearing a child -----------------------------------------------------
-  // Press to talk. The robot cannot tell who spoke in a room of forty, so the
-  // tapped name is the attribution.
+  // Press to talk. A tapped name still wins, but the robot works the speaker
+  // out for itself when nobody has tapped - from the camera, from who spoke a
+  // moment ago, or from "I am Akshay" at the front of the question. It says
+  // which, so a wrong guess can be corrected by tapping.
+
+  const said = {
+    tapped: 'you tapped the name',
+    single_face: 'the only face in view',
+    recent: 'still the same speaker',
+    spoken_name: 'they said their name',
+    mouth_motion: 'their mouth moved',
+    unknown: 'nobody could be worked out - tap a name',
+    caller: '',
+  };
 
   const hear = async (button, asAnswer) => {
-    if (!speaker) { $('step').textContent = 'Tap a name first, so the answer has an owner.'; return; }
 
     button.classList.add('hearing');
     button.disabled = true;
@@ -116,11 +127,18 @@
     button.textContent = 'Listening…';
     try {
       const heard = await post('/listen', {
-        student_id: speaker.id, student_name: speaker.name, as_answer: asAnswer,
+        student_id: speaker ? speaker.id : '', student_name: speaker ? speaker.name : '',
+        as_answer: asAnswer,
       });
       if (heard.error) $('step').textContent = heard.error;
       else if (!heard.text) $('step').textContent = heard.reason || 'nothing was said';
-      else $(asAnswer ? 'answer' : 'ask').querySelector('input').value = heard.text;
+      else {
+        $(asAnswer ? 'answer' : 'ask').querySelector('input').value = heard.text;
+        const why = said[heard.how] === undefined ? heard.how : said[heard.how];
+        $('step').textContent = heard.student_name
+          ? `${heard.student_name} spoke — ${why}`
+          : why || 'heard';
+      }
     } finally {
       button.classList.remove('hearing');
       button.disabled = false;

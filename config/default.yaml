@@ -218,6 +218,30 @@ speech:
     preload: true           # piper_python: load the voice at boot
     scratch_file: data/tts-out.mp3
 
+  # Who just spoke. Tried in order; the first one sure of itself wins, and
+  # the list is the whole of the behaviour:
+  #   tapped       the teacher tapped a name. Always right, always first.
+  #   single_face  one known face in front of the camera
+  #   recent       whoever spoke a moment ago, still visible
+  #   spoken_name  "I am Akshay, why do leaves fall?"
+  #   mouth_motion the face whose mouth moved while the sound came in
+  #   ask          the robot says it does not know. Last, or it interrupts.
+  speaker:
+    resolvers: [tapped, single_face, recent, spoken_name, ask]
+
+    visible_seconds: 6.0      # a face counts as present this long after being seen
+    recent_seconds: 90.0      # how long one speaker keeps the turn
+
+    # 1.0 would demand the spelling in the register. Whisper returns Akshaya,
+    # Akash and action for one child, so it does not.
+    name_match: 0.75
+    no_cue_extra: 0.1         # asked for when no "I am" comes before the name
+    name_window_words: 6      # a name said later than this is part of the question
+    name_cues: ["i am", "i'm", "my name is", "this is", "here is", "मेरा नाम", "मैं"]
+    question_lead_ins: ["my question is", "i want to ask", "i wanted to ask",
+                        "i have a question", "and", "so"]
+    strip_name: true          # the tutor hears the question, not the introduction
+
   audio:
     # A list, like sources. Per-desk microphones become entries here.
     inputs:
