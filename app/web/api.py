@@ -17,6 +17,8 @@ from lomas_core.contracts import (
 )
 from lomas_core.errors import LomasError
 
+from app.author import clean_topic
+
 from app.flow.states import SessionState
 
 OK = {"ok": True}
@@ -98,16 +100,21 @@ def router(system) -> APIRouter:
         if machine.state is SessionState.HALTED:
             raise LomasError("the robot is halted; clear it before starting a class")
 
+        # What a child said, reduced to its subject: "today we want to learn
+        # about machine learning, so let us go ahead" is a lesson on machine
+        # learning, and used to be sent to the writer whole.
+        wanted = clean_topic(body.topic, system.cfg.content.author) if body.topic else ""
+
         thread = threading.Thread(
             target=system.orchestrator.run,
-            kwargs={"topic": body.topic, "language": body.language},
+            kwargs={"topic": wanted, "language": body.language},
             name="class",
             daemon=True,
         )
         running.clear()
         running.append(thread)
         thread.start()
-        return {"started": body.topic or system.cfg.content.default_topic}
+        return {"started": wanted or system.cfg.content.default_topic}
 
     @api.post("/session/stop")
     def stop() -> dict:

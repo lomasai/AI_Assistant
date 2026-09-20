@@ -393,3 +393,21 @@ def test_the_stream_is_served_even_with_no_camera(client) -> None:
     with client.stream("GET", "/camera.mjpeg") as response:
         assert response.status_code == 200
         assert "multipart/x-mixed-replace" in response.headers["content-type"]
+
+
+def test_a_child_can_be_taken_out_of_the_class(client, system) -> None:
+    """The demo names a --seed run left behind, and the ones enrolled by
+    mistake. Their face vectors go with them."""
+    scope = system.orchestrator.scope
+    student_id = system.repos["student"].create(scope, "Wrongly Enrolled", "99")
+
+    removed = client.delete(f"/api/students/{student_id}")
+
+    assert removed.status_code == 200
+    assert removed.json()["removed"] == "Wrongly Enrolled"
+    assert system.repos["student"].get(scope, student_id) is None
+    assert system.repos["embedding"].for_student(scope, student_id) == []
+
+
+def test_removing_somebody_who_is_not_there_says_so(client) -> None:
+    assert client.delete("/api/students/nobody").status_code >= 400

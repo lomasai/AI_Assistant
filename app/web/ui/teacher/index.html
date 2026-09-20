@@ -47,23 +47,21 @@
 
     <div class="side">
       <h2>Who is speaking</h2>
-      <p class="hint">Tap a name before a child answers. Voice alone will not
-        tell the robot who spoke in a room this size.</p>
+      <p class="hint">The robot works this out: the face in view, the name a
+        child says, or whoever spoke last. Tap a name only to correct it.</p>
       <ul id="roster"></ul>
-
-      <form id="answer">
-        <input name="response" placeholder="what they said" autocomplete="off" required>
-        <button>Record answer</button>
-      </form>
-
-      <button id="listenAnswer" class="mic">Listen for their answer</button>
+      <p id="who" class="hint"></p>
     </div>
   </div>
 
-  <form id="ask">
-    <input name="text" placeholder="ask Lomas something on behalf of the class" autocomplete="off" required>
-    <button>Ask</button>
-    <button type="button" id="listenAsk" class="mic">Listen</button>
+  <!-- One box and one button. Which of the two it is - an answer to the
+       question on the board, or a question for Lomas - is decided by what
+       the class is doing, not by the teacher picking the right button. -->
+  <form id="say">
+    <input name="text" id="saidText" placeholder="type what a child said, or ask on behalf of the class"
+           autocomplete="off" required>
+    <button id="send">Send</button>
+    <button type="button" id="listen" class="mic">Listen</button>
   </form>
 </section>
 

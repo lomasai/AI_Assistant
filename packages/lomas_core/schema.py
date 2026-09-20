@@ -816,7 +816,35 @@ class AuthorConfig(BaseModel):
     prompt: str = "lesson_author"
     segments: int = Field(default=6, ge=1)
     questions: int = Field(default=6, ge=0)
-    max_tokens: int = Field(default=2000, ge=0)  # 0 inherits llm.max_tokens
+    # A whole lesson plus its questions. Too small and the JSON arrives cut
+    # in half, which is what "broken JSON" in front of a class means.
+    max_tokens: int = Field(default=4000, ge=0)  # 0 inherits llm.max_tokens
+    # Ask the endpoint itself for JSON where it supports it. Ignored by those
+    # that do not.
+    json_mode: bool = True
+
+    # What a child says is a sentence, not a topic: "my name is Akshay, so
+    # today we want to learn about machine learning" is a lesson on machine
+    # learning. These are taken off the front and the back.
+    topic_lead_ins: list[str] = Field(
+        default_factory=lambda: [
+            "today we want to learn about", "today we want to learn",
+            "we want to learn about", "i want to learn about", "can we learn about",
+            "can you teach me about", "teach me about", "tell me about",
+            "let us learn about", "lets learn about", "let's learn about",
+            "i would like to learn about", "we will learn about", "learn about",
+            "the topic is", "topic is", "about",
+        ]
+    )
+    topic_tail_offs: list[str] = Field(
+        default_factory=lambda: [
+            "so let us go ahead and see", "so lets go ahead and see",
+            "so let's go ahead and see", "let us go ahead and see",
+            "lets go ahead and see", "let's go ahead and see",
+            "and see", "please", "thank you", "ok", "okay", "so", "then", "now",
+        ]
+    )
+    topic_max_words: int = Field(default=8, ge=1)
 
     # Written lessons are kept here, not in content/: those are reviewed and
     # these are not. The same topic tomorrow then costs nothing, and works

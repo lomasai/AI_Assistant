@@ -15,7 +15,10 @@ from lomas_core.contracts import (
 )
 from lomas_core.errors import LomasError
 
+from app.author import clean_topic
+
 from app.flow.steps.quiz import LISTENING
+from app.pipeline import vectors_by_student
 
 OK = {"ok": True}
 SPEAKER = "speaker"
@@ -204,7 +207,8 @@ def router(system) -> APIRouter:
             # Inside the hold: released first, the quiz could time the
             # question out in the moment before its answer arrived.
             if body.as_topic:
-                return heard
+                said = heard.get("text", "")
+                return {**heard, "text": clean_topic(said, system.cfg.content.author) or said}
             if as_answer and student_id and heard.get("text"):
                 bus.publish(
                     QUIZ_ANSWERED,
@@ -221,6 +225,31 @@ def router(system) -> APIRouter:
             if ctx is not None:
                 ctx.notes[LISTENING] = False
         return heard
+
+    # --- the roster -------------------------------------------------------
+
+    @api.delete("/students/{student_id}")
+    def remove(student_id: str) -> dict:
+        """Take a child out of the class.
+
+        For the ones enrolled by mistake, and for the demo names a --seed run
+        left behind in a robot that is now being used for real. Their face
+        vectors go with them; a name removed from the register must not leave
+        the robot still able to recognise them.
+        """
+        here = scope()
+        student = system.repos["student"].get(here, student_id)
+        if student is None:
+            raise LomasError("no such student in this class")
+
+        # The face data goes first and by the same route as a parent asking
+        # for it to be deleted, then the name.
+        service().forget(here, student_id)
+        system.repos["student"].delete(here, student_id)
+        if system.vision is not None:
+            system.vision.load(vectors_by_student(
+                system.repos["embedding"].all_for_class(here)))
+        return {"removed": student["name"]}
 
     # --- the report -------------------------------------------------------
 

@@ -82,9 +82,18 @@ def test_a_reply_with_no_json_says_so() -> None:
         as_json("I am afraid I cannot do that")
 
 
-def test_broken_json_says_so() -> None:
-    with pytest.raises(LomasError, match="broken JSON"):
-        as_json('{"title": "x",}')
+def test_a_reply_that_ran_out_of_tokens_is_mended() -> None:
+    """What the Pi got: a lesson cut off mid-sentence at the token limit. Five
+    whole segments in front of a class beat an exception."""
+    cut = '{"title": "Machine learning", "segments": [{"say": "One."}, {"say": "Tw'
+
+    assert as_json(cut) == {"title": "Machine learning", "segments": [{"say": "One."}]}
+    assert as_json('{"title": "x",}') == {"title": "x"}
+
+
+def test_a_reply_with_nothing_usable_says_so() -> None:
+    with pytest.raises(LomasError, match="could not be read"):
+        as_json('{"title": ')
 
 
 def test_a_topic_becomes_a_lesson_id() -> None:
@@ -208,3 +217,44 @@ def test_seeding_is_still_there_when_it_is_asked_for(system) -> None:
     names = [row["name"] for row in system.repos["student"].list_for_class(
         system.orchestrator.scope)]
     assert "Ananya Sharma" in names
+
+
+# --- what a child actually says -------------------------------------------
+
+
+def topic_of(said: str, system) -> str:
+    from app.author import clean_topic
+
+    return clean_topic(said, system.cfg.content.author)
+
+
+def test_a_sentence_becomes_a_topic(system) -> None:
+    """Straight off the Pi: the whole sentence went to the writer as the
+    topic, and what came back was unreadable."""
+    said = ("My name is Akshay So today we want to learn about machine learning "
+            "So, let's go ahead and see")
+
+    assert topic_of(said, system) == "machine learning"
+
+
+def test_a_topic_that_is_already_a_topic_is_left_alone(system) -> None:
+    assert topic_of("solar system", system) == "solar system"
+    assert topic_of("the water cycle", system) == "the water cycle"
+
+
+def test_the_phrasings_are_config(system) -> None:
+    system.cfg.content.author.topic_lead_ins = ["padhna hai"]
+    assert topic_of("mujhe padhna hai gravity", system) == "gravity"
+
+
+def test_a_lesson_that_cannot_be_written_does_not_end_the_class(system, caplog) -> None:
+    """A model returning nonsense in front of a class is a lesson on
+    something else, not a traceback and an empty room."""
+    author = answering(system, WRITTEN)
+    author.llm.complete = lambda *a, **k: Completion(text="I cannot do that", provider="stub")
+
+    with caplog.at_level("ERROR"):
+        ctx = system.orchestrator.open_session(topic="machine learning")
+
+    assert ctx.lesson.id == system.cfg.content.default_topic
+    assert any("could not write a lesson" in r.getMessage() for r in caplog.records)

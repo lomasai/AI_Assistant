@@ -15,21 +15,105 @@ FENCE = re.compile(r"^```[a-z]*\s*|\s*```$", re.MULTILINE)
 SEGMENT = "s"
 QUESTION = "q"
 
+# JSON's own punctuation, named so the mender reads as what it is.
+OPENS = "{["
+SHUTS = "}]"
+ENDS_A_VALUE = '}]"'
+QUOTE = '"'
+BACKSLASH = "\\"
+
 
 def as_json(text: str) -> dict:
     """What the model returned, as a dict.
 
     Models fence their JSON and sometimes say "here you go" first, so the
-    outermost braces are taken rather than the whole reply.
+    outermost braces are taken rather than the whole reply. A reply that ran
+    out of tokens mid-sentence is mended rather than thrown away: five
+    segments of a lesson in front of a class beat an exception.
     """
     body = FENCE.sub("", text).strip()
-    start, end = body.find("{"), body.rfind("}")
-    if start < 0 or end <= start:
+    start = body.find("{")
+    if start < 0:
         raise LomasError("the lesson writer did not return JSON")
-    try:
-        return json.loads(body[start : end + 1])
-    except json.JSONDecodeError as exc:
-        raise LomasError(f"the lesson writer returned broken JSON: {exc}") from exc
+
+    body = body[start:]
+    end = body.rfind("}")
+    if end > 0:
+        try:
+            return json.loads(body[: end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    mended = mend(body)
+    if mended is not None:
+        return mended
+    raise LomasError("the lesson writer returned JSON that could not be read")
+
+
+def mend(body: str) -> dict | None:
+    """A truncated reply, closed off at the last thing that was whole.
+
+    Walks back to each complete item and tries to shut the brackets that are
+    still open. Returns None when there is nothing usable in it at all.
+    """
+    for cut in range(len(body), 0, -1):
+        if body[cut - 1] not in ENDS_A_VALUE and not body[cut - 1].isdigit():
+            continue
+        candidate = body[:cut].rstrip().rstrip(",")
+        try:
+            return json.loads(candidate + closers(candidate))
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def closers(body: str) -> str:
+    """The brackets left open, in the order they have to be shut."""
+    open_now: list[str] = []
+    quoted = False
+    escaped = False
+    for char in body:
+        if escaped:
+            escaped = False
+            continue
+        if char == BACKSLASH:
+            escaped = True
+        elif char == QUOTE:
+            quoted = not quoted
+        elif quoted:
+            continue
+        elif char in OPENS:
+            open_now.append(char)
+        elif char in SHUTS and open_now:
+            open_now.pop()
+    return "".join(SHUTS[OPENS.index(char)] for char in reversed(open_now))
+
+
+def clean_topic(said: str, cfg) -> str:
+    """The subject, out of a sentence a child said.
+
+    "My name is Akshay, so today we want to learn about machine learning, so
+    let us go ahead and see" is a lesson on machine learning, and was sent to
+    the writer whole.
+    """
+    topic = " ".join(said.split()).strip(" .,!?").lower()
+    for lead in sorted(cfg.topic_lead_ins, key=len, reverse=True):
+        at = topic.find(lead + " ")
+        if at >= 0:
+            topic = topic[at + len(lead) + 1 :]
+            break
+    # Repeatedly: "machine learning so, let us go ahead and see" sheds the
+    # invitation and then the "so" that was holding it on.
+    trimming = True
+    while trimming:
+        trimming = False
+        for tail in sorted(cfg.topic_tail_offs, key=len, reverse=True):
+            if topic.endswith(" " + tail) or topic == tail:
+                topic = topic[: -len(tail)].rstrip(" ,.")
+                trimming = True
+                break
+    words = topic.strip(" .,!?").split()
+    return " ".join(words[: cfg.topic_max_words])
 
 
 class LessonWriter:
@@ -77,8 +161,10 @@ class LessonWriter:
             segments=self.settings.segments,
             questions=self.settings.questions,
         )
-        written = self.llm.complete(messages, language=language,
-                                    max_tokens=self.settings.max_tokens or None)
+        options = {"max_tokens": self.settings.max_tokens or None}
+        if self.settings.json_mode:
+            options["response_format"] = {"type": "json_object"}
+        written = self.llm.complete(messages, language=language, **options)
         if not written:
             raise LomasError(f"nothing came back for '{topic}'")
 

@@ -83,6 +83,10 @@ class Orchestrator:
 
         pack = self.content.load(language)
         lesson = self._lesson_for(pack, topic, language)
+        # What was actually taught, which is not always what was asked for:
+        # "machine learning" spoken into a noisy room may end up as the
+        # lesson this robot already had, and the report must say which.
+        topic = lesson.id
 
         session_id = self.repos["session"].open(scope, language, topic, teacher)
         roster = self.repos["student"].list_for_class(scope)
@@ -133,7 +137,14 @@ class Orchestrator:
             if self.author is None or not self.author.enabled:
                 raise
 
-        lesson, quiz = self.author.cached(topic, language) or self.author.write(topic, language)
+        try:
+            lesson, quiz = self.author.cached(topic, language) or self.author.write(topic, language)
+        except LomasError as exc:
+            # A model that returns something unreadable must not be the end of
+            # the class. The children are already sitting down.
+            self.log.error("could not write a lesson on '%s': %s", topic, exc)
+            return pack.lesson_for(self.cfg.content.default_topic)
+
         # In the library as well as this pack: the next load is a fresh read
         # of the folder, and the assembler does one mid-lesson.
         self.content.remember(lesson, quiz, language)

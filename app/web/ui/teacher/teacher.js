@@ -106,31 +106,15 @@
   $('nudging').querySelector('input').onchange = (event) =>
     post('/nudging', { enabled: event.target.checked });
 
-  $('ask').onsubmit = (event) => {
-    event.preventDefault();
-    const field = event.target.text;
-    post('/ask', {
-      text: field.value,
-      student_id: speaker ? speaker.id : '',
-      student_name: speaker ? speaker.name : '',
-    });
-    field.value = '';
-  };
-
-  $('answer').onsubmit = (event) => {
-    event.preventDefault();
-    const field = event.target.response;
-    post('/answer', { response: field.value }).then((body) => {
-      if (body.error) $('step').textContent = body.error;
-    });
-    field.value = '';
-  };
-
   // --- hearing a child -----------------------------------------------------
   // Press to talk. A tapped name still wins, but the robot works the speaker
   // out for itself when nobody has tapped - from the camera, from who spoke a
   // moment ago, or from "I am Akshay" at the front of the question. It says
   // which, so a wrong guess can be corrected by tapping.
+
+  // What the class is waiting for. A quiz question on the board makes the
+  // box an answer box; the rest of the time it asks Lomas something.
+  let answering = false;
 
   const said = {
     tapped: 'you tapped the name',
@@ -142,7 +126,7 @@
     caller: '',
   };
 
-  const hear = async (button, asAnswer) => {
+  const hear = async (button) => {
 
     button.classList.add('hearing');
     button.disabled = true;
@@ -151,14 +135,14 @@
     try {
       const heard = await post('/listen', {
         student_id: speaker ? speaker.id : '', student_name: speaker ? speaker.name : '',
-        as_answer: asAnswer,
+        as_answer: answering,
       });
       if (heard.error) $('step').textContent = heard.error;
       else if (!heard.text) $('step').textContent = heard.reason || 'nothing was said';
       else {
-        $(asAnswer ? 'answer' : 'ask').querySelector('input').value = heard.text;
+        $('saidText').value = heard.text;
         const why = said[heard.how] === undefined ? heard.how : said[heard.how];
-        $('step').textContent = heard.student_name
+        $('who').textContent = heard.student_name
           ? `${heard.student_name} spoke — ${why}`
           : why || 'heard';
       }
@@ -169,8 +153,23 @@
     }
   };
 
-  $('listenAsk').onclick = (event) => hear(event.target, false);
-  $('listenAnswer').onclick = (event) => hear(event.target, true);
+  $('listen').onclick = (event) => hear(event.target);
+
+  $('say').onsubmit = async (event) => {
+    event.preventDefault();
+    const field = $('saidText');
+    const text = field.value.trim();
+    if (!text) return;
+    field.value = '';
+    const body = answering
+      ? await post('/answer', { response: text })
+      : await post('/ask', {
+        text,
+        student_id: speaker ? speaker.id : '',
+        student_name: speaker ? speaker.name : '',
+      });
+    if (body.error) $('step').textContent = body.error;
+  };
 
   // --- the roster, and who is speaking -------------------------------------
 
@@ -185,6 +184,17 @@
       const name = document.createElement('span');
       name.textContent = student.name;
       row.append(dot, name);
+      const drop = document.createElement('button');
+      drop.className = 'drop';
+      drop.textContent = '×';
+      drop.title = `remove ${student.name} from this class`;
+      drop.onclick = (event) => {
+        event.stopPropagation();
+        if (teaching || !confirm(`Remove ${student.name} from the class?`)) return;
+        fetch(`/api/students/${student.id}`, { method: 'DELETE' })
+          .then(() => { chips.clear(); refresh(); });
+      };
+      row.append(drop);
       row.onclick = () => choose(student, row);
       chips.set(student.id, row);
       return row;
@@ -392,13 +402,24 @@
 
       // No microphone is not a broken button, it is an absent one.
       const deaf = !body.microphone || body.microphone === 'none';
-      for (const id of ['listenAsk', 'listenAnswer']) {
+      for (const id of ['listen', 'listenTopic']) {
         $(id).disabled = deaf;
         $(id).title = deaf ? 'no microphone on this machine' : 'press and speak';
       }
     });
 
+  const asking = (on) => {
+    answering = on;
+    $('send').textContent = on ? 'Record answer' : 'Ask Lomas';
+    $('saidText').placeholder = on
+      ? 'what the child answered'
+      : 'ask Lomas something on behalf of the class';
+  };
+
   const handlers = {
+    'quiz.posed': () => asking(true),
+    'quiz.recorded': () => asking(false),
+    'step.exited': (p) => { if (p.step === 'quiz') asking(false); },
     'step.entered': (p) => { $('step').textContent = 'running — ' + p.step; },
     'step.skipped': (p) => { $('step').textContent = p.step + ' skipped'; },
     'session.opened': () => refresh(),

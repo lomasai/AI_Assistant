@@ -38,13 +38,19 @@ class OpenAiCompatible:
         return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
     def _payload(self, messages: list[Message], stream: bool, **options) -> dict:
-        return {
+        payload = {
             "model": options.get("model") or self.model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "temperature": options.get("temperature", self.cfg.temperature),
             "max_tokens": options.get("max_tokens", self.cfg.max_tokens),
             "stream": stream,
         }
+        # Asked for by the lesson writer, which parses what comes back. The
+        # endpoints that do not know it ignore it; the ones that do stop
+        # wrapping their JSON in an explanation.
+        if options.get("response_format"):
+            payload["response_format"] = options["response_format"]
+        return payload
 
     def complete(self, messages: list[Message], **options) -> Completion:
         import httpx
