@@ -24,6 +24,9 @@ SOUNDDEVICE = "sounddevice"
 
 SAMPLE_WIDTH = 2
 MONO = 1
+# Where "the quiet end" and "the loud end" of a turn are read off.
+QUIET_SHARE = 0.25
+LOUD_SHARE = 0.9
 KILL_GRACE = 0.5
 FULL_SCALE = 32768.0
 
@@ -45,9 +48,12 @@ class Endpoint:
     # where a fixed "definitely a voice" of 0.03 was below the hiss itself,
     # and every chunk counted as speech.
     speech_fraction: float = 0.35
-    # Below this the loudest and the quietest are the same thing, so there is
-    # nothing to tell a pause from a word and the turn runs its full length.
-    min_gap_rms: float = 0.02
+    # There is a pause to find when the loud parts stand this far above the
+    # quiet ones, by either measure. Two, because a hot microphone and a
+    # quiet one disagree about what a big difference is: the Pi measured
+    # 0.08 against 0.20 one evening and 0.033 against 0.044 the next.
+    min_gap_rms: float = 0.01
+    min_gap_ratio: float = 1.25
     min_rms: float = 0.005  # digital silence is never speech
 
 
@@ -85,8 +91,29 @@ def chunk_rms(pcm: bytes) -> float:
 def room_floor(levels: list[float]) -> float:
     """The quiet end of what has been heard so far - the lower quartile, not
     the minimum, so one dead buffer does not make every breath "speech"."""
+    return at_share(levels, QUIET_SHARE)
+
+
+def room_loud(levels: list[float]) -> float:
+    """The loud end. A high share rather than the maximum, so one chair
+    scraping does not become the level a child has to shout over."""
+    return at_share(levels, LOUD_SHARE)
+
+
+def at_share(levels: list[float], share: float) -> float:
     ordered = sorted(levels)
-    return ordered[len(ordered) // 4] if ordered else 0.0
+    if not ordered:
+        return 0.0
+    return ordered[min(len(ordered) - 1, int(len(ordered) * share))]
+
+
+def worth_splitting(floor: float, loud: float, endpoint: Endpoint) -> bool:
+    """Whether there is any difference between the loud and quiet parts to
+    find a pause in. Without one the turn records to the end: cutting a child
+    off is worse than recording air."""
+    return (loud - floor) >= endpoint.min_gap_rms or (
+        floor > 0 and loud / floor >= endpoint.min_gap_ratio
+    )
 
 
 def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint) -> Turn:
@@ -118,16 +145,15 @@ def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint)
         levels.append(level)
         turn.loudest_rms = max(turn.loudest_rms, level)
 
-        floor = room_floor(levels)
-        gap = turn.loudest_rms - floor
-        speaking = floor + gap * endpoint.speech_fraction
+        floor, loud = room_floor(levels), room_loud(levels)
+        speaking = floor + (loud - floor) * endpoint.speech_fraction
         # Three questions in order: is there anything at all, is there enough
         # difference between the loud and quiet parts to find a pause in, and
         # is this chunk one of the loud ones. Uniform sound counts as speech
         # rather than silence: cutting a child off is worse than recording air.
         if level < endpoint.min_rms:
             quiet += len(block)
-        elif gap < endpoint.min_gap_rms or level >= speaking:
+        elif not worth_splitting(floor, loud, endpoint) or level >= speaking:
             heard, quiet = True, 0
             spoke += len(block)
         else:

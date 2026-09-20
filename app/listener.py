@@ -156,6 +156,7 @@ class Listener:
                 chunk_ms=audio.chunk_ms,
                 speech_fraction=audio.speech_fraction,
                 min_gap_rms=audio.min_gap_rms,
+                min_gap_ratio=audio.min_gap_ratio,
                 min_rms=audio.min_rms,
             ))
         finally:

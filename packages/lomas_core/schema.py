@@ -399,9 +399,13 @@ class AudioConfig(BaseModel):
     # share rather than a level, because the Pi's room measured 0.08 where a
     # fixed 0.03 sat below the hiss and every chunk read as speech.
     speech_fraction: float = Field(default=0.35, gt=0.0, lt=1.0)
-    # Below this, loud and quiet are indistinguishable and the turn runs its
-    # full length rather than risk cutting a child off.
-    min_gap_rms: float = Field(default=0.02, ge=0.0, le=1.0)
+    # A pause can be found when the loud parts stand this far above the quiet
+    # ones, by either measure. Two, because a hot microphone and a quiet one
+    # disagree about what a big difference is: the Pi measured 0.08 against
+    # 0.20 one evening and 0.033 against 0.044 the next. Below both, the turn
+    # records to the end rather than risk cutting a child off.
+    min_gap_rms: float = Field(default=0.01, ge=0.0, le=1.0)
+    min_gap_ratio: float = Field(default=1.25, ge=1.0)
     min_rms: float = Field(default=0.005, ge=0.0, le=1.0)
 
     # Recording while the robot talks hears the robot: "Sunlight What is the

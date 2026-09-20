@@ -8,6 +8,11 @@ result rather than asking you whether you heard anything.
 
     python tools/audio_check.py
     python tools/audio_check.py --mode pi --seconds 5
+    python tools/audio_check.py --mode pi --turn    # one press-to-talk turn
+
+--turn is the one to reach for when the robot records the full fifteen
+seconds every time. It shows the room's own noise against your voice, which
+is the whole of that decision, and says what to change.
 """
 from __future__ import annotations
 
@@ -28,7 +33,7 @@ from lomas_core.config import load  # noqa: E402
 from lomas_core.errors import LomasError  # noqa: E402
 from lomas_core.secrets import SECRETS_FILE, load_secrets  # noqa: E402
 from lomas_speech.player import Player  # noqa: E402
-from lomas_speech.recorder import Recorder  # noqa: E402
+from lomas_speech.recorder import Endpoint, Recorder  # noqa: E402
 
 TONE_HZ = 440
 TONE_SECONDS = 1.0
@@ -149,12 +154,64 @@ def loudness(wav: bytes) -> tuple[float, float]:
     return peak, rms
 
 
+def turn(cfg) -> int:
+    """One turn exactly as the robot takes it, with the numbers shown.
+
+    Finding out why a recording never ends early should not cost a whole
+    lesson: this is the same code path, printed.
+    """
+    audio = cfg.speech.audio
+    recorder = Recorder(audio.recorder, audio.device, audio.recorder_command)
+    if not recorder.available:
+        print("  no recorder; see above.")
+        return 1
+
+    print(f"=== speak a sentence, then stop (up to {audio.record_seconds:g}s) ===")
+    recorder.record(audio.record_seconds, audio.sample_rate, endpoint=Endpoint(
+        silence_ms=audio.stop_after_silence_ms,
+        no_speech_seconds=audio.no_speech_seconds,
+        chunk_ms=audio.chunk_ms,
+        speech_fraction=audio.speech_fraction,
+        min_gap_rms=audio.min_gap_rms,
+        min_gap_ratio=audio.min_gap_ratio,
+        min_rms=audio.min_rms,
+    ))
+    heard = recorder.last_turn
+    if heard is None:
+        print("  this recorder records a fixed length; there is nothing to tune.")
+        return 1
+
+    floor, loud = heard.floor_rms, heard.loudest_rms
+    print(f"\n  stopped at    {heard.stopped}   after {heard.seconds:.1f}s")
+    print(f"  the room      {floor:.4f}")
+    print(f"  your voice    {loud:.4f}")
+    print(f"  difference    {loud - floor:.4f}   ({loud / floor:.1f}x)" if floor else "")
+
+    if heard.stopped == "pause":
+        print("\n  GOOD. The robot can hear where your sentence ends.")
+        return 0
+
+    print("\n  It recorded to the end. It needs your voice to stand either")
+    print(f"  {audio.min_gap_rms:g} above the room or {audio.min_gap_ratio:g}x it, and it does not.")
+    print("  Try, in order:")
+    print("    * speak closer to the microphone, about a hand's width")
+    print("    * raise the capture level: alsamixer, F4, arrow up, M to unmute")
+    print("    * move the microphone away from the speaker and any fan")
+    print("    * or accept this room: LOMAS__speech__audio__min_gap_ratio=1.1")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="check the robot's ears and voice")
     parser.add_argument("--mode", default="pi")
     parser.add_argument("--config-dir", default=str(ROOT / "config"))
     parser.add_argument("--seconds", type=float, default=0.0)
     parser.add_argument("--skip-play", action="store_true")
+    parser.add_argument(
+        "--turn",
+        action="store_true",
+        help="take one press-to-talk turn and show why it ended when it did",
+    )
     parser.add_argument(
         "--sweep",
         action="store_true",
@@ -166,6 +223,9 @@ def main() -> int:
     load_secrets(Path(args.config_dir) / SECRETS_FILE)
     cfg = load(args.config_dir, args.mode)
     audio = cfg.speech.audio
+
+    if args.turn:
+        return turn(cfg)
 
     if args.sweep:
         print("=== playing a tone through every playback card in turn ===")

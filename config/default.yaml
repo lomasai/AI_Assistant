@@ -263,7 +263,8 @@ speech:
     no_speech_seconds: 5.0        # nobody started speaking
     chunk_ms: 100
     speech_fraction: 0.35         # speech is this far from the room's noise to the loudest
-    min_gap_rms: 0.02             # no gap between loud and quiet: record the full length
+    min_gap_rms: 0.01             # a pause needs this much difference...
+    min_gap_ratio: 1.25           # ...or this much, whichever the room gives
     min_rms: 0.005
     wait_for_robot_seconds: 30.0
     quiet_poll_seconds: 0.05

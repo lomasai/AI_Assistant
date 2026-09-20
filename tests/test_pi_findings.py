@@ -826,3 +826,28 @@ def test_the_robot_is_not_recorded_while_a_sentence_is_still_queued() -> None:
     finally:
         system.voice.stop()
         system.close()
+
+
+def test_the_same_room_at_two_microphone_levels() -> None:
+    """Both measured on the Pi an hour apart: a hot microphone (0.08 room,
+    0.20 voice) and a quiet one (0.033 room, 0.044 voice). The second has
+    almost no difference to work with, and still has to find the pause."""
+    from lomas_speech.recorder import read_until_quiet
+
+    for room, voice in ((0.08, 0.20), (0.033, 0.044)):
+        talk = pcm([room] * 3 + [voice] * 6 + [room] * 5 + [voice] * 40)
+        got = read_until_quiet(reader(talk), 16000, 15.0, endpoint(min_gap_rms=0.01,
+                                                                  min_gap_ratio=1.25))
+        assert got.stopped == "pause", f"no pause found at {room}/{voice}"
+        assert got.seconds < 1.5
+
+
+def test_one_scraped_chair_does_not_set_the_bar() -> None:
+    """The loud end is read off a high share, not the maximum, so a single
+    bang does not become the level a child has to shout over."""
+    from lomas_speech.recorder import read_until_quiet
+
+    talk = pcm([0.02] * 2 + [0.9] + [0.02] * 2 + [0.09] * 6 + [0.02] * 5 + [0.09] * 30)
+    got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
+
+    assert got.stopped == "pause"
