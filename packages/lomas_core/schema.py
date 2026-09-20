@@ -844,6 +844,12 @@ class AuthorConfig(BaseModel):
             "and see", "please", "thank you", "ok", "okay", "so", "then", "now",
         ]
     )
+    # "my name is Akshay, today we want to learn about machine learning"
+    # arrived as a lesson on "akshay machine learning". The cue and the name
+    # after it come off together.
+    topic_name_cues: list[str] = Field(
+        default_factory=lambda: ["my name is", "i am", "i'm", "this is", "mera naam", "मेरा नाम"]
+    )
     topic_max_words: int = Field(default=8, ge=1)
 
     # Written lessons are kept here, not in content/: those are reviewed and

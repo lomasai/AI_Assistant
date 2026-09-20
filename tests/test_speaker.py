@@ -287,3 +287,20 @@ def test_the_press_is_attributed_without_a_tap(system, roster) -> None:
     assert body["how"] == "spoken_name"
     assert asked[-1].student_name == roster[0]["name"]
     assert asked[-1].text == "why do leaves fall?", "the tutor is asked the question"
+
+
+def test_nobody_is_asked_who_said_the_topic(system) -> None:
+    """The robot answered "Who was that? Say your name" to a child saying
+    what they wanted to learn. A topic has no speaker."""
+    from tests.test_listener import FakeEars, FakeMic
+
+    system.listener = Listener(system.cfg, system.bus, system.clock, FakeMic(),
+                               FakeEars("today we want to learn about machine learning"),
+                               speakers=system.speakers)
+
+    with TestClient(create_app(system)) as client:
+        body = client.post("/api/listen", json={"as_topic": True}).json()
+
+    assert body["text"] == "machine learning", "the subject, not the sentence"
+    assert not [u for _n, u in system.bus.replay(ROBOT_SAY) if u.reason == "ask"]
+    assert not system.bus.replay(QUESTION_ASKED)

@@ -72,6 +72,7 @@ class Listener:
         seconds: float = 0.0,
         language: str = "",
         as_question: bool = True,
+        attribute: bool = True,
     ) -> dict:
         """Record, transcribe, publish. Blocking, because the caller is a web
         request and the teacher is standing there waiting for it."""
@@ -108,8 +109,11 @@ class Listener:
             self.log.info("discarded as noise: %r", spoken)
             return {"text": "", "reason": "nothing was said", "discarded": spoken}
 
+        # A topic has no speaker worth working out, and the robot asking
+        # "who was that?" about the subject of the lesson is nonsense.
         student_id, student_name, spoken, how = self._who(
-            spoken, student_id, student_name, session_id, language)
+            spoken, student_id, student_name, session_id, language) if attribute else (
+            student_id, student_name, spoken, "not asked")
 
         self.heard += 1
         self.log.info("heard: %s%s", spoken, f" [{student_name}]" if student_name else "")

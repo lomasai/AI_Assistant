@@ -200,6 +200,7 @@ def router(system) -> APIRouter:
                 seconds=body.seconds,
                 language=ctx.language if ctx else system.cfg.content.language,
                 as_question=not as_answer and not body.as_topic,
+                attribute=not body.as_topic,
             )
             # Attribution comes back from the listener, which asked the
             # speaker chain: a tap is one opinion in it, not the only one.

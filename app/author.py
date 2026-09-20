@@ -97,6 +97,14 @@ def clean_topic(said: str, cfg) -> str:
     the writer whole.
     """
     topic = " ".join(said.split()).strip(" .,!?").lower()
+
+    # The introduction first: a name is not a subject, and the cue takes the
+    # name after it with it.
+    for cue in sorted(cfg.topic_name_cues, key=len, reverse=True):
+        if topic.startswith(cue + " "):
+            topic = " ".join(topic[len(cue) + 1 :].split()[1:]).lstrip(" ,.")
+            break
+
     for lead in sorted(cfg.topic_lead_ins, key=len, reverse=True):
         at = topic.find(lead + " ")
         if at >= 0:

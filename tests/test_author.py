@@ -258,3 +258,11 @@ def test_a_lesson_that_cannot_be_written_does_not_end_the_class(system, caplog) 
 
     assert ctx.lesson.id == system.cfg.content.default_topic
     assert any("could not write a lesson" in r.getMessage() for r in caplog.records)
+
+
+def test_a_child_who_introduces_themselves_is_not_the_topic(system) -> None:
+    """The Pi wrote a lesson called "akshay machine learning"."""
+    assert topic_of("My name is Akshay, today we want to learn about machine learning",
+                    system) == "machine learning"
+    assert topic_of("I am Akshay and I want to learn about the solar system",
+                    system) == "the solar system"
