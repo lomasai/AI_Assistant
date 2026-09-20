@@ -209,6 +209,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
                             scope_of=lambda: orchestrator.scope)
     if listener is not None:
         listener.speakers = speakers
+        listener.voice = voice
 
     vision = build_vision(cfg, bus, clock, repos)
     report = ReportBuilder(cfg, repos, content)

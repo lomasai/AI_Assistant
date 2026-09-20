@@ -41,6 +41,7 @@ class Listener:
         stt: Any,
         gate: Any = None,
         speakers: Any = None,
+        voice: Any = None,
     ) -> None:
         self.cfg = cfg
         self.bus = bus
@@ -51,6 +52,8 @@ class Listener:
         # Who spoke, worked out rather than tapped. None keeps the old
         # behaviour: whoever the caller named.
         self.speakers = speakers
+        # Only to ask whether it is still talking.
+        self.voice = voice
         self.log = log.get("listen")
         self.heard = 0
 
@@ -151,9 +154,9 @@ class Listener:
                 silence_ms=audio.stop_after_silence_ms,
                 no_speech_seconds=audio.no_speech_seconds,
                 chunk_ms=audio.chunk_ms,
-                speech_ratio=audio.speech_ratio,
+                speech_fraction=audio.speech_fraction,
+                min_gap_rms=audio.min_gap_rms,
                 min_rms=audio.min_rms,
-                voice_rms=audio.voice_rms,
             ))
         finally:
             # How the turn ended and how loud the room was, in the trace. The
@@ -171,12 +174,15 @@ class Listener:
         question into a child's answer. Bounded, because a voice that never
         ends must not leave the teacher's button hanging.
         """
-        if self.gate is None:
-            return
         audio = self.cfg.speech.audio
         deadline = self.clock.now() + audio.wait_for_robot_seconds
-        while self.gate.is_muted() and self.clock.now() < deadline:
+        while self._talking() and self.clock.now() < deadline:
             self.clock.sleep(audio.quiet_poll_seconds)
+
+    def _talking(self) -> bool:
+        if self.voice is not None and self.voice.busy:
+            return True
+        return self.gate is not None and self.gate.is_muted()
 
     def _state(self, session_id: str, state: str, seconds: float, heard: dict | None = None) -> None:
         self.bus.publish(

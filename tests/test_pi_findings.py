@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from lomas_core.clock import FakeClock
+from lomas_core.clock import FakeClock, RealClock
 from lomas_core.config import load
 from lomas_core.contracts import ROBOT_SAY, ROBOT_SPOKE, Utterance
 from lomas_core.errors import LomasError
@@ -535,7 +535,7 @@ def endpoint(**given):
     from lomas_speech.recorder import Endpoint
 
     return Endpoint(**{"silence_ms": 300, "no_speech_seconds": 1.0, "chunk_ms": 100,
-                       "speech_ratio": 3.0, "min_rms": 0.005, "voice_rms": 0.03, **given})
+                       "speech_fraction": 0.35, "min_gap_rms": 0.02, "min_rms": 0.005, **given})
 
 
 def test_recording_stops_at_the_pause_after_speaking() -> None:
@@ -767,4 +767,62 @@ def test_an_answer_is_told_right_or_wrong_before_the_next_question() -> None:
         assert said[-1][0] == "", "the next question comes after the feedback"
         step.exit(ctx)
     finally:
+        system.close()
+
+
+# --- the fifth run: a room louder than the threshold ----------------------
+
+
+def test_the_pi_room_as_it_was_measured() -> None:
+    """The numbers the Pi reported: the room's own noise at 0.08 rms and
+    speech peaking at 0.20. A fixed "this is a voice" of 0.03 sat below the
+    hiss, so every chunk was speech and every turn ran its full 15 s."""
+    from lomas_speech.recorder import read_until_quiet
+
+    room, voice = 0.08, 0.20
+    talk = pcm([room] * 3 + [voice, room, voice, voice] + [room] * 6 + [voice] * 50)
+    got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
+
+    assert got.stopped == "pause"
+    assert got.seconds == 1.0
+    assert 0.07 < got.floor_rms < 0.09
+
+
+def test_a_louder_room_moves_the_line_with_it() -> None:
+    """The same shape, twice as loud. Nothing is tuned to a particular mic."""
+    from lomas_speech.recorder import read_until_quiet
+
+    quiet = pcm([0.02] * 3 + [0.09] * 3 + [0.02] * 5)
+    loud = pcm([0.16] * 3 + [0.40] * 3 + [0.16] * 5)
+
+    assert read_until_quiet(reader(quiet), 16000, 15.0, endpoint()).stopped == "pause"
+    assert read_until_quiet(reader(loud), 16000, 15.0, endpoint()).stopped == "pause"
+
+
+def test_the_robot_is_not_recorded_while_a_sentence_is_still_queued() -> None:
+    """A child's question came back as the lesson segment the robot was about
+    to read: the gate only knew about the sentence being spoken."""
+    from tests.test_listener import FakeEars, FakeMic
+
+    system = build()
+    try:
+        speaker = Slow(seconds=0.3)
+        system.voice.stop()
+        system.voice = Voice(speaker, system.extras["gate"], system.bus, wait_seconds=5.0)
+        # A real clock: the waiting is in real seconds, and a fake one would
+        # skip the whole wait in a single spin.
+        mic = FakeMic()
+        listener = Listener(system.cfg, system.bus, RealClock(), mic, FakeEars(),
+                            gate=system.extras["gate"], voice=system.voice)
+
+        system.bus.publish(ROBOT_SAY, Utterance(text="one", language="en", blocking=False))
+        system.bus.publish(ROBOT_SAY, Utterance(text="two", language="en", blocking=False))
+        assert system.voice.busy
+
+        listener.listen()
+
+        assert not system.voice.busy, "recording started before the robot had finished"
+        assert speaker.spoken == ["one", "two"]
+    finally:
+        system.voice.stop()
         system.close()

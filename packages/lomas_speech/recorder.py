@@ -40,14 +40,15 @@ class Endpoint:
     silence_ms: int
     no_speech_seconds: float
     chunk_ms: int
-    # A chunk is speech when it is this many times louder than the room...
-    speech_ratio: float = 3.0
-    # ...and never quieter than this, so a silent room is not "speech".
-    min_rms: float = 0.005
-    # Always speech, whatever the room. A child who starts talking the moment
-    # the button is pressed and never pauses makes their own voice the room's
-    # "floor", and without this would be cut off as nobody speaking.
-    voice_rms: float = 0.03
+    # Speech sits this far from the room's own noise towards the loudest
+    # thing heard so far. A share, not a level: the Pi's room measured 0.08
+    # where a fixed "definitely a voice" of 0.03 was below the hiss itself,
+    # and every chunk counted as speech.
+    speech_fraction: float = 0.35
+    # Below this the loudest and the quietest are the same thing, so there is
+    # nothing to tell a pause from a word and the turn runs its full length.
+    min_gap_rms: float = 0.02
+    min_rms: float = 0.005  # digital silence is never speech
 
 
 @dataclass(slots=True)
@@ -117,8 +118,16 @@ def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint)
         levels.append(level)
         turn.loudest_rms = max(turn.loudest_rms, level)
 
-        relative = max(endpoint.min_rms, room_floor(levels) * endpoint.speech_ratio)
-        if level >= min(relative, endpoint.voice_rms):
+        floor = room_floor(levels)
+        gap = turn.loudest_rms - floor
+        speaking = floor + gap * endpoint.speech_fraction
+        # Three questions in order: is there anything at all, is there enough
+        # difference between the loud and quiet parts to find a pause in, and
+        # is this chunk one of the loud ones. Uniform sound counts as speech
+        # rather than silence: cutting a child off is worse than recording air.
+        if level < endpoint.min_rms:
+            quiet += len(block)
+        elif gap < endpoint.min_gap_rms or level >= speaking:
             heard, quiet = True, 0
             spoke += len(block)
         else:

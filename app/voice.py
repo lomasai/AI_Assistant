@@ -45,6 +45,7 @@ class Voice:
 
         self._mute_reported = False
         self._stopping = False
+        self._speaking = False
         self._queue: queue.Queue = queue.Queue()
         self._worker = threading.Thread(target=self._speak_loop, name="voice", daemon=True)
         self._worker.start()
@@ -54,6 +55,13 @@ class Voice:
         # Mid-sentence, not at the end of it. A teacher who has to wait out a
         # paragraph before the room goes quiet stops using the pause button.
         bus.subscribe(SESSION_PAUSED, self._on_pause)
+
+    @property
+    def busy(self) -> bool:
+        """Speaking, or about to. A microphone opened while a sentence is
+        still queued records the robot saying it: on the Pi a child's question
+        came back as the lesson segment the robot was about to read."""
+        return self._speaking or not self._queue.empty()
 
     def _on_say(self, _event: str, utterance: Utterance) -> None:
         # Asked before a sound is made. A filter that subscribes to an event
@@ -79,6 +87,7 @@ class Voice:
                 done.set()
 
     def _speak(self, utterance: Utterance) -> None:
+        self._speaking = True
         self.gate.on_speech_start()
         try:
             handle = self.tts.speak(utterance.text, utterance.language)
@@ -94,6 +103,7 @@ class Voice:
                 self._mute_reported = True
                 self.log.error("no voice, teaching silently: %s", exc)
         finally:
+            self._speaking = False
             self.gate.on_speech_end()
 
         who = f" [{utterance.student_name}]" if utterance.student_name else ""

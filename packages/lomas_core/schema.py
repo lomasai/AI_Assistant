@@ -394,13 +394,15 @@ class AudioConfig(BaseModel):
     # Give up when nobody has started speaking by then.
     no_speech_seconds: float = Field(default=5.0, gt=0)
     chunk_ms: int = Field(default=100, ge=10)
-    # Speech is a chunk this many times louder than the room's own noise,
-    # and never below min_rms. Measured per recording, because a USB mic's
-    # hiss sat above the old fixed threshold and nothing ever ended early.
-    speech_ratio: float = Field(default=3.0, gt=1.0)
+    # How far above the room's own noise a chunk has to be to count as
+    # speech, as a share of the way up to the loudest thing in the turn. A
+    # share rather than a level, because the Pi's room measured 0.08 where a
+    # fixed 0.03 sat below the hiss and every chunk read as speech.
+    speech_fraction: float = Field(default=0.35, gt=0.0, lt=1.0)
+    # Below this, loud and quiet are indistinguishable and the turn runs its
+    # full length rather than risk cutting a child off.
+    min_gap_rms: float = Field(default=0.02, ge=0.0, le=1.0)
     min_rms: float = Field(default=0.005, ge=0.0, le=1.0)
-    # Loud enough to be a voice in any room; see Endpoint.voice_rms.
-    voice_rms: float = Field(default=0.03, ge=0.0, le=1.0)
 
     # Recording while the robot talks hears the robot: "Sunlight What is the
     # green colour inside a leaf called?" was a child's answer with the next
