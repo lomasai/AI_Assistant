@@ -46,6 +46,7 @@ from app.agents.safety import Safety
 from app.body import Body
 from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
+from app.author import LessonWriter
 from app.listener import Listener
 from app.speaker import Room, SpeakerChain
 from app.observability.metrics import Metrics
@@ -200,6 +201,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     orchestrator = Orchestrator(
         cfg=cfg, bus=bus, clock=clock, machine=machine, repos=repos,
         prompts=prompts, llm=llm, content=content,
+        author=LessonWriter(cfg.content, prompts, llm) if cfg.content.author.enabled else None,
     )
 
     # After the orchestrator, because a resolver asks it which class is in

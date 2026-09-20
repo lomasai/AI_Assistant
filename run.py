@@ -86,6 +86,9 @@ def main(argv: list[str] | None = None) -> int:
 
     system = container.build(cfg)
     try:
+        # The class always exists; the children in it do not come from here
+        # unless asked for. A robot in a school is enrolled into, not seeded.
+        seed.real_class(system)
         if args.seed:
             seed.demo_class(system)
 

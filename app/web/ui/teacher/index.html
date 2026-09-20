@@ -20,6 +20,11 @@
 
   <div class="controls">
     <select id="topic" aria-label="lesson"></select>
+    <!-- Anything typed here wins. The reviewed packs are in the list; a
+         child asking for the solar system is not, and should still get a
+         lesson. -->
+    <input id="anyTopic" placeholder="…or any topic a child asks for" aria-label="any topic">
+    <button id="listenTopic" class="mic" title="hear the topic">Listen</button>
     <button id="start" class="big">Start class</button>
     <button id="pause">Pause</button>
     <button id="skip">Skip section</button>

@@ -58,14 +58,37 @@
     $('start').textContent = on ? 'End class' : 'Start class';
     $('start').classList.toggle('teaching', on);
     $('topic').disabled = on;
+    $('anyTopic').disabled = on;
+    $('listenTopic').disabled = on;
   };
 
   $('start').onclick = async () => {
+    // Typed wins over chosen: the list is what has been written, the box is
+    // what a child just asked for.
+    const asked = $('anyTopic').value.trim();
+    if (!teaching && asked) $('step').textContent = `writing a lesson on ${asked}…`;
     const body = teaching
       ? await post('/session/stop')
-      : await post('/session/start', { topic: $('topic').value });
+      : await post('/session/start', { topic: asked || $('topic').value });
     if (body.error) { $('step').textContent = body.error; return; }
     showTeaching(!teaching);
+  };
+
+  // The topic, spoken. Nothing is attributed and nothing is asked of the
+  // tutor: these words are the subject of the lesson, not a question.
+  $('listenTopic').onclick = async (event) => {
+    const button = event.target;
+    button.disabled = true;
+    const was = button.textContent;
+    button.textContent = 'Listening…';
+    try {
+      const heard = await post('/listen', { as_topic: true });
+      if (heard.text) $('anyTopic').value = heard.text;
+      else $('step').textContent = heard.error || heard.reason || 'nothing was said';
+    } finally {
+      button.disabled = false;
+      button.textContent = was;
+    }
   };
 
   // --- live control --------------------------------------------------------

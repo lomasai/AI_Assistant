@@ -802,6 +802,32 @@ class ContextConfig(BaseModel):
     recent_answers: int = Field(default=5, ge=0)
 
 
+class AuthorConfig(BaseModel):
+    """Writing a lesson for a topic nobody wrote a pack for.
+
+    The packs stay the first choice: they are the reviewed material. This is
+    what makes the robot answer "can we learn about the solar system" with a
+    lesson instead of a list of what it happens to have.
+    """
+
+    model_config = Strict
+
+    enabled: bool = True
+    prompt: str = "lesson_author"
+    segments: int = Field(default=6, ge=1)
+    questions: int = Field(default=6, ge=0)
+    max_tokens: int = Field(default=2000, ge=0)  # 0 inherits llm.max_tokens
+
+    # Written lessons are kept here, not in content/: those are reviewed and
+    # these are not. The same topic tomorrow then costs nothing, and works
+    # with the internet down.
+    cache_dir: str = "data/lessons"
+
+    # How long the class waits while one is written before giving up and
+    # teaching the lesson it already had.
+    timeout_seconds: float = Field(default=45.0, gt=0)
+
+
 class ContentConfig(BaseModel):
     model_config = Strict
 
@@ -811,6 +837,7 @@ class ContentConfig(BaseModel):
     vocabulary_level: Literal["primary", "middle", "secondary"] = "middle"
     pack_path: str = "content"
     default_topic: str = "photosynthesis"
+    author: AuthorConfig = Field(default_factory=AuthorConfig)
 
 
 def _default_sources() -> list[SourceConfig]:

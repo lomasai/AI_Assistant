@@ -259,7 +259,9 @@ def test_a_different_lesson_is_a_config_change():
 
 
 def test_an_unknown_lesson_lists_what_exists():
-    system = build("content.default_topic=quantum-mechanics")
+    """With the lesson writer off, a school teaches its reviewed packs and
+    says so when asked for anything else."""
+    system = build("content.default_topic=quantum-mechanics", "content.author.enabled=false")
     try:
         with pytest.raises(Exception, match="photosynthesis"):
             system.orchestrator.open_session()

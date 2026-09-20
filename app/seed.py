@@ -14,14 +14,16 @@ DEMO_STUDENTS = [
 ]
 
 
-def demo_class(system) -> None:
-    """Creates the org, school, class and a handful of students if they are
-    not there yet, so a fresh checkout has something to teach.
+def real_class(system) -> None:
+    """The org, school and class this robot belongs to, and nobody in it.
+
+    Always run, seeded or not: a robot switched on in a school has a class
+    from the first boot, and the children in it arrive by being enrolled at
+    the robot rather than by being invented here.
 
     Idempotent - running it twice changes nothing.
     """
     cfg = system.cfg
-    logger = log.get("seed")
     scope = TenantScope(
         org_id=cfg.active_org_id,
         school_id=cfg.tenancy.school_id,
@@ -36,6 +38,23 @@ def demo_class(system) -> None:
 
     if repos["class"].get(scope, scope.class_id) is None:
         repos["class"].create(scope, cfg.content.grade, "B", cfg.content.subject)
+
+
+def demo_class(system) -> None:
+    """The class above, plus five invented children.
+
+    --seed only. Every name it writes turns up in a report, so a pilot school
+    must never get them by accident.
+    """
+    cfg = system.cfg
+    logger = log.get("seed")
+    scope = TenantScope(
+        org_id=cfg.active_org_id,
+        school_id=cfg.tenancy.school_id,
+        class_id=cfg.tenancy.class_id,
+    )
+    real_class(system)
+    repos = system.repos
 
     existing = {s["roll_no"] for s in repos["student"].list_for_class(scope)}
     added = 0

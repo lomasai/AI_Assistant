@@ -50,6 +50,9 @@ class Listen(BaseModel):
     student_id: str = ""
     student_name: str = ""
     as_answer: bool = False
+    # The subject of the next lesson, not a question and not an answer: it
+    # reaches nobody but the teacher's screen.
+    as_topic: bool = False
 
 
 class Answer(BaseModel):
@@ -181,7 +184,7 @@ def router(system) -> APIRouter:
         # either button. Taken now: listening waits for the robot, and the
         # quiz may have moved on by the time the child has finished.
         posed = _posed(ctx)
-        as_answer = body.as_answer or bool(posed)
+        as_answer = body.as_answer or (bool(posed) and not body.as_topic)
 
         # The quiz holds its next question while a child is being heard.
         if ctx is not None:
@@ -193,13 +196,15 @@ def router(system) -> APIRouter:
                 student_name=student_name,
                 seconds=body.seconds,
                 language=ctx.language if ctx else system.cfg.content.language,
-                as_question=not as_answer,
+                as_question=not as_answer and not body.as_topic,
             )
             # Attribution comes back from the listener, which asked the
             # speaker chain: a tap is one opinion in it, not the only one.
             student_id = heard.get("student_id") or student_id
             # Inside the hold: released first, the quiz could time the
             # question out in the moment before its answer arrived.
+            if body.as_topic:
+                return heard
             if as_answer and student_id and heard.get("text"):
                 bus.publish(
                     QUIZ_ANSWERED,

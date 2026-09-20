@@ -15,6 +15,7 @@ from lomas_core.contracts import (
     SessionClosed,
     SessionOpened,
 )
+from lomas_core.errors import LomasError
 from lomas_core.events import EventBus, to_plain
 from lomas_core.schema import Config
 from lomas_llm import PromptLibrary
@@ -48,6 +49,7 @@ class Orchestrator:
         prompts: PromptLibrary,
         llm: Any,
         content: ContentLibrary,
+        author: Any = None,
     ) -> None:
         self.cfg = cfg
         self.bus = bus
@@ -57,6 +59,9 @@ class Orchestrator:
         self.prompts = prompts
         self.llm = llm
         self.content = content
+        # Writes a lesson for a topic no pack covers. None is a robot that
+        # teaches only what has been reviewed, which is a school's choice.
+        self.author = author
         self.log = log.get("session")
         self.ctx: SessionContext | None = None
 
@@ -77,7 +82,7 @@ class Orchestrator:
         topic = topic or self.cfg.content.default_topic
 
         pack = self.content.load(language)
-        lesson = pack.lesson_for(topic)
+        lesson = self._lesson_for(pack, topic, language)
 
         session_id = self.repos["session"].open(scope, language, topic, teacher)
         roster = self.repos["student"].list_for_class(scope)
@@ -110,8 +115,29 @@ class Orchestrator:
                 started_at=self.clock.now(),
             ),
         )
-        self.log.info("session open: %s, %s students on the roster", lesson.title, len(roster))
+        written = " (written for this class)" if lesson.written else ""
+        self.log.info("session open: %s%s, %s students on the roster",
+                      lesson.title, written, len(roster))
         return self.ctx
+
+    def _lesson_for(self, pack, topic: str, language: str):
+        """A reviewed pack first, then one written for the topic asked for.
+
+        A robot that answers "can we do the solar system" with a list of the
+        two lessons it happens to have is a demo. The writer is config, so a
+        school that wants only approved content turns it off.
+        """
+        try:
+            return pack.lesson_for(topic)
+        except LomasError:
+            if self.author is None or not self.author.enabled:
+                raise
+
+        lesson, quiz = self.author.cached(topic, language) or self.author.write(topic, language)
+        # In the library as well as this pack: the next load is a fresh read
+        # of the folder, and the assembler does one mid-lesson.
+        self.content.remember(lesson, quiz, language)
+        return pack.add(lesson, quiz)
 
     def run(self, topic: str = "", language: str = "") -> SessionState:
         ctx = self.ctx or self.open_session(topic, language)
