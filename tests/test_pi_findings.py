@@ -851,3 +851,29 @@ def test_one_scraped_chair_does_not_set_the_bar() -> None:
     got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
 
     assert got.stopped == "pause"
+
+
+def test_two_seconds_of_speech_in_a_fifteen_second_turn() -> None:
+    """The tool said 0.0318 room against 0.0417 voice and still ran to the
+    limit: the loud end was read off a high percentile, and with speech a
+    tenth of the turn that percentile was still the room."""
+    from lomas_speech.recorder import read_until_quiet
+
+    room, voice = 0.0318, 0.0417
+    talk = pcm([room] * 10 + [voice] * 20 + [room] * 120)
+    got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
+
+    assert got.stopped == "pause"
+    assert got.seconds == pytest.approx(3.3, abs=0.2)
+    assert got.loud_rms > got.floor_rms
+
+
+def test_the_numbers_shown_are_the_numbers_decided_on() -> None:
+    from lomas_speech.recorder import read_until_quiet, room_loud
+
+    talk = pcm([0.03] * 20 + [0.9] + [0.05] * 5 + [0.03] * 20)
+    got = read_until_quiet(reader(talk), 16000, 15.0, endpoint())
+
+    assert got.loudest_rms > got.loud_rms, "one bang is not the level to beat"
+    assert got.loud_rms == pytest.approx(room_loud([0.03] * 20 + [0.9] + [0.05] * 5 + [0.03] * 20),
+                                         abs=0.02)

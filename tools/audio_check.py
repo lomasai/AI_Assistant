@@ -181,10 +181,10 @@ def turn(cfg) -> int:
         print("  this recorder records a fixed length; there is nothing to tune.")
         return 1
 
-    floor, loud = heard.floor_rms, heard.loudest_rms
+    floor, loud = heard.floor_rms, heard.loud_rms
     print(f"\n  stopped at    {heard.stopped}   after {heard.seconds:.1f}s")
     print(f"  the room      {floor:.4f}")
-    print(f"  your voice    {loud:.4f}")
+    print(f"  your voice    {loud:.4f}   (loudest moment {heard.loudest_rms:.4f})")
     print(f"  difference    {loud - floor:.4f}   ({loud / floor:.1f}x)" if floor else "")
 
     if heard.stopped == "pause":

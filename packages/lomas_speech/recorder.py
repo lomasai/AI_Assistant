@@ -24,9 +24,13 @@ SOUNDDEVICE = "sounddevice"
 
 SAMPLE_WIDTH = 2
 MONO = 1
-# Where "the quiet end" and "the loud end" of a turn are read off.
+# The quiet end of a turn is read off a low share of it. The loud end is
+# the mean of its loudest few chunks instead: a child speaking for two
+# seconds of a fifteen second recording is a tenth of it, and every share
+# high enough to be robust was still measuring the room.
 QUIET_SHARE = 0.25
-LOUD_SHARE = 0.9
+LOUDEST_SHARE = 0.05
+LOUDEST_MIN = 3
 KILL_GRACE = 0.5
 FULL_SCALE = 32768.0
 
@@ -66,6 +70,10 @@ class Turn:
     stopped: str = "ended"  # pause | no_speech | limit | ended
     seconds: float = 0.0
     floor_rms: float = 0.0
+    # The loud end as the decision saw it, and the single loudest chunk. Both,
+    # because a tool that prints one and decides on the other sends everybody
+    # looking in the wrong place.
+    loud_rms: float = 0.0
     loudest_rms: float = 0.0
     spoke_seconds: float = 0.0
 
@@ -74,6 +82,7 @@ class Turn:
             "stopped": self.stopped,
             "seconds": round(self.seconds, 2),
             "floor_rms": round(self.floor_rms, 4),
+            "loud_rms": round(self.loud_rms, 4),
             "loudest_rms": round(self.loudest_rms, 4),
             "spoke_seconds": round(self.spoke_seconds, 2),
         }
@@ -95,9 +104,17 @@ def room_floor(levels: list[float]) -> float:
 
 
 def room_loud(levels: list[float]) -> float:
-    """The loud end. A high share rather than the maximum, so one chair
-    scraping does not become the level a child has to shout over."""
-    return at_share(levels, LOUD_SHARE)
+    """The loud end: the mean of the loudest few chunks.
+
+    Not the maximum, so one scraped chair is not the level a child has to
+    shout over, and not a percentile either - speech is a small share of a
+    turn that is mostly the pause before and after it.
+    """
+    if not levels:
+        return 0.0
+    take = max(LOUDEST_MIN, int(len(levels) * LOUDEST_SHARE))
+    loudest = sorted(levels, reverse=True)[:take]
+    return sum(loudest) / len(loudest)
 
 
 def at_share(levels: list[float], share: float) -> float:
@@ -171,6 +188,7 @@ def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint)
     turn.pcm = bytes(captured[:limit])
     turn.seconds = len(turn.pcm) / per_second
     turn.floor_rms = room_floor(levels)
+    turn.loud_rms = room_loud(levels)
     turn.spoke_seconds = spoke / per_second
     return turn
 
