@@ -59,6 +59,12 @@ class Endpoint:
     min_gap_rms: float = 0.01
     min_gap_ratio: float = 1.25
     min_rms: float = 0.005  # digital silence is never speech
+    # Samples averaged together before loudness is measured. A cheap
+    # low-pass: a microphone's hiss is spread across the whole spectrum and
+    # loses most of itself, while a voice sits low and survives. On the Pi it
+    # is the difference between speech 1.15 times the room and about twice
+    # it, which is the difference between finding a pause and not. 1 is off.
+    smooth_samples: int = 8
 
 
 @dataclass(slots=True)
@@ -88,13 +94,32 @@ class Turn:
         }
 
 
-def chunk_rms(pcm: bytes) -> float:
+def chunk_rms(pcm: bytes, smooth: int = 1) -> float:
     import array
 
     samples = array.array("h", pcm[: len(pcm) // SAMPLE_WIDTH * SAMPLE_WIDTH])
     if not samples:
         return 0.0
+    if smooth > 1:
+        samples = smoothed(samples, smooth)
     return (sum(s * s for s in samples) / len(samples)) ** 0.5 / FULL_SCALE
+
+
+def smoothed(samples, window: int):
+    """A running mean, which is a low-pass filter written the short way.
+
+    Hiss is spread across every frequency and most of it cancels; a voice is
+    low and comes through. Done on a running sum, so the cost is one add and
+    one subtract per sample rather than a multiply per tap.
+    """
+    out = []
+    running = 0.0
+    for at, sample in enumerate(samples):
+        running += sample
+        if at >= window:
+            running -= samples[at - window]
+        out.append(running / min(at + 1, window))
+    return out
 
 
 def room_floor(levels: list[float]) -> float:
@@ -158,7 +183,7 @@ def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint)
             turn.stopped = "ended"
             break
         captured += block
-        level = chunk_rms(block)
+        level = chunk_rms(block, endpoint.smooth_samples)
         levels.append(level)
         turn.loudest_rms = max(turn.loudest_rms, level)
 

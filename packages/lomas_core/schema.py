@@ -407,6 +407,9 @@ class AudioConfig(BaseModel):
     min_gap_rms: float = Field(default=0.01, ge=0.0, le=1.0)
     min_gap_ratio: float = Field(default=1.25, ge=1.0)
     min_rms: float = Field(default=0.005, ge=0.0, le=1.0)
+    # Samples averaged before loudness is measured: a cheap low-pass that
+    # drops a microphone's hiss and keeps a voice. See Endpoint.smooth_samples.
+    smooth_samples: int = Field(default=8, ge=1)
 
     # Recording while the robot talks hears the robot: "Sunlight What is the
     # green colour inside a leaf called?" was a child's answer with the next

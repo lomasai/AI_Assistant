@@ -175,6 +175,7 @@ def turn(cfg) -> int:
         min_gap_rms=audio.min_gap_rms,
         min_gap_ratio=audio.min_gap_ratio,
         min_rms=audio.min_rms,
+        smooth_samples=audio.smooth_samples,
     ))
     heard = recorder.last_turn
     if heard is None:

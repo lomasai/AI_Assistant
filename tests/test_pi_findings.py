@@ -877,3 +877,29 @@ def test_the_numbers_shown_are_the_numbers_decided_on() -> None:
     assert got.loudest_rms > got.loud_rms, "one bang is not the level to beat"
     assert got.loud_rms == pytest.approx(room_loud([0.03] * 20 + [0.9] + [0.05] * 5 + [0.03] * 20),
                                          abs=0.02)
+
+
+def test_hiss_is_dropped_and_a_voice_is_kept() -> None:
+    """The Pi measured a voice 1.15 times the room, which is not enough to
+    find a pause in. Most of a microphone's hiss is high and cancels when
+    samples are averaged; a voice is low and comes through."""
+    import math
+    import random
+    import struct
+
+    from lomas_speech.recorder import chunk_rms
+
+    random.seed(1)
+    rate, count = 16000, 1600
+    hiss = b"".join(struct.pack("<h", int(random.gauss(0, 1000))) for _ in range(count))
+    voice = b"".join(
+        struct.pack("<h", int(sum(700 * math.sin(2 * math.pi * f * i / rate)
+                                  for f in (180, 320, 700)) + random.gauss(0, 300)))
+        for i in range(count)
+    )
+
+    flat = chunk_rms(voice) / chunk_rms(hiss)
+    smoothed = chunk_rms(voice, 8) / chunk_rms(hiss, 8)
+
+    assert flat < 1.25, "this is the room the Pi is in: no gap to find"
+    assert smoothed > 2.0, "and this is the same room, measured usefully"
