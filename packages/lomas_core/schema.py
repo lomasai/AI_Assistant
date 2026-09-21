@@ -636,6 +636,13 @@ class ScreenConfig(BaseModel):
     height: int = Field(default=600, ge=1)
     scale: float = Field(default=1.0, gt=0)
 
+    # Where the face is drawn. `browser` is a tab pointed at /face/, which is
+    # right on a laptop; `pygame` is a window the robot draws itself, which
+    # on a Pi is the difference between several hundred megabytes of Chromium
+    # and about fifty. `none` is a robot with a voice and no face.
+    surface: Literal["browser", "pygame", "none"] = "browser"
+    fullscreen: bool = True
+
 
 class DisplayConfig(BaseModel):
     """Two surfaces on one Pi. The 7-inch chest panel is the robot's face and

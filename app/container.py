@@ -48,6 +48,7 @@ from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
 from app.author import LessonWriter
 from app.ears import Ears
+from app.face import FACE_SURFACES, FaceState
 from app.listener import Listener
 from app.speaker import Room, SpeakerChain
 from app.observability.metrics import Metrics
@@ -100,6 +101,7 @@ class System:
     listener: Listener | None = None
     speakers: SpeakerChain | None = None
     ears: Ears | None = None
+    face: Any = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -116,6 +118,8 @@ class System:
             self.trace.stop()
         if self.body is not None:
             self.body.stop()
+        if self.face is not None:
+            self.face.stop()
         # Signal the pipeline first, then close the bus that wakes it. The
         # other order leaves the vision thread parked on an idle camera.
         if self.vision is not None:
@@ -216,6 +220,12 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         listener.voice = voice
     ears = Ears(cfg, bus, clock, listener, voice) if listener is not None else None
 
+    # The robot's own face, when it draws one itself. The browser surface is
+    # the /face/ page and needs nothing here.
+    face = None
+    if cfg.display.face_screen.enabled and cfg.display.face_screen.surface in FACE_SURFACES:
+        face = FACE_SURFACES.create(cfg.display.face_screen.surface, cfg, FaceState(bus))
+
     vision = build_vision(cfg, bus, clock, repos)
     report = ReportBuilder(cfg, repos, content)
     body = _body(cfg, bus, clock)
@@ -234,7 +244,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
         enrolment=enrolment, report=report, metrics=metrics, body=body, trace=trace,
-        listener=listener, speakers=speakers, ears=ears,
+        listener=listener, speakers=speakers, ears=ears, face=face,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 

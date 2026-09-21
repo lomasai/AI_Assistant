@@ -489,6 +489,13 @@ display:
     height: 600
     scale: 1.0
 
+    # browser - a tab pointed at /face/, which is right on a laptop
+    # pygame  - a window the robot draws itself: on a Pi that is fifty
+    #           megabytes instead of Chromium's several hundred
+    # none    - a robot with a voice and no face
+    surface: browser
+    fullscreen: true
+
   board_screen:
     enabled: false          # turn on where the room has a projector
     output: HDMI-2

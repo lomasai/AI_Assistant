@@ -102,6 +102,11 @@ def main(argv: list[str] | None = None) -> int:
         if system.vision is not None:
             optional(logger, "camera", system.vision.watch)
 
+        # A robot with no face still teaches, so a missing pygame or a screen
+        # that is not there is a line in the log and nothing more.
+        if system.face is not None:
+            optional(logger, "face", system.face.start)
+
         if system.web is not None:
             system.web.start()
 

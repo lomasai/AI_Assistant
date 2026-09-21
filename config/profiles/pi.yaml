@@ -60,7 +60,10 @@ web:
   mjpeg_fps: 12         # about a quarter of a core at 720p
 
 display:
-  face_screen:  {enabled: true,  width: 1024, height: 600}
+  # The robot draws its own face. Chromium showing one face costs this Pi
+  # several hundred megabytes and a steady share of a core the detector
+  # wants; pygame costs about fifty. sudo apt install -y python3-pygame
+  face_screen:  {enabled: true,  width: 1024, height: 600, surface: pygame}
   board_screen: {enabled: true,  output: HDMI-2, width: 1920, height: 1080}
 
 speech:
