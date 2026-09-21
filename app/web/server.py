@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -139,6 +140,24 @@ def create_app(system) -> FastAPI:
     return app
 
 
+class CancelledOnShutdown(logging.Filter):
+    """Drops uvicorn's parting traceback.
+
+    Its own lifespan task is cancelled when the server stops, and it logs
+    that at ERROR with a full traceback. It is not a fault and there is
+    nothing to do about it, and a teacher reading thirty lines of asyncio
+    while switching a robot off learns only that something went wrong.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        kind = record.exc_info[0] if record.exc_info else None
+        return not (kind is not None and issubclass(kind, asyncio.CancelledError))
+
+
+def _hush_shutdown() -> None:
+    logging.getLogger("uvicorn.error").addFilter(CancelledOnShutdown())
+
+
 class WebServer:
     """uvicorn on its own thread, so the class does not wait on the browser.
 
@@ -176,6 +195,7 @@ class WebServer:
             access_log=False,
         )
         self._server = uvicorn.Server(config)
+        _hush_shutdown()
         self._thread = threading.Thread(target=self._server.run, name="web", daemon=True)
         self._thread.start()
         self.log.info("surfaces on %s (%s)", self.url, ", ".join(self.cfg.surfaces))

@@ -842,6 +842,9 @@ class AuthorConfig(BaseModel):
             "we want to learn about", "i want to learn about", "can we learn about",
             "can you teach me about", "teach me about", "tell me about",
             "let us learn about", "lets learn about", "let's learn about",
+            "can we start a new lesson on", "can we start a lesson on",
+            "start a new lesson on", "new lesson on", "a lesson on", "lesson on",
+            "can we do a class on", "class on", "can we study",
             "i would like to learn about", "we will learn about", "learn about",
             "the topic is", "topic is", "about",
         ]

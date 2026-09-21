@@ -266,3 +266,9 @@ def test_a_child_who_introduces_themselves_is_not_the_topic(system) -> None:
                     system) == "machine learning"
     assert topic_of("I am Akshay and I want to learn about the solar system",
                     system) == "the solar system"
+
+
+def test_asking_for_a_new_lesson_is_not_part_of_the_topic(system) -> None:
+    """The Pi wrote "can we start a new lesson on ai"."""
+    assert topic_of("Can we start a new lesson on AI?", system) == "ai"
+    assert topic_of("can we do a class on black holes", system) == "black holes"

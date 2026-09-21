@@ -420,3 +420,22 @@ def test_the_end_button_is_out_of_reach_while_a_class_opens() -> None:
 
     assert "confirm('End the class now?" in source
     assert "$('start').disabled = true;" in source
+
+
+def test_switching_off_is_not_a_traceback() -> None:
+    """uvicorn logs its own cancelled lifespan task at ERROR with thirty
+    lines of asyncio behind it. Nothing is wrong and nothing can be done, so
+    a teacher switching a robot off should not be reading it."""
+    import asyncio
+    import logging
+
+    from app.web.server import CancelledOnShutdown
+
+    drop = CancelledOnShutdown()
+    made_up = logging.LogRecord("uvicorn.error", logging.ERROR, __file__, 1, "x", None, None)
+
+    made_up.exc_info = (asyncio.CancelledError, asyncio.CancelledError(), None)
+    assert drop.filter(made_up) is False
+
+    made_up.exc_info = (ValueError, ValueError("a real one"), None)
+    assert drop.filter(made_up) is True
