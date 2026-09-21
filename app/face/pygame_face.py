@@ -35,6 +35,9 @@ TALK_HZ = 6.0
 IDLE_FPS = 10
 LINE_SHARE = 0.86  # of the screen width, before a line wraps
 RUNTIME_DIR = "XDG_RUNTIME_DIR"  # where Wayland leaves its socket
+WAYLAND_SOCKETS = "wayland-*"
+LOCK = ".lock"  # beside each socket, and not itself a screen
+X_SOCKETS = "/tmp/.X11-unix"
 
 
 @FACE_SURFACES.register("pygame")
@@ -216,11 +219,11 @@ def running_sessions() -> list[tuple[str, dict]]:
     if not runtime and hasattr(os, "getuid"):
         runtime = f"/run/user/{os.getuid()}"
     if runtime and Path(runtime).is_dir():
-        for socket in sorted(Path(runtime).glob("wayland-*")):
-            if socket.suffix != ".lock":
+        for socket in sorted(Path(runtime).glob(WAYLAND_SOCKETS)):
+            if socket.suffix != LOCK:
                 found.append(("wayland", {RUNTIME_DIR: runtime, "WAYLAND_DISPLAY": socket.name}))
 
-    sockets = Path("/tmp/.X11-unix")
+    sockets = Path(X_SOCKETS)
     if sockets.is_dir():
         for socket in sorted(sockets.glob("X*")):
             display = ":" + socket.name[1:]

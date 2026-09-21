@@ -366,7 +366,9 @@ def test_x_sessions_are_found_with_their_cookie(monkeypatch, tmp_path) -> None:
     from app.face.pygame_face import running_sessions, xauthority
 
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
-    if not os.path.isdir("/tmp/.X11-unix"):
+    from app.face.pygame_face import X_SOCKETS
+
+    if not os.path.isdir(X_SOCKETS):
         pytest.skip("no X sockets on this machine, which is the point of looking")
 
     for driver, env in running_sessions():
