@@ -439,3 +439,12 @@ def test_switching_off_is_not_a_traceback() -> None:
 
     made_up.exc_info = (ValueError, ValueError("a real one"), None)
     assert drop.filter(made_up) is True
+
+
+def test_the_teacher_screen_starts_by_letting_the_class_choose() -> None:
+    """The dropdown always had a lesson selected, so every class started
+    with a topic already decided and the robot never asked."""
+    source = Path("app/web/ui/teacher/teacher.js").read_text(encoding="utf-8")
+
+    assert "Ask the class what to learn" in source
+    assert "ask.value = '';" in source

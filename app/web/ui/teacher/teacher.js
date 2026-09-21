@@ -47,7 +47,13 @@
   const STARTING_MS = 3000;
 
   fetch('/api/topics').then((r) => r.json()).then((body) => {
-    $('topic').replaceChildren(...body.topics.map((lesson) => {
+    // First and default: nothing chosen, so the robot asks the class and
+    // teaches whatever they say. Picking a lesson here is the override.
+    const ask = document.createElement('option');
+    ask.value = '';
+    ask.textContent = 'Ask the class what to learn';
+
+    $('topic').replaceChildren(ask, ...body.topics.map((lesson) => {
       const option = document.createElement('option');
       option.value = lesson.id;
       option.textContent = `${lesson.title} (${lesson.segments} parts)`;
