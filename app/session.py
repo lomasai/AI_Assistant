@@ -30,6 +30,9 @@ class SessionContext:
     topic: str
     content: ContentPack
     lesson: Lesson
+    # The whole shelf, not just this class's pack: a lesson written mid-class
+    # has to survive the next reload.
+    library: Any = None
     repos: dict[str, Any] = field(default_factory=dict)
     roster: list[dict] = field(default_factory=list)
     present: dict[str, str] = field(default_factory=dict)

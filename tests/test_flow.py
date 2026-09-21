@@ -71,7 +71,7 @@ def test_a_full_class_runs_end_to_end(system):
 
     assert state is SessionState.CLOSED
     steps = [p.step for p in names_of(system.bus, STEP_ENTERED)]
-    assert steps == ["attendance", "greeting", "lesson", "interaction", "quiz", "wrapup"]
+    assert steps == ["attendance", "greeting", "topic", "lesson", "interaction", "quiz", "wrapup"]
 
     assert names_of(system.bus, SESSION_OPENED)
     assert names_of(system.bus, SESSION_CLOSED)[0].reason == "closed"
@@ -218,12 +218,12 @@ def test_quiz_answers_are_recorded_per_student(system):
 
 @pytest.mark.parametrize(
     "dropped",
-    ["attendance", "greeting", "lesson", "interaction", "quiz", "wrapup"],
+    ["attendance", "greeting", "topic", "lesson", "interaction", "quiz", "wrapup"],
 )
 def test_removing_any_step_still_produces_a_session(dropped):
     """Rule four: the system must run with any feature switched off."""
     remaining = [s for s in
-                 ["attendance", "greeting", "lesson", "interaction", "quiz", "wrapup"]
+                 ["attendance", "greeting", "topic", "lesson", "interaction", "quiz", "wrapup"]
                  if s != dropped]
     system = build(f"flow.sequence=[{','.join(remaining)}]")
     try:

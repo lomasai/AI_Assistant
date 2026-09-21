@@ -7,11 +7,13 @@ from pydantic import BaseModel
 
 from lomas_core.contracts import (
     QUIZ_ANSWERED,
+    TOPIC_CHOSEN,
     TEACHER_NUDGING,
     TEACHER_SPEAKER,
     NudgingSet,
     QuizAnswered,
     SpeakerSet,
+    TopicChosen,
 )
 from lomas_core.errors import LomasError
 
@@ -21,6 +23,7 @@ from app.flow.steps.quiz import LISTENING
 from app.pipeline import vectors_by_student
 
 OK = {"ok": True}
+TEACHER = "teacher"
 SPEAKER = "speaker"
 UNMARKED = None
 
@@ -209,7 +212,13 @@ def router(system) -> APIRouter:
             # question out in the moment before its answer arrived.
             if body.as_topic:
                 said = heard.get("text", "")
-                return {**heard, "text": clean_topic(said, system.cfg.content.author) or said}
+                topic = clean_topic(said, system.cfg.content.author) or said
+                # Published as well as returned: a class waiting to be told
+                # what to learn is listening for this, whoever heard it.
+                if topic:
+                    bus.publish(TOPIC_CHOSEN, TopicChosen(session_id=session_id(),
+                                                          text=topic, by=TEACHER))
+                return {**heard, "text": topic}
             if as_answer and student_id and heard.get("text"):
                 bus.publish(
                     QUIZ_ANSWERED,

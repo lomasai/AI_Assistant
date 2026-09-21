@@ -79,6 +79,9 @@ class Orchestrator:
     def open_session(self, topic: str = "", language: str = "", teacher: str = "") -> SessionContext:
         scope = self.scope
         language = language or self.cfg.content.language
+        # Whether anyone named a subject, which decides if the robot asks the
+        # class for one.
+        asked_for = topic.strip()
         topic = topic or self.cfg.content.default_topic
 
         pack = self.content.load(language)
@@ -101,9 +104,11 @@ class Orchestrator:
             topic=topic,
             content=pack,
             lesson=lesson,
+            library=self.content,
             repos=self.repos,
             roster=roster,
-            notes={"prompts": self.prompts, "llm": self.llm},
+            notes={"prompts": self.prompts, "llm": self.llm, "author": self.author,
+                   "topic_asked_for": bool(asked_for)},
         )
 
         self._record_events(session_id)

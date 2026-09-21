@@ -34,6 +34,9 @@ ROBOT_BLOCKED = "robot.blocked"
 LESSON_SEGMENT = "lesson.segment"
 STORY_REQUESTED = "story.requested"
 
+TOPIC_REQUESTED = "topic.requested"   # the robot is waiting to be told
+TOPIC_CHOSEN = "topic.chosen"         # a child said what they want to learn
+
 QUESTION_ASKED = "question.asked"
 QUESTION_ANSWERED = "question.answered"
 
@@ -117,6 +120,20 @@ class LessonSegment:
     total: int
     say: str
     display: str
+
+
+@dataclass(frozen=True, slots=True)
+class TopicChosen:
+    """What the class wants to learn, and who said so.
+
+    `by` is the microphone or the teacher's screen, because a robot that
+    starts teaching the wrong subject should be traceable to whichever heard
+    it wrong.
+    """
+
+    session_id: str
+    text: str
+    by: str = ""
 
 
 @dataclass(frozen=True, slots=True)

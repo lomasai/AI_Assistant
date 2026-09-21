@@ -47,6 +47,7 @@ from app.body import Body
 from app.content import ContentLibrary
 from app.enrolment import EnrolmentService
 from app.author import LessonWriter
+from app.ears import Ears
 from app.listener import Listener
 from app.speaker import Room, SpeakerChain
 from app.observability.metrics import Metrics
@@ -98,6 +99,7 @@ class System:
     trace: Trace | None = None
     listener: Listener | None = None
     speakers: SpeakerChain | None = None
+    ears: Ears | None = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -212,6 +214,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     if listener is not None:
         listener.speakers = speakers
         listener.voice = voice
+    ears = Ears(cfg, bus, clock, listener, voice) if listener is not None else None
 
     vision = build_vision(cfg, bus, clock, repos)
     report = ReportBuilder(cfg, repos, content)
@@ -231,7 +234,7 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         content=content, orchestrator=orchestrator, vision=vision,
         agents=runner, mcp=ContextServer(assembler),
         enrolment=enrolment, report=report, metrics=metrics, body=body, trace=trace,
-        listener=listener, speakers=speakers,
+        listener=listener, speakers=speakers, ears=ears,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
 

@@ -1,0 +1,10 @@
+# Asked at the start of a class, after the greeting. The robot then listens,
+# writes a lesson on whatever comes back, and teaches it.
+#
+# Keep it short and open. A list of subjects invites a child to pick from the
+# list; an open question is what makes a robot worth talking to.
+
+lines:
+  - "What would you like to learn about today?"
+  - "Tell me what to teach today. Anything you are curious about."
+  - "What shall we learn about? Say it out loud."

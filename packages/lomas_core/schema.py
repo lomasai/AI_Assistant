@@ -420,6 +420,13 @@ class AudioConfig(BaseModel):
     # Recording while the robot talks hears the robot: "Sunlight What is the
     # green colour inside a leaf called?" was a child's answer with the next
     # question in it. Listening waits for the voice to finish, up to this.
+    # The robot opening the microphone itself, rather than waiting for the
+    # teacher's button. During these steps a child can just talk; everywhere
+    # else a press is still what starts a turn.
+    hands_free: bool = True
+    hands_free_steps: list[str] = Field(default_factory=lambda: ["interaction"])
+    hands_free_gap_seconds: float = Field(default=0.4, ge=0)
+
     wait_for_robot_seconds: float = Field(default=30.0, ge=0)
     quiet_poll_seconds: float = Field(default=0.05, gt=0)
 
@@ -543,6 +550,9 @@ class FlowConfig(BaseModel):
     # How long to wait on a quiz question before moving on. A class where
     # nobody answers still has to reach the end of the lesson.
     answer_wait_seconds: float = Field(default=20.0, gt=0)
+    # How long the robot waits to be told what to teach before falling back
+    # to the lesson it was started with. A class that says nothing gets one.
+    topic_wait_seconds: float = Field(default=25.0, gt=0)
     # How long an answer may take to be marked, and its feedback queued,
     # before the next question is asked anyway. A model that never answers
     # must not stop the quiz.

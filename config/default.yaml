@@ -269,6 +269,12 @@ speech:
     min_rms: 0.005
     smooth_samples: 8             # averaged before measuring: drops hiss, keeps a voice
     rumble_samples: 0             # subtract the low end too, for a room with a fan in it
+    # The robot listens by itself during these steps: a child talks, the
+    # robot answers, no button. [] gives back press-to-talk everywhere.
+    hands_free: true
+    hands_free_steps: [interaction]
+    hands_free_gap_seconds: 0.4
+
     wait_for_robot_seconds: 30.0
     quiet_poll_seconds: 0.05
 
@@ -330,7 +336,10 @@ flow:
   autostart: true
 
   # Reordering or dropping a stage is an edit here, never a code change.
-  sequence: [attendance, greeting, lesson, interaction, quiz, wrapup]
+  # `topic` asks the class what they want to learn and writes it. Take it
+  # out and the robot teaches the topic it was started with, which is what a
+  # school following a syllabus wants.
+  sequence: [attendance, greeting, topic, lesson, interaction, quiz, wrapup]
 
   stage_timeout_seconds:
     attendance: 120.0
@@ -346,6 +355,7 @@ flow:
 
   questions_per_lesson: 6
   answer_wait_seconds: 20.0   # move on if nobody answers
+  topic_wait_seconds: 25.0    # ...and teach the lesson it had if nobody chooses
   mark_wait_seconds: 8.0      # wait for an answer to be marked before the next question
   quiz_length: 6
   pass_mark: 0.6
