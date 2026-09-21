@@ -347,7 +347,8 @@ class SpeakerConfig(BaseModel):
     model_config = Strict
 
     resolvers: list[str] = Field(
-        default_factory=lambda: ["tapped", "single_face", "recent", "spoken_name", "ask"]
+        default_factory=lambda: ["tapped", "single_face", "recent", "spoken_name",
+                                 "only_student", "ask"]
     )
 
     # How long a face counts as being in front of the robot after the camera

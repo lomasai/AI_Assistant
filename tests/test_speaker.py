@@ -77,7 +77,8 @@ def sees(system, student_id: str) -> None:
 
 
 def test_the_order_is_the_config(system) -> None:
-    assert system.speakers.names() == ["tapped", "single_face", "recent", "spoken_name", "ask"]
+    assert system.speakers.names() == ["tapped", "single_face", "recent", "spoken_name",
+                                       "only_student", "ask"]
 
 
 def test_a_resolver_can_be_switched_off_in_config() -> None:
@@ -370,3 +371,47 @@ def test_a_still_room_names_nobody() -> None:
 
 def test_mouth_motion_is_available_to_put_in_the_chain() -> None:
     assert "mouth_motion" in RESOLVERS.keys()
+
+
+# --- a class of one -------------------------------------------------------
+
+
+def test_the_only_child_in_the_class_is_who_spoke() -> None:
+    """Asking "who was that?" of a class of one is a robot not paying
+    attention. It happened on the Pi with one child enrolled, standing where
+    the camera could not see them."""
+    system = build("speech.speaker.resolvers=[only_student,ask]")
+    try:
+        ctx = system.orchestrator.open_session()
+        # A real robot has whoever was enrolled at it, and on the Pi that is
+        # one person; the demo five would be a different test.
+        for seeded in system.repos["student"].list_for_class(ctx.scope):
+            system.repos["student"].delete(ctx.scope, seeded["id"])
+        only = system.repos["student"].create(ctx.scope, "Akshay", "99")
+
+        found = system.speakers.resolve("what is chlorophyll")
+
+        assert found.student_id == only
+        assert found.how == "only_student"
+        assert not [u for _n, u in system.bus.replay(ROBOT_SAY) if u.reason == "ask"]
+    finally:
+        system.close()
+
+
+def test_a_full_class_is_still_asked(system, roster) -> None:
+    """With a roster of five the robot has no idea, and should say so."""
+    chain = build("speech.speaker.resolvers=[only_student]")
+    try:
+        chain.orchestrator.open_session()
+        assert len(chain.repos["student"].list_for_class(chain.orchestrator.scope)) > 1
+        assert chain.speakers.resolve("what is chlorophyll").how == "unknown"
+    finally:
+        chain.close()
+
+
+def test_it_comes_before_asking_and_after_everything_else() -> None:
+    cfg = load("config", "debug", [], use_env=False)
+    order = cfg.speech.speaker.resolvers
+
+    assert order.index("only_student") == len(order) - 2
+    assert order[-1] == "ask"

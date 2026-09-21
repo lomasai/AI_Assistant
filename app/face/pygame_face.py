@@ -150,6 +150,10 @@ class PygameFace:
                 self._draw(pygame, surface, big, small)
                 pygame.display.flip()
                 clock.tick(IDLE_FPS)
+        except pygame.error as exc:
+            # The window closing while a frame is being drawn is the robot
+            # shutting down, not a fault worth a line at a teacher.
+            self.log.debug("the face closed: %s", exc)
         except Exception as exc:  # a display that goes away is not a lesson ending
             self.log.error("the face stopped: %s", exc)
         finally:

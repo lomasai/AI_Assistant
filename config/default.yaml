@@ -233,9 +233,10 @@ speech:
   #   recent       whoever spoke a moment ago, still visible
   #   spoken_name  "I am Akshay, why do leaves fall?"
   #   mouth_motion the face whose mouth moved while the sound came in
+  #   only_student one child in the class, so it is them
   #   ask          the robot says it does not know. Last, or it interrupts.
   speaker:
-    resolvers: [tapped, single_face, recent, spoken_name, ask]
+    resolvers: [tapped, single_face, recent, spoken_name, only_student, ask]
 
     visible_seconds: 6.0      # a face counts as present this long after being seen
     recent_seconds: 90.0      # how long one speaker keeps the turn

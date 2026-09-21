@@ -138,6 +138,7 @@
     tapped: 'you tapped the name',
     single_face: 'the only face in view',
     recent: 'still the same speaker',
+    only_student: 'the only child in the class',
     spoken_name: 'they said their name',
     mouth_motion: 'their mouth moved',
     unknown: 'nobody could be worked out - tap a name',
