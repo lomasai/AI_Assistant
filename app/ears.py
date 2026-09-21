@@ -19,6 +19,7 @@ from lomas_core.schema import Config
 from app.author import clean_topic
 
 MICROPHONE = "microphone"
+A_VOICE = "a voice in the room"
 
 
 class Ears:
@@ -35,12 +36,16 @@ class Ears:
     job exactly as it is when a button starts it.
     """
 
-    def __init__(self, cfg: Config, bus: EventBus, clock: Clock, listener, voice=None) -> None:
+    def __init__(self, cfg: Config, bus: EventBus, clock: Clock, listener, voice=None,
+                 runner=None) -> None:
         self.cfg = cfg
         self.bus = bus
         self.clock = clock
         self.listener = listener
         self.voice = voice
+        # Set by the container. Without it the robot still teaches; it just
+        # has to be told to start by the teacher's screen.
+        self.runner = runner
         self.log = log.get("ears")
 
         self.turns = 0
@@ -60,6 +65,49 @@ class Ears:
     def stop(self) -> None:
         self._stop.set()
         self._step = ""
+
+    # --- waiting to be told to begin --------------------------------------
+
+    def wait_for_a_class(self) -> None:
+        """Listen for somebody asking for a class, until one starts.
+
+        This is what makes the robot a robot rather than a program with a
+        web page: it is switched on, it waits, and a child or a teacher says
+        "start the class" out loud.
+        """
+        if not self._usable() or self.runner is None or not self.cfg.flow.start_phrases:
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._wait_loop, name="ears-idle", daemon=True)
+        self._thread.start()
+        self.log.info("say \"%s\" to begin", self.cfg.flow.start_phrases[0])
+
+    def _wait_loop(self) -> None:
+        while not self._stop.is_set():
+            if self.runner.teaching:
+                # A class is running and something else is listening for the
+                # children; two microphones open at once hear each other.
+                self.clock.sleep(self.cfg.flow.start_poll_seconds)
+                continue
+
+            heard = self._listen("", as_question=False, attribute=False)
+            if self._stop.is_set():
+                break
+            asked = matches(heard, self.cfg.flow.start_phrases, self.cfg.speech.speaker.name_match)
+            if asked:
+                self.log.info("heard %r; starting a class", heard)
+                self._begin(heard)
+
+    def _begin(self, heard: str) -> None:
+        topic = clean_topic(heard, self.cfg.content.author)
+        # Only what is left after the asking. "Start the class" on its own
+        # leaves nothing, which is the robot asking the class what to learn.
+        wanted = "" if matches(topic, self.cfg.flow.start_phrases,
+                               self.cfg.speech.speaker.name_match) else topic
+        try:
+            self.runner.start(wanted, by=A_VOICE)
+        except LomasError as exc:
+            self.log.info("not starting: %s", exc)
 
     # --- a topic, asked for out loud --------------------------------------
 
@@ -84,6 +132,9 @@ class Ears:
 
     def _on_step(self, _event: str, step) -> None:
         self._step = step.step
+        # Whatever was listening for "start the class" stops now: two open
+        # microphones in one room hear each other.
+        self._stop.set()
         if not self._usable() or step.step not in self.cfg.speech.audio.hands_free_steps:
             return
 
@@ -130,3 +181,21 @@ class Ears:
     def _usable(self) -> bool:
         return bool(self.cfg.speech.audio.hands_free and self.listener is not None
                     and self.listener.available)
+
+
+def matches(heard: str, phrases: list[str], closeness: float) -> str:
+    """Whether what was heard is one of these phrases, loosely.
+
+    "Start the class" comes back as "start the clause" often enough that an
+    exact match would make the robot look deaf.
+    """
+    from difflib import SequenceMatcher
+
+    said = " ".join(heard.lower().split())
+    if not said:
+        return ""
+    for phrase in phrases:
+        wanted = phrase.lower()
+        if wanted in said or SequenceMatcher(None, said, wanted).ratio() >= closeness:
+            return phrase
+    return ""

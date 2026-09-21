@@ -1,0 +1,8 @@
+# Said to a child the robot has never seen before. It is an introduction,
+# not a challenge: "identify yourself" is a security gate, and this is a
+# robot meeting somebody.
+
+lines:
+  - "Hello. I do not think we have met. What is your name?"
+  - "Hello there. I am Lomas. What should I call you?"
+  - "I have not met you before. Tell me your name."

@@ -34,6 +34,8 @@ ROBOT_BLOCKED = "robot.blocked"
 LESSON_SEGMENT = "lesson.segment"
 STORY_REQUESTED = "story.requested"
 
+STRANGER_SEEN = "student.stranger"    # a face the robot does not know, still here
+
 TOPIC_REQUESTED = "topic.requested"   # the robot is waiting to be told
 TOPIC_CHOSEN = "topic.chosen"         # a child said what they want to learn
 
@@ -120,6 +122,20 @@ class LessonSegment:
     total: int
     say: str
     display: str
+
+
+@dataclass(frozen=True, slots=True)
+class StrangerSeen:
+    """A face that has been in front of the robot a while and matched nobody.
+
+    Not every unrecognised frame - a child walking past is not somebody to
+    introduce yourself to - but a face that stayed.
+    """
+
+    track_id: int
+    seen_for: float
+    source_id: str
+    at: float
 
 
 @dataclass(frozen=True, slots=True)

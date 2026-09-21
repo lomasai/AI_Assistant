@@ -153,6 +153,10 @@ def wait(system, logger) -> int:
         logger.error("flow.autostart is off and there are no surfaces; nothing to wait for")
         return 2
 
+    # The robot listens for somebody asking, so a classroom needs no laptop.
+    if system.ears is not None:
+        system.ears.wait_for_a_class()
+
     logger.info("waiting for a class. Open %s and press Start.", system.web.url)
     try:
         while True:

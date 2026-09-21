@@ -164,6 +164,16 @@ enrolment:
   sharpness_reference: 120.0    # Laplacian variance treated as fully sharp
   crop_margin: 0.2
 
+  # The robot enrolling a child itself: "I do not think we have met. What is
+  # your name?", then the sweep coached out loud. Off by default - who may
+  # consent to a child's face being stored is a school's decision.
+  by_voice: false
+  voice_consent_by: robot
+  stranger_after_seconds: 4.0   # a face has to stay before it is said hello to
+  name_wait_seconds: 20.0
+  frame_gap_seconds: 0.2
+  name_lead_ins: ["my name is", "i am", "i'm", "this is", "it is", "mera naam", "main"]
+
   # The consent row that has to exist before a single vector is written.
   consent_kind: face_recognition
 
@@ -369,6 +379,13 @@ flow:
   questions_per_lesson: 6
   answer_wait_seconds: 20.0   # move on if nobody answers
   topic_wait_seconds: 25.0    # ...and teach the lesson it had if nobody chooses
+
+  # Said out loud to begin, so a robot switched on in a classroom needs no
+  # screen at all. [] waits for the teacher's page instead.
+  start_phrases: ["start the class", "hey lomas", "begin the class", "let us begin",
+                  "class shuru karo"]
+  start_poll_seconds: 1.0
+  stop_wait_seconds: 5.0      # let a class finish its report before shutting down
   mark_wait_seconds: 8.0      # wait for an answer to be marked before the next question
   quiz_length: 6
   pass_mark: 0.6

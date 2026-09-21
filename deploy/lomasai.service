@@ -1,0 +1,34 @@
+# The robot, started by the Pi itself.
+#
+#   sudo cp deploy/lomasai.service /etc/systemd/system/
+#   sudo systemctl enable --now lomasai
+#   journalctl -u lomasai -f          # what it is saying
+#
+# Edit User, WorkingDirectory and ExecStart if the robot lives somewhere
+# else. Everything past --mode is ordinary config, so a school that wants a
+# different profile changes one word here.
+
+[Unit]
+Description=LomasAI teaching robot
+After=network-online.target graphical.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=akshay_cse
+WorkingDirectory=/home/akshay_cse/ai_assistant/AI_Assistant
+Environment=PYTHONUNBUFFERED=1
+# The face draws on the desktop this user is logged into. Without a desktop,
+# set display.face_screen.driver: kmsdrm in config/site.yaml instead.
+Environment=DISPLAY=:0
+ExecStart=/home/akshay_cse/ai_assistant/AI_Assistant/.venv/bin/python run.py --mode pi
+
+# A robot in a classroom restarts itself. A robot that cannot start at all
+# stops trying, so a broken install is visible rather than a boot loop.
+Restart=on-failure
+RestartSec=10
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+[Install]
+WantedBy=multi-user.target

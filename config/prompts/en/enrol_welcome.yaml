@@ -1,0 +1,7 @@
+# Said once the robot can recognise a child. Short and warm: the child has
+# just stood still for ten seconds.
+
+lines:
+  - "Thank you, {name}. I will know you next time."
+  - "Got it, {name}. Welcome to the class."
+  - "Lovely to meet you, {name}."

@@ -9,11 +9,13 @@ import numpy as np
 from lomas_core import logging as log
 from lomas_core.clock import Clock
 from lomas_core.contracts import (
+    STRANGER_SEEN,
     STUDENT_DISENGAGED,
     STUDENT_IDENTIFIED,
     STUDENT_LEFT,
     VISION_TRACKS,
     StudentDisengaged,
+    StrangerSeen,
     StudentIdentified,
     StudentLeft,
     TracksSeen,
@@ -111,6 +113,9 @@ class VisionPipeline:
         self._interval = NO_SCALE / cfg.face.detect_fps
         self._last_seq = 0
         self._identified: dict[int, tuple[str, float]] = {}
+        # Tracks the robot has already introduced itself to, so it does not
+        # ask the same stranger their name every few seconds.
+        self._greeted: set[int] = set()
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
 
@@ -166,6 +171,7 @@ class VisionPipeline:
             if track.box.landmarks is not None:
                 track.pose = estimate_pose(track.box.landmarks, self.cfg.face.pose)
 
+        self._strangers(tracks, frame.ts)
         self._departures(tracks, frame.ts)
 
         for signal in self.attention.update(tracks, frame.ts):
@@ -260,8 +266,29 @@ class VisionPipeline:
             ),
         )
 
+    def _strangers(self, tracks: list[Track], ts: float) -> None:
+        """Somebody the robot does not know, who has not walked past.
+
+        A face has to stay a while before it is worth saying hello to: a
+        child crossing the room is not an introduction.
+        """
+        if not self.cfg.enrolment.by_voice or not self.cfg.privacy.recognition_enabled:
+            return
+
+        for track in tracks:
+            here = ts - track.first_seen
+            if (track.student_id or track.track_id in self._greeted
+                    or here < self.cfg.enrolment.stranger_after_seconds
+                    or track.identify_attempts < self.cfg.face.unknown_after_attempts):
+                continue
+
+            self._greeted.add(track.track_id)
+            self.bus.publish(STRANGER_SEEN, StrangerSeen(
+                track_id=track.track_id, seen_for=here, source_id=self.source_id, at=ts))
+
     def _departures(self, tracks: list[Track], ts: float) -> None:
         live = {t.track_id for t in tracks}
+        self._greeted &= live
         for track_id in [t for t in self._identified if t not in live]:
             student_id, first_seen = self._identified.pop(track_id)
             self.bus.publish(

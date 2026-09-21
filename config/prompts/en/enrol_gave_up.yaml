@@ -1,0 +1,7 @@
+# Said when the robot could not finish. It never says why in front of the
+# class - a child who has just been photographed badly does not need to hear
+# about quality thresholds.
+
+lines:
+  - "Let us try that again another time."
+  - "Never mind. We can do this later."

@@ -216,6 +216,22 @@ class EnrolmentConfig(BaseModel):
     sharpness_reference: float = Field(default=120.0, gt=0)
     crop_margin: float = Field(default=0.2, ge=0.0, le=1.0)
 
+    # The robot enrolling a child itself: "I do not think we have met. What
+    # is your name?" - then the sweep, coached out loud. Off by default,
+    # because who may consent to a child's face being stored is a school's
+    # decision and not a default. On, it is recorded as consented by the
+    # robot with whoever set it up answerable for that.
+    by_voice: bool = False
+    voice_consent_by: str = "robot"
+    stranger_after_seconds: float = Field(default=4.0, gt=0)
+    # How long the robot waits for a name before letting it go.
+    name_wait_seconds: float = Field(default=20.0, gt=0)
+    frame_gap_seconds: float = Field(default=0.2, gt=0)
+    name_lead_ins: list[str] = Field(
+        default_factory=lambda: ["my name is", "i am", "i'm", "this is", "it is",
+                                 "mera naam", "main"]
+    )
+
     # The consent row that has to exist before a single vector is written.
     consent_kind: str = "face_recognition"
     # An enrolment left half finished must not hold a child's vectors in
@@ -567,6 +583,17 @@ class FlowConfig(BaseModel):
     # How long the robot waits to be told what to teach before falling back
     # to the lesson it was started with. A class that says nothing gets one.
     topic_wait_seconds: float = Field(default=25.0, gt=0)
+
+    # Said out loud to start a class, so the robot needs no screen at all.
+    # Empty means it waits to be started from the teacher's page.
+    start_phrases: list[str] = Field(
+        default_factory=lambda: ["start the class", "hey lomas", "begin the class",
+                                 "let us begin", "class shuru karo"]
+    )
+    start_poll_seconds: float = Field(default=1.0, gt=0)
+    # How long switching the robot off waits for a lesson to put its report
+    # away before closing the database underneath it.
+    stop_wait_seconds: float = Field(default=5.0, gt=0)
     # How long an answer may take to be marked, and its feedback queued,
     # before the next question is asked anyway. A model that never answers
     # must not stop the quiz.

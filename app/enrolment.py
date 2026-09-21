@@ -115,6 +115,19 @@ class EnrolmentService:
             "sweep_seconds": self.cfg.enrolment.sweep_seconds,
         }
 
+    def next_roll(self, scope: TenantScope) -> str:
+        """The next free roll number in this class.
+
+        A teacher typing one has the register in front of them. A robot
+        meeting a child in a corridor does not, and a child without a roll
+        number cannot be enrolled at all.
+        """
+        taken = {row["roll_no"] for row in self.repos["student"].list_for_class(scope)}
+        number = len(taken) + 1
+        while f"{number:02d}" in taken:
+            number += 1
+        return f"{number:02d}"
+
     def add_frame(self, enrolment_id: str) -> FrameFeedback:
         """One frame from the robot's own camera, embedded and dropped.
 

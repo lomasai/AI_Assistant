@@ -5,7 +5,7 @@ from typing import Any
 
 from lomas_core import logging as log
 from lomas_core.clock import Clock, RealClock
-from lomas_core.contracts import SESSION_CLOSED, SESSION_OPENED
+from lomas_core.contracts import ROBOT_SAY, SESSION_CLOSED, SESSION_OPENED, Utterance
 from lomas_core.events import EventBus
 from lomas_core.schema import AgentConfig, Config
 from lomas_face import (
@@ -49,7 +49,11 @@ from app.enrolment import EnrolmentService
 from app.author import LessonWriter
 from app.ears import Ears
 from app.face import FACE_SURFACES, FaceState
+from app.greeter import Greeter
+
+GREETER = "greeter"
 from app.listener import Listener
+from app.runner import ClassRunner
 from app.speaker import Room, SpeakerChain
 from app.observability.metrics import Metrics
 from app.observability.trace import Trace, build_trace
@@ -102,6 +106,8 @@ class System:
     speakers: SpeakerChain | None = None
     ears: Ears | None = None
     face: Any = None
+    runner: Any = None
+    greeter: Any = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -110,6 +116,11 @@ class System:
         return self.vision.frames if self.vision else None
 
     def close(self) -> None:
+        # The class first. Everything below here takes away something it is
+        # still using, and the last thing a lesson does is write its report.
+        if self.runner is not None and self.runner.teaching:
+            self.runner.stop()
+
         if self.web is not None:
             self.web.stop()
         # Last thing built, first thing stopped, so the file records the
@@ -247,6 +258,23 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         listener=listener, speakers=speakers, ears=ears, face=face,
         extras={"gate": gate, "machine": machine, "inputs": InputSet(cfg.speech.audio)},
     )
+
+    # Starting and ending a class, for the teacher's screen and for a voice
+    # in the room alike.
+    system.runner = ClassRunner(system)
+    if ears is not None:
+        ears.runner = system.runner
+
+    # Meeting somebody the camera does not know, and enrolling them, with
+    # nobody touching a screen. Off unless the profile says otherwise.
+    if enrolment is not None and listener is not None:
+        system.greeter = Greeter(
+            cfg, bus, clock, enrolment, listener, prompts,
+            say=lambda text: bus.publish(ROBOT_SAY, Utterance(
+                text=text, language=cfg.content.language, reason=GREETER)),
+            scope_of=lambda: orchestrator.scope,
+            busy=lambda: system.runner.teaching,
+        )
 
     # Last, because every surface is a view of the finished system. It is
     # built but not started: nothing listens until someone asks it to.

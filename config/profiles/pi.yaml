@@ -98,6 +98,12 @@ speech:
     stop_after_silence_ms: 1200 # ...and it stops this long after they finish
     no_speech_seconds: 5.0
 
+enrolment:
+  # The robot introduces itself to a face it does not know and enrols them
+  # there and then, so nothing about this robot needs a laptop. A school
+  # that wants a teacher to approve every enrolment sets this false.
+  by_voice: true
+
 hardware:
   enabled: true
   backend: esp32        # pip install pyserial

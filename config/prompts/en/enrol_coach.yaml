@@ -1,0 +1,8 @@
+# Said once per angle while the robot looks at a new child. {angle} is
+# left, centre or right, from enrolment.required_angles - so a new angle is
+# a config line and a phrasing, not code.
+
+lines:
+  - "{name}, please look to your {angle} for a moment."
+  - "Thank you. Now turn a little to your {angle}."
+  - "Hold still, {name}, and look {angle}."

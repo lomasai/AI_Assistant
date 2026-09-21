@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import threading
 from typing import Any
 
 from fastapi import APIRouter
@@ -17,11 +16,10 @@ from lomas_core.contracts import (
 )
 from lomas_core.errors import LomasError
 
-from app.author import clean_topic
 
-from app.flow.states import SessionState
 
 OK = {"ok": True}
+TEACHER_SCREEN = "the teacher screen"
 TEACHER = "teacher"
 IDLE = "idle"
 
@@ -55,10 +53,9 @@ def router(system) -> APIRouter:
     """
     api = APIRouter()
     bus = system.bus
-    running: list[threading.Thread] = []
 
     def teaching() -> bool:
-        return bool(running) and running[0].is_alive()
+        return system.runner.teaching
 
     @api.get("/state")
     def state() -> dict[str, Any]:
@@ -90,38 +87,17 @@ def router(system) -> APIRouter:
     def start(body: StartClass) -> dict:
         """Begin a class.
 
-        On its own thread, because a lesson takes forty minutes and the
-        surfaces have to stay answerable throughout.
+        The rules live in the runner, because the robot can be told to start
+        by a voice in the room as well as by this page.
         """
-        if teaching():
-            raise LomasError("a class is already running")
-
-        machine = system.extras["machine"]
-        if machine.state is SessionState.HALTED:
-            raise LomasError("the robot is halted; clear it before starting a class")
-
-        # What a child said, reduced to its subject: "today we want to learn
-        # about machine learning, so let us go ahead" is a lesson on machine
-        # learning, and used to be sent to the writer whole.
-        wanted = clean_topic(body.topic, system.cfg.content.author) if body.topic else ""
-
-        thread = threading.Thread(
-            target=system.orchestrator.run,
-            kwargs={"topic": wanted, "language": body.language},
-            name="class",
-            daemon=True,
-        )
-        running.clear()
-        running.append(thread)
-        thread.start()
-        return {"started": wanted or system.cfg.content.default_topic}
+        return {"started": system.runner.start(body.topic, body.language, by=TEACHER_SCREEN)
+                or system.cfg.content.default_topic}
 
     @api.post("/session/stop")
     def stop() -> dict:
         """End the class early. Not a halt: the session closes properly and
         the report is complete."""
-        machine = system.extras["machine"]
-        machine.finish()
+        system.runner.stop()
         return OK
 
     @api.get("/topics")
