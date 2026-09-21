@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import threading
 from pathlib import Path
 
@@ -29,11 +30,35 @@ DIM = (120, 132, 156)
 MOODS = {"engaged": (86, 196, 134), "drifting": (232, 184, 84),
          "speaking": (110, 168, 254), AWAY: (92, 100, 120)}
 
+# Where the parts of the face sit, as shares of the screen, so a 7-inch
+# panel and a 24-inch monitor show the same face rather than the same pixels.
+EYES_AT = 0.32
+EYE_SHARE = 0.12
+EYE_APART = 0.17
+PUPIL_SHARE = 0.45
+GLINT_SHARE = 0.3
+MOUTH_AT = 0.52
+MOUTH_SPAN = 0.2
+TEXT_AT = 0.7      # below the mouth, not across it
+OPTIONS_GAP = 6
+
 BLINK_EVERY = 4.2
 BLINK_FOR = 0.12
+BLINK_CURVE = 0.18   # how much a blinking eye curves
+SLEEP_CURVE = 0.42   # ...and a sleeping one, which is the difference between
+LID_THICKNESS = 7    #    resting and switched off
+LOOK_AROUND_HZ = 0.9
+LOOK_BY = 0.25
+LOOK_UP = 0.3
+SMILE_FROM = 0.5
+MOUTH_THICK = 60
+MOUTH_THIN = 160
+TALK_OPEN = 0.06
+TALK_REST = 0.012
 TALK_HZ = 6.0
 IDLE_FPS = 10
 LINE_SHARE = 0.86  # of the screen width, before a line wraps
+WAITING = "waiting for a class"
 RUNTIME_DIR = "XDG_RUNTIME_DIR"  # where Wayland leaves its socket
 WAYLAND_SOCKETS = "wayland-*"
 LOCK = ".lock"  # beside each socket, and not itself a screen
@@ -139,58 +164,96 @@ class PygameFace:
         self._ribbon(pygame, surface, small, look, width, height)
 
     def _eyes(self, pygame, surface, look, now, width, height) -> None:
-        radius = int(height * 0.11)
-        top = int(height * 0.3)
-        blinking = (now % BLINK_EVERY) < BLINK_FOR or look.state == SLEEPING
+        """Two eyes that blink, and close rather than vanish.
+
+        Drawn as rounded shapes: a straight bar across a dark screen reads as
+        a broken screen, and a child looking at a robot should see a face
+        before they see anything else.
+        """
+        import math
+
+        radius = int(height * EYE_SHARE)
+        top = int(height * EYES_AT)
+        asleep = look.state == SLEEPING
+        blinking = asleep or (now % BLINK_EVERY) < BLINK_FOR
 
         for side in (-1, 1):
-            middle = (width // 2 + side * int(width * 0.16), top)
+            middle_x = width // 2 + side * int(width * EYE_APART)
             if blinking:
-                pygame.draw.line(surface, EYE, (middle[0] - radius, top),
-                                 (middle[0] + radius, top), max(3, radius // 5))
+                self._closed_eye(pygame, surface, middle_x, top, radius, asleep)
                 continue
-            pygame.draw.circle(surface, EYE, middle, radius)
-            # The pupil drifts up when the robot is thinking, which reads as
-            # thinking to a child and costs one line.
-            lift = int(radius * 0.3) if look.state == THINKING else 0
-            pygame.draw.circle(surface, PUPIL, (middle[0], top - lift), int(radius * 0.45))
+
+            pygame.draw.circle(surface, EYE, (middle_x, top), radius)
+            # The pupil looks about while thinking and settles while speaking,
+            # which reads as thinking and speaking without a word of text.
+            drift = math.sin(now * LOOK_AROUND_HZ) if look.state == THINKING else 0.0
+            across = int(drift * radius * LOOK_BY)
+            lift = int(radius * LOOK_UP) if look.state == THINKING else 0
+            pygame.draw.circle(surface, PUPIL, (middle_x + across, top - lift),
+                               int(radius * PUPIL_SHARE))
+            # One highlight. It is the difference between an eye and a dot.
+            glint = int(radius * GLINT_SHARE)
+            pygame.draw.circle(surface, EYE, (middle_x + across + glint, top - lift - glint),
+                               max(2, glint // 2))
+
+    def _closed_eye(self, pygame, surface, middle_x, top, radius, asleep) -> None:
+        """A closed eye curves. Asleep it curves more, and that is the whole
+        difference between a robot resting and a robot switched off."""
+        depth = radius * (SLEEP_CURVE if asleep else BLINK_CURVE)
+        thickness = max(3, radius // LID_THICKNESS)
+        for step in range(thickness):
+            box = (middle_x - radius, int(top - depth) + step, radius * 2, int(depth * 2))
+            pygame.draw.arc(surface, EYE, box, math.pi, math.tau, 2)
 
     def _mouth(self, pygame, surface, look, now, width, height) -> None:
         import math
 
-        middle_x, middle_y = width // 2, int(height * 0.5)
-        span = int(width * 0.18)
+        middle_x, middle_y = width // 2, int(height * MOUTH_AT)
+        span = int(width * MOUTH_SPAN)
 
         if look.state == SPEAKING:
-            open_by = abs(math.sin(now * TALK_HZ)) * height * 0.06 + height * 0.01
+            # Open and shut, rounded, so it reads as talking rather than as a
+            # bar changing height.
+            open_by = abs(math.sin(now * TALK_HZ)) * height * TALK_OPEN + height * TALK_REST
             pygame.draw.ellipse(
                 surface, MOUTH,
-                (middle_x - span // 2, middle_y - open_by / 2, span, open_by))
+                (middle_x - span // 2, int(middle_y - open_by / 2), span, int(open_by)))
             return
 
-        if look.state in (LISTENING, ASKING):
-            pygame.draw.arc(surface, MOUTH,
-                            (middle_x - span // 2, middle_y - span // 4, span, span // 2),
-                            3.34, 6.08, max(3, height // 120))
+        if look.state == SLEEPING:
+            # A small, level line: resting, not unhappy.
+            pygame.draw.line(surface, DIM, (middle_x - span // 4, middle_y),
+                             (middle_x + span // 4, middle_y), max(3, height // MOUTH_THIN))
             return
 
-        pygame.draw.line(surface, MOUTH, (middle_x - span // 3, middle_y),
-                         (middle_x + span // 3, middle_y), max(3, height // 140))
+        # Listening, thinking, asking: a slight smile, drawn as a few arcs
+        # stacked. One arc at any thickness comes out as a hairline with
+        # gaps in it, which on a face reads as a fault.
+        thickness = max(3, height // MOUTH_THICK)
+        for step in range(thickness):
+            box = (middle_x - span // 2, middle_y - span // 4 + step, span, span // 2)
+            pygame.draw.arc(surface, MOUTH, box, math.pi + SMILE_FROM, math.tau - SMILE_FROM, 2)
 
     def _words(self, surface, big, small, look, width, height) -> None:
+        """What is being said, under the face rather than through it."""
+        top = int(height * TEXT_AT)
         if not look.line:
+            # A dark screen with a sleeping face on it should still say what
+            # it is waiting for.
+            if look.state == SLEEPING:
+                drawn = small.render(WAITING, True, DIM)
+                surface.blit(drawn, drawn.get_rect(center=(width // 2, top)))
             return
 
-        top = int(height * 0.62)
         for line in wrap(look.line, big, int(width * LINE_SHARE)):
             drawn = big.render(line, True, TEXT)
             surface.blit(drawn, drawn.get_rect(center=(width // 2, top)))
-            top += drawn.get_height() + 4
+            top += drawn.get_height() + OPTIONS_GAP
 
         for number, option in enumerate(look.options, start=1):
             drawn = small.render(f"{number}.  {option}", True, DIM)
-            surface.blit(drawn, (int(width * 0.1), top))
-            top += drawn.get_height() + 2
+            surface.blit(drawn, drawn.get_rect(center=(width // 2, top)))
+            top += drawn.get_height() + OPTIONS_GAP
 
     def _ribbon(self, pygame, surface, small, look, width, height) -> None:
         if not look.children:
