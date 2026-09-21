@@ -22,7 +22,7 @@ def encode(frame: Frame, quality: int) -> bytes:
     return buffer.tobytes() if ok else b""
 
 
-def mjpeg(frames: FrameBus, cfg: Config, source_id: str) -> Iterator[bytes]:
+def mjpeg(frames: FrameBus, cfg: Config, source_id: str, closing=None) -> Iterator[bytes]:
     """The camera, as it is, with nothing drawn on it.
 
     Face boxes are HTML positioned over the video element. Painting them here
@@ -37,7 +37,7 @@ def mjpeg(frames: FrameBus, cfg: Config, source_id: str) -> Iterator[bytes]:
     sent = 0
 
     try:
-        while True:
+        while closing is None or not closing.is_set():
             started = time.monotonic()
             frame = frames.latest(source_id)
 

@@ -111,7 +111,7 @@ def _message(event: str, payload: Any) -> dict:
     return {EVENT_KEY: event, PAYLOAD_KEY: to_plain(payload)}
 
 
-async def pump(websocket, hub: EventHub) -> None:
+async def pump(websocket, hub: EventHub, closing=None) -> None:
     """Serve one browser until it goes away.
 
     The timeout is a heartbeat, not a deadline: a quiet classroom publishes
@@ -123,10 +123,12 @@ async def pump(websocket, hub: EventHub) -> None:
         for message in hub.greeting():
             await websocket.send_json(message)
 
-        while True:
+        while closing is None or not closing.is_set():
             try:
                 message = await asyncio.wait_for(client.queue.get(), hub.cfg.ping_seconds)
             except asyncio.TimeoutError:
+                if closing is not None and closing.is_set():
+                    break
                 await websocket.send_json({EVENT_KEY: PING, PAYLOAD_KEY: None})
                 continue
             await websocket.send_json(message)

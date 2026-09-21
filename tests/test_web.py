@@ -411,3 +411,12 @@ def test_a_child_can_be_taken_out_of_the_class(client, system) -> None:
 
 def test_removing_somebody_who_is_not_there_says_so(client) -> None:
     assert client.delete("/api/students/nobody").status_code >= 400
+
+
+def test_the_end_button_is_out_of_reach_while_a_class_opens() -> None:
+    """Twice on the Pi a class ended one step in: the same button starts and
+    ends, and the second press landed while the first was still opening."""
+    source = Path("app/web/ui/teacher/teacher.js").read_text(encoding="utf-8")
+
+    assert "confirm('End the class now?" in source
+    assert "$('start').disabled = true;" in source

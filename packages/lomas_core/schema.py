@@ -647,6 +647,10 @@ class WebConfig(BaseModel):
     # is on the wire even though it is kept out of the session log.
     event_filter: list[str] = Field(default_factory=lambda: ["*"])
     shutdown_seconds: float = Field(default=2.0, gt=0)
+    # Long enough for an open camera stream to notice it is over and end
+    # itself. Without it, shutdown cancels the response mid-frame and prints
+    # a page of traceback at a teacher.
+    drain_seconds: float = Field(default=0.3, ge=0)
 
 
 def _default_latencies() -> dict[str, list[str]]:

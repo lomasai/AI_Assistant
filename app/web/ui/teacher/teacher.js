@@ -43,6 +43,8 @@
   // --- starting and ending a class -----------------------------------------
 
   let teaching = false;
+  // How long the End button stays out of reach after a class starts.
+  const STARTING_MS = 3000;
 
   fetch('/api/topics').then((r) => r.json()).then((body) => {
     $('topic').replaceChildren(...body.topics.map((lesson) => {
@@ -56,6 +58,12 @@
   const showTeaching = (on) => {
     teaching = on;
     $('start').textContent = on ? 'End class' : 'Start class';
+    // A class takes a moment to open, and a teacher pressing the button
+    // again in that moment meant to start it, not to end it.
+    if (on) {
+      $('start').disabled = true;
+      setTimeout(() => { $('start').disabled = false; }, STARTING_MS);
+    }
     $('start').classList.toggle('teaching', on);
     $('topic').disabled = on;
     $('anyTopic').disabled = on;
@@ -63,6 +71,10 @@
   };
 
   $('start').onclick = async () => {
+    // The same button starts and ends, and a second click while a class was
+    // starting ended it before the greeting. Ending is now asked about.
+    if (teaching && !confirm('End the class now? The report is kept.')) return;
+
     // Typed wins over chosen: the list is what has been written, the box is
     // what a child just asked for.
     const asked = $('anyTopic').value.trim();

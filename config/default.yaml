@@ -495,6 +495,7 @@ web:
   ping_seconds: 20.0
   event_filter: ["*"]
   shutdown_seconds: 2.0
+  drain_seconds: 0.3          # let the camera stream end itself before exiting
 
 agents:
   # Remove a name and that agent is gone. Nothing else changes.

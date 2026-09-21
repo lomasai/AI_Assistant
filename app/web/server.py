@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -102,12 +103,17 @@ def create_app(system) -> FastAPI:
         crash. A refused enrolment must read as a refusal in the browser."""
         return JSONResponse(status_code=BAD_REQUEST, content={"error": str(exc)})
 
+    # Set before uvicorn is asked to exit, so the streams end themselves and
+    # shutdown is a closed connection rather than a cancelled task with a
+    # page of traceback behind it.
+    app.state.closing = threading.Event()
+
     @app.websocket("/events")
     async def events(websocket: WebSocket) -> None:
         await websocket.accept()
         try:
-            await ws_module.pump(websocket, hub)
-        except WebSocketDisconnect:
+            await ws_module.pump(websocket, hub, app.state.closing)
+        except (WebSocketDisconnect, asyncio.CancelledError):
             pass
 
     @app.get("/camera.mjpeg")
@@ -116,7 +122,8 @@ def create_app(system) -> FastAPI:
         if frames is None:
             return StreamingResponse(iter([NO_CAMERA]), media_type=CONTENT_TYPE)
         source = system.cfg.web.mjpeg_source or source_for(system.cfg)
-        return StreamingResponse(mjpeg(frames, system.cfg, source), media_type=CONTENT_TYPE)
+        return StreamingResponse(mjpeg(frames, system.cfg, source, app.state.closing),
+                                 media_type=CONTENT_TYPE)
 
     # The overlay is not hidden in user mode, it is not served at all: a
     # route that only refuses is still a route somebody can find.
@@ -206,6 +213,12 @@ class WebServer:
         """
         if self._server is None:
             return
+
+        # The streams first. A browser holding the camera open is what turns
+        # Ctrl-C into four screens of CancelledError: uvicorn cancels the
+        # response mid-frame instead of the response ending.
+        self.app.state.closing.set()
+        time.sleep(self.cfg.drain_seconds)
 
         self._server.should_exit = True
         if self._thread is not None:
