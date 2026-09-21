@@ -307,16 +307,15 @@ def test_the_face_thread_does_not_die_on_a_missing_screen(monkeypatch) -> None:
         system.close()
 
 
-def test_every_way_a_pi_has_of_showing_something_is_tried() -> None:
-    """The Pi found none: Raspberry Pi OS boots Wayland now, and a VNC
-    session lives on :1. Neither was in the list."""
+def test_the_terminals_own_screen_is_tried_first() -> None:
+    """A robot started from the desktop it should draw on is the normal
+    case, and needs nothing set at all."""
     from lomas_core.schema import ScreenConfig
     from app.face.pygame_face import attempts
 
-    drivers = [driver for driver, _env in attempts(ScreenConfig())]
-    assert drivers[0] == "", "the terminal's own display comes first"
-    assert "wayland" in drivers and "kmsdrm" in drivers
-    assert [env.get("DISPLAY") for _d, env in attempts(ScreenConfig()) if env] == [":0", ":1"]
+    tried = attempts(ScreenConfig())
+    assert tried[0] == ("", {})
+    assert [driver for driver, _env in tried][-2:] == ["kmsdrm", "fbcon"], "the panel, last"
 
 
 def test_naming_a_driver_tries_only_that_one() -> None:
@@ -343,3 +342,41 @@ def test_a_failed_attempt_leaves_the_environment_as_it_found_it() -> None:
 
     assert os.environ.get("DISPLAY") == was
     assert "SDL_VIDEODRIVER" not in os.environ or os.environ["SDL_VIDEODRIVER"] != "not-a-driver"
+
+
+def test_a_running_desktop_is_found_not_guessed(tmp_path, monkeypatch) -> None:
+    """Started over ssh the robot has no screen of its own, and the one
+    somebody is looking at is right there, belonging to the same user. Two
+    guesses at ":0" and ":1" found neither."""
+    from app.face.pygame_face import running_sessions
+
+    (tmp_path / "wayland-0").touch()
+    (tmp_path / "wayland-0.lock").touch()
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+
+    found = running_sessions()
+
+    waylands = [env for driver, env in found if driver == "wayland"]
+    assert [env["WAYLAND_DISPLAY"] for env in waylands] == ["wayland-0"], "the lock is not a screen"
+
+
+def test_x_sessions_are_found_with_their_cookie(monkeypatch, tmp_path) -> None:
+    import os
+
+    from app.face.pygame_face import running_sessions, xauthority
+
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+    if not os.path.isdir("/tmp/.X11-unix"):
+        pytest.skip("no X sockets on this machine, which is the point of looking")
+
+    for driver, env in running_sessions():
+        if driver == "x11":
+            assert env["DISPLAY"].startswith(":")
+            assert "XAUTHORITY" in env, "X refuses a client with no cookie"
+
+
+def test_a_named_driver_still_wins() -> None:
+    from lomas_core.schema import ScreenConfig
+    from app.face.pygame_face import attempts
+
+    assert attempts(ScreenConfig(driver="kmsdrm")) == [("kmsdrm", {})]

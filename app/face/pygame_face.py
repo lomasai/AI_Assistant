@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 
 from lomas_core import logging as log
 from lomas_core.errors import LomasError
@@ -33,8 +34,7 @@ BLINK_FOR = 0.12
 TALK_HZ = 6.0
 IDLE_FPS = 10
 LINE_SHARE = 0.86  # of the screen width, before a line wraps
-FIRST_DISPLAY = ":0"   # the Pi's own screen
-SECOND_DISPLAY = ":1"  # where a VNC session usually lives
+RUNTIME_DIR = "XDG_RUNTIME_DIR"  # where Wayland leaves its socket
 
 
 @FACE_SURFACES.register("pygame")
@@ -201,24 +201,55 @@ class PygameFace:
             left += drawn.get_width() + 44
 
 
-def attempts(screen) -> list[tuple[str, dict]]:
-    """Every way a Pi has of putting something on a screen, in order.
+def running_sessions() -> list[tuple[str, dict]]:
+    """The desktops this Pi is actually running, found rather than guessed.
 
-    Named by the thing a person can see rather than the API: the desktop
-    this terminal already belongs to, the Wayland session Raspberry Pi OS
-    now boots into, an X session - a VNC one lives on :1 - and finally the
-    panel itself with no desktop at all.
+    A terminal over ssh has no screen of its own, but the screen somebody is
+    looking at is right there and belongs to the same user. Wayland leaves a
+    socket in the runtime directory and X leaves one in /tmp/.X11-unix, so
+    both can be named exactly instead of being tried by folklore.
+    """
+    import os
+
+    found = []
+    runtime = os.environ.get(RUNTIME_DIR, "")
+    if not runtime and hasattr(os, "getuid"):
+        runtime = f"/run/user/{os.getuid()}"
+    if runtime and Path(runtime).is_dir():
+        for socket in sorted(Path(runtime).glob("wayland-*")):
+            if socket.suffix != ".lock":
+                found.append(("wayland", {RUNTIME_DIR: runtime, "WAYLAND_DISPLAY": socket.name}))
+
+    sockets = Path("/tmp/.X11-unix")
+    if sockets.is_dir():
+        for socket in sorted(sockets.glob("X*")):
+            display = ":" + socket.name[1:]
+            found.append(("x11", {"DISPLAY": display, "XAUTHORITY": xauthority()}))
+    return found
+
+
+def xauthority() -> str:
+    """X refuses a client with no cookie, and a robot started over ssh has
+    to borrow the one belonging to the desktop it is drawing on."""
+    import os
+
+    named = os.environ.get("XAUTHORITY")
+    if named and Path(named).exists():
+        return named
+    home = Path(os.path.expanduser("~")) / ".Xauthority"
+    return str(home) if home.exists() else ""
+
+
+def attempts(screen) -> list[tuple[str, dict]]:
+    """Every way this Pi has of putting something on a screen, in order.
+
+    The terminal's own display first - that is a robot started from the
+    desktop, which is the normal case - then the sessions actually running
+    on the machine, then the panel itself with no desktop at all.
     """
     if screen.driver:
         return [(screen.driver, {})]
-    return [
-        ("", {}),
-        ("wayland", {}),
-        ("x11", {"DISPLAY": FIRST_DISPLAY}),
-        ("x11", {"DISPLAY": SECOND_DISPLAY}),
-        ("kmsdrm", {}),
-        ("fbcon", {}),
-    ]
+    return [("", {}), *running_sessions(), ("kmsdrm", {}), ("fbcon", {})]
 
 
 def open_display(pygame, screen) -> str:
