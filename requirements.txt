@@ -14,8 +14,11 @@ websockets>=12
 # pyserial>=3.5
 
 # Optional: only for display.face_screen.surface=pygame, the face the robot
-# draws itself instead of opening a browser. On Raspberry Pi OS:
-#   sudo apt install -y python3-pygame
+# draws itself instead of opening a browser.
+#   pip install pygame
+# From pip, not apt: Raspberry Pi OS's python3-pygame came with an SDL that
+# had no video backend at all, so every driver refused by name while X was
+# answering other clients perfectly well. The wheel brings its own SDL.
 # pygame>=2.5
 
 # The local voice, loaded once inside the robot (speech.tts.engine: piper_python).

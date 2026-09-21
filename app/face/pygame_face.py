@@ -39,6 +39,7 @@ WAYLAND_SOCKETS = "wayland-*"
 LOCK = ".lock"  # beside each socket, and not itself a screen
 X_SOCKETS = "/tmp/.X11-unix"
 X_DISPLAYS = "X*"
+NOT_AVAILABLE = "not available"  # SDL's words for a backend it does not have
 
 
 @FACE_SURFACES.register("pygame")
@@ -292,6 +293,17 @@ def open_display(pygame, screen) -> str:
             pygame.display.quit()
             for name, value in before.items():
                 os.environ.pop(name, None) if value is None else os.environ.update({name: value})
+
+    # Every driver refusing by name is a different fault from every display
+    # refusing: the first is an SDL with nothing to draw through, which the
+    # Pi's packaged pygame turned out to be while X itself was answering
+    # xdpyinfo perfectly well.
+    if all(NOT_AVAILABLE in line for line in tried):
+        raise LomasError(
+            "this pygame has no way to draw at all (" + "; ".join(tried) + "). The one "
+            "from apt can be built without any video backend: pip install --upgrade "
+            "pygame inside the virtualenv, which brings its own. Or surface: browser."
+        )
 
     raise LomasError(
         "no screen to draw a face on. Tried " + "; ".join(tried) + ". Run the robot "

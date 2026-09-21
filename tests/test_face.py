@@ -291,7 +291,9 @@ def test_no_screen_at_all_says_what_to_do() -> None:
     from app.face.pygame_face import open_display
 
     pygame.display.quit()
-    with pytest.raises(LomasError, match="no screen to draw a face on"):
+    # A driver SDL does not have reads as a pygame with nothing to draw
+    # through, which is the more useful of the two things it could mean.
+    with pytest.raises(LomasError, match="no way to draw at all|no screen to draw a face on"):
         open_display(pygame, ScreenConfig(driver="not-a-driver"))
 
 
@@ -388,3 +390,28 @@ def test_a_named_driver_still_wins() -> None:
     from app.face.pygame_face import attempts
 
     assert attempts(ScreenConfig(driver="kmsdrm")) == [("kmsdrm", {})]
+
+
+def test_an_sdl_with_no_backends_is_told_apart_from_a_missing_screen() -> None:
+    """The Pi's packaged pygame refused every driver by name while xdpyinfo
+    talked to the same display perfectly well. That is a broken pygame, not
+    a robot in the wrong terminal, and the advice is different."""
+    from lomas_core.errors import LomasError
+    from lomas_core.schema import ScreenConfig
+    from app.face.pygame_face import open_display
+
+    class NoBackends:
+        error = RuntimeError
+
+        class display:
+            @staticmethod
+            def init():
+                raise RuntimeError("x11 not available")
+
+            @staticmethod
+            def quit():
+                pass
+
+    NoBackends.error = RuntimeError
+    with pytest.raises(LomasError, match="no way to draw at all"):
+        open_display(NoBackends, ScreenConfig(driver="x11"))
