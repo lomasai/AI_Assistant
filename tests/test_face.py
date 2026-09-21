@@ -305,3 +305,41 @@ def test_the_face_thread_does_not_die_on_a_missing_screen(monkeypatch) -> None:
         assert not system.face._thread.is_alive()
     finally:
         system.close()
+
+
+def test_every_way_a_pi_has_of_showing_something_is_tried() -> None:
+    """The Pi found none: Raspberry Pi OS boots Wayland now, and a VNC
+    session lives on :1. Neither was in the list."""
+    from lomas_core.schema import ScreenConfig
+    from app.face.pygame_face import attempts
+
+    drivers = [driver for driver, _env in attempts(ScreenConfig())]
+    assert drivers[0] == "", "the terminal's own display comes first"
+    assert "wayland" in drivers and "kmsdrm" in drivers
+    assert [env.get("DISPLAY") for _d, env in attempts(ScreenConfig()) if env] == [":0", ":1"]
+
+
+def test_naming_a_driver_tries_only_that_one() -> None:
+    from lomas_core.schema import ScreenConfig
+    from app.face.pygame_face import attempts
+
+    assert attempts(ScreenConfig(driver="kmsdrm")) == [("kmsdrm", {})]
+
+
+def test_a_failed_attempt_leaves_the_environment_as_it_found_it() -> None:
+    """Otherwise the second attempt inherits the first one's settings and
+    every line of the error says the same thing."""
+    import os
+
+    pygame = pytest.importorskip("pygame")
+    from lomas_core.errors import LomasError
+    from lomas_core.schema import ScreenConfig
+    from app.face.pygame_face import open_display
+
+    was = os.environ.get("DISPLAY")
+    pygame.display.quit()
+    with pytest.raises(LomasError):
+        open_display(pygame, ScreenConfig(driver="not-a-driver"))
+
+    assert os.environ.get("DISPLAY") == was
+    assert "SDL_VIDEODRIVER" not in os.environ or os.environ["SDL_VIDEODRIVER"] != "not-a-driver"

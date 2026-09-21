@@ -33,7 +33,8 @@ BLINK_FOR = 0.12
 TALK_HZ = 6.0
 IDLE_FPS = 10
 LINE_SHARE = 0.86  # of the screen width, before a line wraps
-DEFAULT_DISPLAY = ":0"  # the Pi's own desktop, when nothing says otherwise
+FIRST_DISPLAY = ":0"   # the Pi's own screen
+SECOND_DISPLAY = ":1"  # where a VNC session usually lives
 
 
 @FACE_SURFACES.register("pygame")
@@ -200,38 +201,57 @@ class PygameFace:
             left += drawn.get_width() + 44
 
 
+def attempts(screen) -> list[tuple[str, dict]]:
+    """Every way a Pi has of putting something on a screen, in order.
+
+    Named by the thing a person can see rather than the API: the desktop
+    this terminal already belongs to, the Wayland session Raspberry Pi OS
+    now boots into, an X session - a VNC one lives on :1 - and finally the
+    panel itself with no desktop at all.
+    """
+    if screen.driver:
+        return [(screen.driver, {})]
+    return [
+        ("", {}),
+        ("wayland", {}),
+        ("x11", {"DISPLAY": FIRST_DISPLAY}),
+        ("x11", {"DISPLAY": SECOND_DISPLAY}),
+        ("kmsdrm", {}),
+        ("fbcon", {}),
+    ]
+
+
 def open_display(pygame, screen) -> str:
     """Get a screen, and say which one, or say why there is none.
 
-    A Pi shows this face three ways: through the desktop over X11, straight
-    at the panel with no desktop at all, and through a VNC session that has
-    its own display. Rather than ask which, each is tried in turn - the whole
-    point of the face is that the robot boots and is there.
+    Rather than ask which kind of Pi this is, each is tried in turn: the
+    whole point of a face the robot draws itself is that it boots and is
+    there.
     """
     import os
 
-    wanted = [screen.driver] if screen.driver else ["", "x11", "kmsdrm", "fbcon"]
     tried = []
-    for driver in wanted:
+    for driver, environment in attempts(screen):
+        before = {name: os.environ.get(name) for name in ("SDL_VIDEODRIVER", *environment)}
         if driver:
             os.environ["SDL_VIDEODRIVER"] = driver
-        elif not os.environ.get("DISPLAY"):
-            # A terminal over ssh has no DISPLAY; the Pi's own desktop is :0
-            # and is what somebody sitting in front of the robot is looking at.
-            os.environ["DISPLAY"] = DEFAULT_DISPLAY
+        os.environ.update(environment)
 
         try:
             pygame.display.init()
             return driver or pygame.display.get_driver()
         except pygame.error as exc:
-            tried.append(f"{driver or 'default'} ({exc})")
+            shown = " ".join(f"{k}={v}" for k, v in environment.items())
+            tried.append(f"{driver or 'this terminal'}{' ' + shown if shown else ''}: {exc}")
             pygame.display.quit()
-            os.environ.pop("SDL_VIDEODRIVER", None)
+            for name, value in before.items():
+                os.environ.pop(name, None) if value is None else os.environ.update({name: value})
 
     raise LomasError(
-        "no screen to draw a face on: " + "; ".join(tried) + ". On a Pi with a "
-        "desktop, run the robot from that desktop; without one, set "
-        "display.face_screen.driver: kmsdrm. Or browser, for a tab instead."
+        "no screen to draw a face on. Tried " + "; ".join(tried) + ". Run the robot "
+        "from a terminal on the Pi's own screen (or in the VNC session) so it can "
+        "see that display; on a Pi with no desktop at all set "
+        "display.face_screen.driver: kmsdrm. Or surface: browser, for a tab."
     )
 
 
