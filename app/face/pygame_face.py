@@ -89,6 +89,7 @@ class PygameFace:
         self.state = state
         self.log = log.get("face")
         self._stop = threading.Event()
+        self._full = cfg.display.face_screen.fullscreen
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
@@ -127,11 +128,13 @@ class PygameFace:
             return
 
         pygame.font.init()
-        flags = pygame.FULLSCREEN if self.screen.fullscreen else 0
+        self._full = self.screen.fullscreen
+        flags = pygame.FULLSCREEN if self._full else 0
         surface = pygame.display.set_mode((self.screen.width, self.screen.height), flags)
         pygame.display.set_caption("LomasAI")
         pygame.mouse.set_visible(False)
-        self.log.info("face on %sx%s through %s", self.screen.width, self.screen.height, opened)
+        self.log.info("face on %sx%s through %s - Esc leaves fullscreen, Q closes it",
+                      self.screen.width, self.screen.height, opened)
 
         big = pygame.font.Font(None, int(self.cfg.display.base_font_px * self.screen.scale))
         small = pygame.font.Font(None, int(self.cfg.display.base_font_px * 0.6 * self.screen.scale))
@@ -142,6 +145,8 @@ class PygameFace:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         self._stop.set()
+                    elif event.type == pygame.KEYDOWN:
+                        surface = self._keyed(pygame, event.key, surface)
                 self._draw(pygame, surface, big, small)
                 pygame.display.flip()
                 clock.tick(IDLE_FPS)
@@ -149,6 +154,23 @@ class PygameFace:
             self.log.error("the face stopped: %s", exc)
         finally:
             pygame.quit()
+
+    def _keyed(self, pygame, key, surface):
+        """Escape leaves fullscreen; Q closes the face.
+
+        A face that covers the whole screen with no way back is a robot you
+        have to kill from another terminal, which is exactly the wrong thing
+        to be doing in front of a class.
+        """
+        if key == pygame.K_q:
+            self._stop.set()
+            return surface
+        if key not in (pygame.K_ESCAPE, pygame.K_f):
+            return surface
+
+        self._full = not self._full
+        return pygame.display.set_mode((self.screen.width, self.screen.height),
+                                       pygame.FULLSCREEN if self._full else 0)
 
     def _draw(self, pygame, surface, big, small) -> None:
         import time

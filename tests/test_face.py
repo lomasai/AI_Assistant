@@ -415,3 +415,28 @@ def test_an_sdl_with_no_backends_is_told_apart_from_a_missing_screen() -> None:
     NoBackends.error = RuntimeError
     with pytest.raises(LomasError, match="no way to draw at all"):
         open_display(NoBackends, ScreenConfig(driver="x11"))
+
+
+def test_escape_leaves_fullscreen_and_q_closes_the_face() -> None:
+    """A face covering the whole screen with no way back is a robot killed
+    from another terminal, which is the wrong thing to be doing in front of
+    a class."""
+    pygame = pytest.importorskip("pygame")
+
+    system = built("display.face_screen.surface=pygame")
+    try:
+        face = system.face
+        modes = []
+        pygame.display.set_mode = lambda size, flags=0: modes.append(flags) or "surface"
+
+        face._full = True
+        face._keyed(pygame, pygame.K_ESCAPE, "surface")
+        assert modes == [0], "escape did not leave fullscreen"
+
+        face._keyed(pygame, pygame.K_ESCAPE, "surface")
+        assert modes[-1] == pygame.FULLSCREEN, "and does not go back"
+
+        face._keyed(pygame, pygame.K_q, "surface")
+        assert face._stop.is_set()
+    finally:
+        system.close()
