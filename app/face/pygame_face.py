@@ -38,6 +38,7 @@ RUNTIME_DIR = "XDG_RUNTIME_DIR"  # where Wayland leaves its socket
 WAYLAND_SOCKETS = "wayland-*"
 LOCK = ".lock"  # beside each socket, and not itself a screen
 X_SOCKETS = "/tmp/.X11-unix"
+X_DISPLAYS = "X*"
 
 
 @FACE_SURFACES.register("pygame")
@@ -225,22 +226,33 @@ def running_sessions() -> list[tuple[str, dict]]:
 
     sockets = Path(X_SOCKETS)
     if sockets.is_dir():
-        for socket in sorted(sockets.glob("X*")):
+        for socket in sorted(sockets.glob(X_DISPLAYS)):
             display = ":" + socket.name[1:]
-            found.append(("x11", {"DISPLAY": display, "XAUTHORITY": xauthority()}))
+            found += [("x11", {"DISPLAY": display, "XAUTHORITY": cookie})
+                      for cookie in cookies()]
     return found
 
 
-def xauthority() -> str:
-    """X refuses a client with no cookie, and a robot started over ssh has
-    to borrow the one belonging to the desktop it is drawing on."""
+def cookies() -> list[str]:
+    """Every X cookie this machine might be using, and then none at all.
+
+    X refuses a client that cannot prove which session it belongs to, and a
+    robot started over ssh has to borrow the desktop's proof. Where that is
+    kept depends on what started the desktop, so the ones that exist are all
+    tried rather than argued about.
+    """
     import os
 
-    named = os.environ.get("XAUTHORITY")
-    if named and Path(named).exists():
-        return named
-    home = Path(os.path.expanduser("~")) / ".Xauthority"
-    return str(home) if home.exists() else ""
+    where = [
+        os.environ.get("XAUTHORITY", ""),
+        os.path.expanduser("~/.Xauthority"),
+        f"/run/user/{os.getuid()}/gdm/Xauthority" if hasattr(os, "getuid") else "",
+        f"/run/user/{os.getuid()}/xauth_for_lightdm" if hasattr(os, "getuid") else "",
+    ]
+    found = [path for path in where if path and Path(path).exists()]
+    # The empty one last: some servers let a local user straight in, and a
+    # wrong cookie is refused where no cookie would have been let through.
+    return [*dict.fromkeys(found), ""]
 
 
 def attempts(screen) -> list[tuple[str, dict]]:

@@ -360,21 +360,27 @@ def test_a_running_desktop_is_found_not_guessed(tmp_path, monkeypatch) -> None:
     assert [env["WAYLAND_DISPLAY"] for env in waylands] == ["wayland-0"], "the lock is not a screen"
 
 
-def test_x_sessions_are_found_with_their_cookie(monkeypatch, tmp_path) -> None:
+def test_an_x_session_is_tried_with_every_cookie_and_then_none(monkeypatch, tmp_path) -> None:
+    """X refuses a client that cannot prove which session it belongs to, and
+    where that proof is kept depends on what started the desktop. A wrong
+    cookie is also refused where no cookie would have been let in."""
     import os
 
-    from app.face.pygame_face import running_sessions, xauthority
+    from app.face.pygame_face import X_SOCKETS, cookies, running_sessions
 
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
-    from app.face.pygame_face import X_SOCKETS
+    monkeypatch.setenv("XAUTHORITY", str(tmp_path / "cookie"))
+    (tmp_path / "cookie").touch()
+
+    assert cookies()[0].endswith("cookie")
+    assert cookies()[-1] == "", "no cookie at all is the last thing to try"
 
     if not os.path.isdir(X_SOCKETS):
         pytest.skip("no X sockets on this machine, which is the point of looking")
 
-    for driver, env in running_sessions():
-        if driver == "x11":
-            assert env["DISPLAY"].startswith(":")
-            assert "XAUTHORITY" in env, "X refuses a client with no cookie"
+    sessions = [env for driver, env in running_sessions() if driver == "x11"]
+    assert sessions, "an X socket exists and nothing looked for it"
+    assert {env["DISPLAY"] for env in sessions} and all("XAUTHORITY" in env for env in sessions)
 
 
 def test_a_named_driver_still_wins() -> None:
