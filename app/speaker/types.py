@@ -33,6 +33,8 @@ class Heard:
     tapped: tuple[str, str] = (NOBODY, NOBODY)
     roster: list[dict] = field(default_factory=list)
     visible: list[str] = field(default_factory=list)  # student ids in front of the camera
+    # How much each visible child's mouth moved just now, by student id.
+    mouths: dict[str, float] = field(default_factory=dict)
     last: Speaker | None = None
     since_last: float = 0.0
 

@@ -22,6 +22,7 @@ from lomas_core.contracts import (
 from lomas_core.events import EventBus
 from lomas_core.schema import Config
 from lomas_face import AttentionMonitor, IdentityMatcher, Tracker, estimate_pose
+from lomas_face.mouth import Mouths
 from lomas_face.types import Pose, Track
 from lomas_vision import Frame, FrameBus
 
@@ -96,6 +97,10 @@ class VisionPipeline:
         self.matcher = matcher
         self.attention = attention
         self.source_id = source_for(cfg)
+        # Who is talking, when nobody has said a name and two faces are in
+        # view. Measured here because this is the only place with the frame
+        # and the tracks in the same hand.
+        self.mouths = Mouths(cfg.face.mouth_smoothing, cfg.face.mouth_patch_px)
         self.log = log.get("vision")
 
         self.cycles = 0
@@ -154,8 +159,10 @@ class VisionPipeline:
         detections = [d.scaled(factor) for d in self.detector.detect(small)]
         tracks = self.tracker.update(detections, frame.ts)
 
+        moving = self.mouths.update(frame.image, tracks) if self.cfg.face.watch_mouths else {}
         for track in tracks:
             self._identify(track, frame, frame.ts)
+            track.mouth = moving.get(track.track_id, 0.0)
             if track.box.landmarks is not None:
                 track.pose = estimate_pose(track.box.landmarks, self.cfg.face.pose)
 
@@ -283,6 +290,7 @@ class VisionPipeline:
                     h=t.box.h,
                     student_id=t.student_id,
                     attention=t.attention,
+                    mouth=t.mouth,
                     yaw=(t.pose or LEVEL).yaw,
                     pitch=(t.pose or LEVEL).pitch,
                     seen_for=t.age,

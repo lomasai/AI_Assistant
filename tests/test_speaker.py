@@ -304,3 +304,69 @@ def test_nobody_is_asked_who_said_the_topic(system) -> None:
     assert body["text"] == "machine learning", "the subject, not the sentence"
     assert not [u for _n, u in system.bus.replay(ROBOT_SAY) if u.reason == "ask"]
     assert not system.bus.replay(QUESTION_ASKED)
+
+
+# --- which of two known faces is talking ----------------------------------
+
+
+def talking(system, scores: dict) -> None:
+    """The camera reporting mouth movement per face, as the pipeline does."""
+    system.bus.publish(
+        VISION_TRACKS,
+        TracksSeen(
+            source_id="head", zone="front", at=system.clock.now(), width=1280, height=720,
+            tracks=tuple(
+                TrackView(track_id=n, x=10, y=10, w=200, h=200, student_id=who,
+                          attention=0.9, yaw=0.0, pitch=0.0, seen_for=3.0, mouth=score)
+                for n, (who, score) in enumerate(scores.items(), start=1)
+            ),
+        ),
+    )
+
+
+def mouth_first(system):
+    return SpeakerChain(system.cfg, system.bus, system.clock, system.prompts, system.repos,
+                        room=system.speakers.room, scope_of=lambda: system.orchestrator.scope)
+
+
+def test_the_face_whose_mouth_moved_is_the_speaker(system, roster) -> None:
+    chain = build("speech.speaker.resolvers=[mouth_motion]")
+    try:
+        chain.orchestrator.open_session()
+        here = chain.repos["student"].list_for_class(chain.orchestrator.scope)
+        talking(chain, {here[0]["id"]: 0.002, here[1]["id"]: 0.05})
+
+        found = chain.speakers.resolve("why do leaves fall")
+
+        assert found.student_id == here[1]["id"]
+        assert found.how == "mouth_motion"
+    finally:
+        chain.close()
+
+
+def test_two_faces_moving_alike_are_not_guessed_between() -> None:
+    system = build("speech.speaker.resolvers=[mouth_motion]")
+    try:
+        system.orchestrator.open_session()
+        here = system.repos["student"].list_for_class(system.orchestrator.scope)
+        talking(system, {here[0]["id"]: 0.03, here[1]["id"]: 0.029})
+
+        assert system.speakers.resolve("why do leaves fall").how == "unknown"
+    finally:
+        system.close()
+
+
+def test_a_still_room_names_nobody() -> None:
+    system = build("speech.speaker.resolvers=[mouth_motion]")
+    try:
+        system.orchestrator.open_session()
+        here = system.repos["student"].list_for_class(system.orchestrator.scope)
+        talking(system, {here[0]["id"]: 0.001, here[1]["id"]: 0.0})
+
+        assert system.speakers.resolve("why do leaves fall").how == "unknown"
+    finally:
+        system.close()
+
+
+def test_mouth_motion_is_available_to_put_in_the_chain() -> None:
+    assert "mouth_motion" in RESOLVERS.keys()

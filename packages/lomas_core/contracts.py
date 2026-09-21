@@ -196,6 +196,9 @@ class TrackView:
     yaw: float
     pitch: float
     seen_for: float
+    # How much this face's mouth is moving. Last, with a default, because
+    # every surface that draws a box predates it and none of them care.
+    mouth: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

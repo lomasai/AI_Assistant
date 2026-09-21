@@ -175,6 +175,13 @@ class FaceConfig(BaseModel):
     track_death_seconds: float = Field(default=1.5, gt=0)
     pose: PoseConfig = Field(default_factory=PoseConfig)
 
+    # Movement around the mouth, which is how the robot tells which of two
+    # known faces is the one talking. Cheap: a 24 by 24 patch per face per
+    # cycle. See the `mouth_motion` speaker resolver.
+    watch_mouths: bool = True
+    mouth_smoothing: float = Field(default=0.6, ge=0.0, lt=1.0)
+    mouth_patch_px: int = Field(default=24, ge=8)
+
     # Recognition. Identity is resolved on new tracks and then carried by the
     # tracker, so these govern how rarely the embedder runs.
     # sface by default: it runs on the OpenCV already installed for the
@@ -358,6 +365,12 @@ class SpeakerConfig(BaseModel):
     # wrong: "Meera" said by anyone, in a lesson about Meera's garden.
     no_cue_extra: float = Field(default=0.1, ge=0.0, le=1.0)
     name_window_words: int = Field(default=6, ge=1)
+
+    # `mouth_motion`: how much movement counts as speaking at all, and how
+    # far ahead of the next face it has to be before the robot will name
+    # somebody on the strength of it.
+    mouth_min_score: float = Field(default=0.012, ge=0.0)
+    mouth_clear_by: float = Field(default=0.006, ge=0.0)
     name_cues: list[str] = Field(
         default_factory=lambda: ["i am", "i'm", "my name is", "this is", "here is",
                                  "मेरा नाम", "मैं"]

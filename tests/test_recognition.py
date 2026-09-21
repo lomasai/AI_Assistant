@@ -155,3 +155,69 @@ def test_straightening_a_face_with_the_real_model() -> None:
 
     assert straightened.shape == (112, 112, 3), "SFace's own alignment size"
     assert embedder.embed(straightened).shape == (128,)
+
+
+# --- which of them is talking ---------------------------------------------
+
+
+def moving_mouth(frame: np.ndarray, face: Detection, by: int) -> np.ndarray:
+    """The same frame with the mouth region changed, as a face mid-syllable
+    differs from the frame before it."""
+    from lomas_face.mouth import mouth_box
+    from lomas_face.types import Track
+
+    x, y, w, h = mouth_box(Track(track_id=1, box=face, first_seen=0.0, last_seen=0.0))
+    changed = frame.copy()
+    changed[y: y + h, x: x + w] = np.clip(
+        changed[y: y + h, x: x + w].astype(int) + by, 0, 255).astype(np.uint8)
+    return changed
+
+
+def a_track(track_id: int, face: Detection):
+    from lomas_face.types import Track
+
+    return Track(track_id=track_id, box=face, first_seen=0.0, last_seen=1.0)
+
+
+def test_a_mouth_that_moves_scores_higher_than_one_that_does_not() -> None:
+    from lomas_face.mouth import Mouths
+
+    talker, quiet = a_face(x=20, y=20), a_face(x=180, y=20)
+    frame = a_frame()
+    mouths = Mouths(smoothing=0.0, size=24)
+
+    mouths.update(frame, [a_track(1, talker), a_track(2, quiet)])
+    moved = mouths.update(moving_mouth(frame, talker, by=60),
+                          [a_track(1, talker), a_track(2, quiet)])
+
+    assert moved[1] > moved[2] * 3, "the one whose mouth moved is not standing out"
+    assert moved[2] < 0.01
+
+
+def test_the_first_frame_of_a_face_scores_nothing() -> None:
+    """There is nothing to compare it against, and a made-up number here
+    would name whoever happened to walk in."""
+    from lomas_face.mouth import Mouths
+
+    mouths = Mouths(smoothing=0.5, size=24)
+    assert mouths.update(a_frame(), [a_track(1, a_face())]) == {}
+
+
+def test_a_face_that_leaves_is_forgotten() -> None:
+    from lomas_face.mouth import Mouths
+
+    face = a_face()
+    mouths = Mouths(smoothing=0.0, size=24)
+    mouths.update(a_frame(), [a_track(1, face)])
+    mouths.update(moving_mouth(a_frame(), face, by=40), [a_track(1, face)])
+    assert mouths.score(1) > 0
+
+    mouths.update(a_frame(), [])
+    assert mouths.score(1) == 0.0, "a score left behind would answer for somebody who left"
+
+
+def test_a_face_with_no_landmarks_has_no_mouth_to_watch() -> None:
+    from lomas_face.mouth import Mouths, mouth_box
+
+    assert mouth_box(a_track(1, a_face(marks=False))) is None
+    assert Mouths(smoothing=0.5, size=24).update(a_frame(), [a_track(1, a_face(marks=False))]) == {}

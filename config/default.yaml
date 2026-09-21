@@ -116,6 +116,13 @@ face:
     pitch_neutral: 0.5
 
 
+  # Movement around the mouth: which of two known faces is talking. The
+  # detector gives the mouth corners, so this is movement rather than a
+  # mouth being open - which is the right question anyway.
+  watch_mouths: true
+  mouth_smoothing: 0.6
+  mouth_patch_px: 24
+
   # Recognition. Identity is resolved when a track is new and then carried by
   # the tracker, so the embedder runs once or twice per child per minute
   # rather than fifteen times a second.
@@ -238,6 +245,11 @@ speech:
     name_match: 0.75
     no_cue_extra: 0.1         # asked for when no "I am" comes before the name
     name_window_words: 6      # a name said later than this is part of the question
+
+    # mouth_motion, when it is in the list above: how much movement is
+    # speaking, and how far clear of the next face it must be to be named.
+    mouth_min_score: 0.012
+    mouth_clear_by: 0.006
     name_cues: ["i am", "i'm", "my name is", "this is", "here is", "मेरा नाम", "मैं"]
     question_lead_ins: ["my question is", "i want to ask", "i wanted to ask",
                         "i have a question", "and", "so"]

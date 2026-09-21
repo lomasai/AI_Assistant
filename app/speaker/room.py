@@ -20,6 +20,7 @@ class Room:
         self.cfg = cfg
         self.clock = clock
         self._seen: dict[str, float] = {}
+        self._moving: dict[str, float] = {}
         self._lock = threading.Lock()
 
         bus.subscribe(VISION_TRACKS, self._on_tracks)
@@ -32,6 +33,14 @@ class Room:
         with self._lock:
             return sorted(who for who, at in self._seen.items() if at >= cutoff)
 
+    def mouths(self) -> dict[str, float]:
+        """How much each visible child's mouth is moving. Only faces the
+        camera can still see: a score left behind by somebody who walked out
+        would answer for them."""
+        here = set(self.visible())
+        with self._lock:
+            return {who: score for who, score in self._moving.items() if who in here}
+
     def _on_tracks(self, _event: str, seen: TracksSeen) -> None:
         # Tolerant of what arrives: the debug surface and the tests publish
         # their own shapes on this event, and none of them may stop a class.
@@ -40,6 +49,7 @@ class Room:
             for track in getattr(seen, "tracks", ()):
                 if getattr(track, "student_id", ""):
                     self._seen[track.student_id] = now
+                    self._moving[track.student_id] = getattr(track, "mouth", 0.0)
 
     def _on_identified(self, _event: str, who: StudentIdentified) -> None:
         student_id = getattr(who, "student_id", "")

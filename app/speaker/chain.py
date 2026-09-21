@@ -72,6 +72,7 @@ class SpeakerChain:
             tapped=tapped,
             roster=self._roster(self.scope_of() if self.scope_of else None),
             visible=self.room.visible() if self.room else [],
+            mouths=self.room.mouths() if self.room else {},
             last=last,
             since_last=self.clock.now() - last_at if last else 0.0,
         )
