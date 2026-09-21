@@ -98,7 +98,8 @@ class EnrolmentService:
             id=new_id(),
             student_id=student_id,
             name=name.strip(),
-            sweep=EnrolmentSession(self.embedder, self.cfg.enrolment, self.cfg.face.pose),
+            sweep=EnrolmentSession(self.embedder, self.cfg.enrolment, self.cfg.face.pose,
+                                   align=self.cfg.face.align),
             started=self.clock.now(),
             touched=self.clock.now(),
         )

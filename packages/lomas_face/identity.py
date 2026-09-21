@@ -8,7 +8,7 @@ from lomas_core import logging as log
 from lomas_core.errors import LomasError
 from lomas_core.schema import FaceConfig
 from lomas_face.embedder import FaceEmbedder, distance
-from lomas_face.quality import crop_face
+from lomas_face.align import face_for
 from lomas_face.types import Track
 
 MILLISECONDS = 1000.0
@@ -56,7 +56,7 @@ class IdentityMatcher:
             self.skipped_too_small += 1
             return track.student_id
 
-        crop = crop_face(frame, track.box, self.cfg.crop_margin)
+        crop = face_for(self.embedder, frame, track.box, self.cfg.crop_margin, self.cfg.align)
         if crop.size == 0:
             return track.student_id
 

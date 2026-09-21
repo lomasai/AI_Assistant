@@ -121,6 +121,7 @@ face:
   # rather than fifteen times a second.
   # sface runs on the OpenCV already installed for the detector; nothing
   # extra to install. Fetch the model with: python tools/fetch_models.py
+  align: true                   # straighten on the eyes before matching
   embedder: sface               # sface | arcface_onnx | mock
   embedder_model_path: models/face_recognition_sface_2021dec.onnx
   embedding_dim: 128

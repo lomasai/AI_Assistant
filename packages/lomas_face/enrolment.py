@@ -7,7 +7,8 @@ import numpy as np
 from lomas_core.errors import LomasError
 from lomas_core.schema import EnrolmentConfig, PoseConfig
 from lomas_face.embedder import FaceEmbedder, normalise
-from lomas_face.quality import assess, crop_face
+from lomas_face.align import face_for
+from lomas_face.quality import assess
 from lomas_face.types import Detection
 
 ACCEPTED = "kept"
@@ -58,10 +59,12 @@ class EnrolmentSession:
     property of the code rather than a policy someone has to remember.
     """
 
-    def __init__(self, embedder: FaceEmbedder, cfg: EnrolmentConfig, pose_cfg: PoseConfig) -> None:
+    def __init__(self, embedder: FaceEmbedder, cfg: EnrolmentConfig, pose_cfg: PoseConfig,
+                 align: bool = True) -> None:
         self.embedder = embedder
         self.cfg = cfg
         self.pose_cfg = pose_cfg
+        self.align = align
         self._by_angle: dict[str, list[tuple[float, np.ndarray]]] = {}
         self.seen = 0
 
@@ -90,7 +93,10 @@ class EnrolmentSession:
         if len(bucket) >= self.cfg.keep_best and quality.score <= min(s for s, _ in bucket):
             return self._feedback(False, ENOUGH_OF_THAT_ANGLE, quality.score, quality.angle)
 
-        crop = crop_face(image, detection, self.cfg.crop_margin)
+        # The same picture recognition will compare against later. A vector
+        # stored from a plain crop and matched against a straightened one is
+        # a child the robot does not know.
+        crop = face_for(self.embedder, image, detection, self.cfg.crop_margin, self.align)
         bucket.append((quality.score, self.embedder.embed(crop)))
         bucket.sort(key=lambda pair: pair[0], reverse=True)
         del bucket[self.cfg.keep_best :]

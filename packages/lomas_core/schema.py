@@ -180,6 +180,9 @@ class FaceConfig(BaseModel):
     # sface by default: it runs on the OpenCV already installed for the
     # detector. arcface_onnx needs onnxruntime and a model with no one obvious
     # place to get it, which is why a Pi showed "recognition off" for weeks.
+    # Straighten a face on the eyes before embedding it. What the model was
+    # trained on, and worth a few percent; off falls back to a plain crop.
+    align: bool = True
     embedder: Literal["sface", "arcface_onnx", "mock"] = "sface"
     embedder_model_path: str = "models/face_recognition_sface_2021dec.onnx"
     embedding_dim: int = Field(default=128, ge=1)
