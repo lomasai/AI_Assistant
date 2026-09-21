@@ -33,6 +33,7 @@ BLINK_FOR = 0.12
 TALK_HZ = 6.0
 IDLE_FPS = 10
 LINE_SHARE = 0.86  # of the screen width, before a line wraps
+DEFAULT_DISPLAY = ":0"  # the Pi's own desktop, when nothing says otherwise
 
 
 @FACE_SURFACES.register("pygame")
@@ -73,7 +74,6 @@ class PygameFace:
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, name="face", daemon=True)
         self._thread.start()
-        self.log.info("face on %sx%s", self.screen.width, self.screen.height)
 
     def stop(self) -> None:
         self._stop.set()
@@ -86,11 +86,21 @@ class PygameFace:
     def _run(self) -> None:
         import pygame
 
-        pygame.init()
-        pygame.mouse.set_visible(False)
+        try:
+            opened = open_display(pygame, self.screen)
+        except LomasError as exc:
+            # The one that cost an evening: pygame.init() reports nothing when
+            # the video system fails, and the first call that needs a screen
+            # dies instead, four frames from the cause.
+            self.log.error("no face: %s", exc)
+            return
+
+        pygame.font.init()
         flags = pygame.FULLSCREEN if self.screen.fullscreen else 0
         surface = pygame.display.set_mode((self.screen.width, self.screen.height), flags)
         pygame.display.set_caption("LomasAI")
+        pygame.mouse.set_visible(False)
+        self.log.info("face on %sx%s through %s", self.screen.width, self.screen.height, opened)
 
         big = pygame.font.Font(None, int(self.cfg.display.base_font_px * self.screen.scale))
         small = pygame.font.Font(None, int(self.cfg.display.base_font_px * 0.6 * self.screen.scale))
@@ -188,6 +198,41 @@ class PygameFace:
             drawn = small.render(child.name, True, DIM if child.mood == AWAY else TEXT)
             surface.blit(drawn, (left + 18, bottom - drawn.get_height() // 2))
             left += drawn.get_width() + 44
+
+
+def open_display(pygame, screen) -> str:
+    """Get a screen, and say which one, or say why there is none.
+
+    A Pi shows this face three ways: through the desktop over X11, straight
+    at the panel with no desktop at all, and through a VNC session that has
+    its own display. Rather than ask which, each is tried in turn - the whole
+    point of the face is that the robot boots and is there.
+    """
+    import os
+
+    wanted = [screen.driver] if screen.driver else ["", "x11", "kmsdrm", "fbcon"]
+    tried = []
+    for driver in wanted:
+        if driver:
+            os.environ["SDL_VIDEODRIVER"] = driver
+        elif not os.environ.get("DISPLAY"):
+            # A terminal over ssh has no DISPLAY; the Pi's own desktop is :0
+            # and is what somebody sitting in front of the robot is looking at.
+            os.environ["DISPLAY"] = DEFAULT_DISPLAY
+
+        try:
+            pygame.display.init()
+            return driver or pygame.display.get_driver()
+        except pygame.error as exc:
+            tried.append(f"{driver or 'default'} ({exc})")
+            pygame.display.quit()
+            os.environ.pop("SDL_VIDEODRIVER", None)
+
+    raise LomasError(
+        "no screen to draw a face on: " + "; ".join(tried) + ". On a Pi with a "
+        "desktop, run the robot from that desktop; without one, set "
+        "display.face_screen.driver: kmsdrm. Or browser, for a tab instead."
+    )
 
 
 def wrap(text: str, font, room: int) -> list[str]:

@@ -642,6 +642,9 @@ class ScreenConfig(BaseModel):
     # and about fifty. `none` is a robot with a voice and no face.
     surface: Literal["browser", "pygame", "none"] = "browser"
     fullscreen: bool = True
+    # Empty tries the desktop, then X11, then straight at the panel. Name one
+    # (x11, kmsdrm, fbcon) only when that guessing gets it wrong.
+    driver: str = ""
 
 
 class DisplayConfig(BaseModel):

@@ -267,3 +267,41 @@ def test_a_long_sentence_is_broken_to_fit() -> None:
                  "from the air called carbon dioxide.", font, 300)
     assert len(lines) > 1
     assert all(font.size(line)[0] <= 300 for line in lines[:-1])
+
+
+def test_a_screen_is_found_or_the_reason_is_given() -> None:
+    """pygame.init() reports nothing when the video system fails, and the
+    first call that needs a screen dies four frames from the cause. On the
+    Pi that was `mouse.set_visible` and a traceback at a teacher."""
+    pygame = pytest.importorskip("pygame")
+    from app.face.pygame_face import open_display
+
+    from lomas_core.schema import ScreenConfig
+
+    pygame.display.quit()
+    opened = open_display(pygame, ScreenConfig(driver="dummy"))
+    assert opened == "dummy"
+    pygame.display.quit()
+
+
+def test_no_screen_at_all_says_what_to_do() -> None:
+    pygame = pytest.importorskip("pygame")
+    from lomas_core.errors import LomasError
+    from lomas_core.schema import ScreenConfig
+    from app.face.pygame_face import open_display
+
+    pygame.display.quit()
+    with pytest.raises(LomasError, match="no screen to draw a face on"):
+        open_display(pygame, ScreenConfig(driver="not-a-driver"))
+
+
+def test_the_face_thread_does_not_die_on_a_missing_screen(monkeypatch) -> None:
+    """A robot with nowhere to draw still teaches; it says so once."""
+    pytest.importorskip("pygame")
+    system = built("display.face_screen.surface=pygame", "display.face_screen.driver=not-a-driver")
+    try:
+        system.face.start()
+        system.face._thread.join(timeout=5)
+        assert not system.face._thread.is_alive()
+    finally:
+        system.close()
