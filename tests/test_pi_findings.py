@@ -903,3 +903,35 @@ def test_hiss_is_dropped_and_a_voice_is_kept() -> None:
 
     assert flat < 1.25, "this is the room the Pi is in: no gap to find"
     assert smoothed > 2.0, "and this is the same room, measured usefully"
+
+
+def test_a_fan_under_the_voice_is_taken_out() -> None:
+    """Smoothing dropped a hissy microphone's noise and did nothing for the
+    Pi's room, where the noise turned out to be low: a fan, a hum, a table.
+    That lives in the same range as a voice, so it has to be subtracted."""
+    import math
+    import random
+    import struct
+
+    from lomas_speech.recorder import chunk_rms
+
+    random.seed(2)
+    rate, count = 16000, 1600
+
+    def clip(value: float) -> bytes:
+        return struct.pack("<h", max(-32000, min(32000, int(value))))
+
+    def rumble(i: int) -> float:
+        return 900 * math.sin(2 * math.pi * 90 * i / rate) + random.gauss(0, 200)
+
+    room = b"".join(clip(rumble(i)) for i in range(count))
+    voice = b"".join(
+        clip(rumble(i) + sum(800 * math.sin(2 * math.pi * f * i / rate) for f in (220, 450, 900)))
+        for i in range(count)
+    )
+
+    plain = chunk_rms(voice) / chunk_rms(room)
+    filtered = chunk_rms(voice, smooth=4, rumble=20) / chunk_rms(room, smooth=4, rumble=20)
+
+    assert filtered > plain * 1.5, "the fan is still in the measurement"
+    assert filtered > 1.25, "and now there is a pause to find"

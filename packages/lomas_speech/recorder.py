@@ -65,6 +65,10 @@ class Endpoint:
     # is the difference between speech 1.15 times the room and about twice
     # it, which is the difference between finding a pause and not. 1 is off.
     smooth_samples: int = 8
+    # Samples in the running mean that is *subtracted*, which takes the low
+    # end out: a fan, a transformer hum, a table the microphone rests on.
+    # Together with smooth_samples it is a band left around a voice. 0 is off.
+    rumble_samples: int = 0
 
 
 @dataclass(slots=True)
@@ -94,12 +98,21 @@ class Turn:
         }
 
 
-def chunk_rms(pcm: bytes, smooth: int = 1) -> float:
+def chunk_rms(pcm: bytes, smooth: int = 1, rumble: int = 0) -> float:
+    """How loud a chunk is, in the part of the sound a voice lives in.
+
+    Two running means: one subtracted to drop what is below a voice, one
+    applied to drop what is above it. A microphone in a room with a fan hears
+    the fan in the same breath as the child, and the fan never pauses.
+    """
     import array
 
     samples = array.array("h", pcm[: len(pcm) // SAMPLE_WIDTH * SAMPLE_WIDTH])
     if not samples:
         return 0.0
+    if rumble > 1:
+        low = smoothed(samples, rumble)
+        samples = [sample - under for sample, under in zip(samples, low)]
     if smooth > 1:
         samples = smoothed(samples, smooth)
     return (sum(s * s for s in samples) / len(samples)) ** 0.5 / FULL_SCALE
@@ -183,7 +196,7 @@ def read_until_quiet(read, sample_rate: int, seconds: float, endpoint: Endpoint)
             turn.stopped = "ended"
             break
         captured += block
-        level = chunk_rms(block, endpoint.smooth_samples)
+        level = chunk_rms(block, endpoint.smooth_samples, endpoint.rumble_samples)
         levels.append(level)
         turn.loudest_rms = max(turn.loudest_rms, level)
 

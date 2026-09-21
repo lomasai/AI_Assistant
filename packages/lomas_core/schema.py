@@ -410,6 +410,9 @@ class AudioConfig(BaseModel):
     # Samples averaged before loudness is measured: a cheap low-pass that
     # drops a microphone's hiss and keeps a voice. See Endpoint.smooth_samples.
     smooth_samples: int = Field(default=8, ge=1)
+    # Subtracted, to drop a fan or a hum from under the voice. 0 is off; see
+    # `audio_check --turn`, which measures which bands your room is noisy in.
+    rumble_samples: int = Field(default=0, ge=0)
 
     # Recording while the robot talks hears the robot: "Sunlight What is the
     # green colour inside a leaf called?" was a child's answer with the next

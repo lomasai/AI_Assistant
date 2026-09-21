@@ -267,6 +267,7 @@ speech:
     min_gap_ratio: 1.25           # ...or this much, whichever the room gives
     min_rms: 0.005
     smooth_samples: 8             # averaged before measuring: drops hiss, keeps a voice
+    rumble_samples: 0             # subtract the low end too, for a room with a fan in it
     wait_for_robot_seconds: 30.0
     quiet_poll_seconds: 0.05
 

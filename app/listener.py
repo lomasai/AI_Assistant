@@ -163,6 +163,7 @@ class Listener:
                 min_gap_ratio=audio.min_gap_ratio,
                 min_rms=audio.min_rms,
                 smooth_samples=audio.smooth_samples,
+                rumble_samples=audio.rumble_samples,
             ))
         finally:
             # How the turn ended and how loud the room was, in the trace. The

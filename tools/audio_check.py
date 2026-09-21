@@ -33,7 +33,7 @@ from lomas_core.config import load  # noqa: E402
 from lomas_core.errors import LomasError  # noqa: E402
 from lomas_core.secrets import SECRETS_FILE, load_secrets  # noqa: E402
 from lomas_speech.player import Player  # noqa: E402
-from lomas_speech.recorder import Endpoint, Recorder  # noqa: E402
+from lomas_speech.recorder import Endpoint, Recorder, chunk_rms  # noqa: E402
 
 TONE_HZ = 440
 TONE_SECONDS = 1.0
@@ -154,6 +154,62 @@ def loudness(wav: bytes) -> tuple[float, float]:
     return peak, rms
 
 
+# Filter settings tried against the recording itself. A running mean of w
+# samples turns over at about 0.44 * rate / w, so at 16 kHz: 60 is roughly
+# 120 Hz, 35 about 200, 20 about 350; smoothing at 16 is about 440 Hz, 8
+# about 880, 4 about 1760.
+RUMBLES = (0, 20, 35, 60)
+SMOOTHS = (1, 4, 8, 16)
+FRAMES_QUIET = 10
+FRAMES_LOUD = 6
+
+
+def frames_of(pcm: bytes, rate: int, chunk_ms: int) -> list[bytes]:
+    step = max(1, rate * chunk_ms // 1000) * 2
+    return [pcm[at : at + step] for at in range(0, len(pcm) - step, step)]
+
+
+def separation(pcm: bytes, rate: int, chunk_ms: int) -> None:
+    """What each filter setting would have made of this recording.
+
+    The room and the voice are taken from the recording just made - the
+    quietest chunks and the loudest - and every setting is scored on them.
+    Measuring beats guessing: smoothing helped a hissy microphone and did
+    nothing for a room with a fan in it.
+    """
+    frames = frames_of(pcm, rate, chunk_ms)
+    if len(frames) < FRAMES_QUIET + FRAMES_LOUD:
+        return
+
+    ordered = sorted(frames, key=chunk_rms)
+    quiet, loudest = ordered[:FRAMES_QUIET], ordered[-FRAMES_LOUD:]
+
+    print("\n=== what each setting would make of that recording ===")
+    print("  (the room against your voice; bigger is better, 1.25 is enough)")
+    print("\n           smooth:" + "".join(f"{s:>8}" for s in SMOOTHS))
+    best = (0.0, 0, 1)
+    for rumble in RUMBLES:
+        scores = []
+        for smooth in SMOOTHS:
+            room = sum(chunk_rms(f, smooth, rumble) for f in quiet) / len(quiet)
+            voice = sum(chunk_rms(f, smooth, rumble) for f in loudest) / len(loudest)
+            ratio = voice / room if room else 0.0
+            scores.append(ratio)
+            best = max(best, (ratio, rumble, smooth))
+        print(f"  rumble {rumble:>3}:    " + "".join(f"{r:>8.2f}" for r in scores))
+
+    ratio, rumble, smooth = best
+    print(f"\n  best: rumble {rumble}, smooth {smooth}  ->  {ratio:.2f}x")
+    if ratio < 1.25:
+        print("  Nothing here separates your voice from this room. That is the")
+        print("  microphone's position, not a setting: hold it a hand's width")
+        print("  from your mouth, or move it away from the fan and the speaker.")
+        return
+    print("  Put these in config/secrets.env and run this again:")
+    print(f"    LOMAS__speech__audio__rumble_samples={rumble}")
+    print(f"    LOMAS__speech__audio__smooth_samples={smooth}")
+
+
 def turn(cfg) -> int:
     """One turn exactly as the robot takes it, with the numbers shown.
 
@@ -176,6 +232,7 @@ def turn(cfg) -> int:
         min_gap_ratio=audio.min_gap_ratio,
         min_rms=audio.min_rms,
         smooth_samples=audio.smooth_samples,
+        rumble_samples=audio.rumble_samples,
     ))
     heard = recorder.last_turn
     if heard is None:
@@ -190,15 +247,12 @@ def turn(cfg) -> int:
 
     if heard.stopped == "pause":
         print("\n  GOOD. The robot can hear where your sentence ends.")
+        separation(heard.pcm, audio.sample_rate, audio.chunk_ms)
         return 0
 
     print("\n  It recorded to the end. It needs your voice to stand either")
     print(f"  {audio.min_gap_rms:g} above the room or {audio.min_gap_ratio:g}x it, and it does not.")
-    print("  Try, in order:")
-    print("    * speak closer to the microphone, about a hand's width")
-    print("    * raise the capture level: alsamixer, F4, arrow up, M to unmute")
-    print("    * move the microphone away from the speaker and any fan")
-    print("    * or accept this room: LOMAS__speech__audio__min_gap_ratio=1.1")
+    separation(heard.pcm, audio.sample_rate, audio.chunk_ms)
     return 1
 
 
