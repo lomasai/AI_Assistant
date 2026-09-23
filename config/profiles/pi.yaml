@@ -79,13 +79,24 @@ speech:
     # with `aplay -l`. By name, never by number: the numbers are handed out
     # at boot and moved on a real Pi, which left plughw:0,0 pointing at an
     # HDMI port ("audio open error: Unknown error 524") and the robot mute.
+    # `aplay -l` on this robot lists four: the jack (Headphones), two HDMI
+    # ports and an i2s DAC. A tone played at the wrong one is accepted,
+    # reported as fine, and heard by nobody - which is what silence with no
+    # error means. Check with, in order:
+    #     aplay -D plughw:CARD=Headphones,DEV=0 /usr/share/sounds/alsa/Front_Center.wav
+    #     aplay -D plughw:CARD=i2smasterdac,DEV=0 /usr/share/sounds/alsa/Front_Center.wav
     player_device: plughw:CARD=Headphones,DEV=0
 
     # The jack has a real mixer, so the slider moves that rather than
     # scaling samples: it is louder at the top and quieter at the bottom
     # than anything software can do, and whatever else plays obeys it too.
     volume:
-      control: alsa
+      # auto, not alsa: this Pi has four playback cards and only the
+      # headphone jack has a mixer on it. Pointed at an i2s DAC or an HDMI
+      # port, `alsa` would find no knob and the slider would move nothing;
+      # auto uses the card's own mixer where there is one and scales the
+      # samples where there is not.
+      control: auto
 
   stt:
     engine: groq        # whisper, covered by the same key as the tutor
@@ -103,6 +114,14 @@ speech:
     record_seconds: 15.0        # the longest a child may speak
     stop_after_silence_ms: 1200 # ...and it stops this long after they finish
     no_speech_seconds: 5.0
+
+    # Measured on this robot with the fan running, by
+    # `python tools/audio_check.py --mode pi --turn`: the room sat at 0.0127
+    # against a voice at 0.0595, and subtracting the low frequencies took
+    # that separation from 1.5x to 4.2x. A fan is almost all low frequency;
+    # a voice is not.
+    rumble_samples: 20
+    smooth_samples: 1
 
 enrolment:
   # The robot introduces itself to a face it does not know and enrols them

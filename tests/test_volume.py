@@ -185,8 +185,11 @@ def test_a_machine_with_no_mixer_still_has_a_slider(tmp_path) -> None:
     assert chosen.name in {"alsa", "software"}
 
 
-def test_the_robot_is_told_to_use_its_jack_mixer() -> None:
-    assert load("config", "pi", [], use_env=False).speech.tts.volume.control == "alsa"
+def test_the_robot_finds_its_own_knob() -> None:
+    """auto rather than alsa: this Pi lists four playback cards and only the
+    headphone jack has a mixer. Pinned to alsa and pointed at an i2s DAC,
+    the slider would move nothing at all."""
+    assert load("config", "pi", [], use_env=False).speech.tts.volume.control == "auto"
 
 
 # --- the teacher's slider -------------------------------------------------
