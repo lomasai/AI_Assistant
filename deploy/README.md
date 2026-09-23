@@ -3,6 +3,25 @@
 The robot needs no laptop. A phone or laptop is a remote control for the
 teacher, and everything works without one.
 
+## Is this robot able to do what it is set up to do?
+
+```bash
+python tools/doctor.py --mode pi
+```
+
+One line per thing the profile asks for. It downloads nothing and changes
+nothing, and it is the first thing to run after installing anything -
+because installing one optional part quietly upgrades another. mediapipe
+brings its own OpenCV, which brings numpy 2, which is a different ABI from
+the one the system camera bindings were built against, and nothing says so
+until a class is running and the camera is dark.
+
+`BROKEN` means installed but unusable, and the cure is almost always:
+
+```bash
+pip install "numpy<2" "opencv-python-headless<5"
+```
+
 ## Start it on boot
 
 ```bash

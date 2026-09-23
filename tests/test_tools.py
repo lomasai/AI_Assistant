@@ -82,6 +82,18 @@ def test_a_card_sheet_is_readable_back(tmp_path, monkeypatch) -> None:
     assert all(card.upright for card in found)
 
 
+def test_the_doctor_reports_on_a_machine_that_has_everything() -> None:
+    """debug asks for nothing optional, so a working checkout passes it."""
+    assert run(tool("doctor"), "--mode", "debug") == 0
+
+
+def test_the_doctor_does_not_call_a_machine_well_when_it_is_not() -> None:
+    """A row of `missing` under a line saying everything is fine is worse
+    than no tool at all. The pi profile wants a camera and a body this
+    laptop does not have."""
+    assert run(tool("doctor"), "--mode", "pi") == 1
+
+
 def test_the_model_fetcher_reports_without_downloading() -> None:
     assert run(tool("fetch_models"), "--check") in (0, 1)
 
