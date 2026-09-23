@@ -264,6 +264,61 @@ def test_a_sign_nobody_mapped_is_ignored() -> None:
         system.close()
 
 
+def looking(system, student_id: str, x: int = 300, y: int = 200, w: int = 120) -> None:
+    """A recognised face in the picture, where the vision pipeline would
+    have put it."""
+    from lomas_core.contracts import VISION_TRACKS, TracksSeen, TrackView
+
+    system.bus.publish(VISION_TRACKS, TracksSeen(
+        source_id="head", zone="front", at=1.0, width=1280, height=720,
+        tracks=(TrackView(track_id=1, x=x, y=y, w=w, h=w, student_id=student_id,
+                          attention=0.9, yaw=0.0, pitch=0.0, seen_for=3.0),)))
+
+
+def test_a_raised_hand_takes_the_name_from_the_face_beside_it(system) -> None:
+    """With no card, this is the whole of who is asking: the hand says that
+    somebody wants to speak, and the face says which child it is."""
+    student = system.repos["student"].list_for_class(system.orchestrator.scope)[0]
+    watch = watching(system)
+    watch.hands = OneSign("Pointing_Up")
+    looking(system, student["id"], x=40, y=40, w=200)
+
+    for seq in range(3):
+        watch.read(frame(picture(), seq=seq + 1))
+
+    hands = seen(system, HAND_UP)
+    assert hands and hands[-1].student_id == student["id"]
+    assert hands[-1].student_name == student["name"]
+    assert hands[-1].by == "hand"
+
+
+def test_a_hand_across_the_room_is_not_that_child(system) -> None:
+    """A hand belongs to a face within reach of it. Beyond that it is
+    somebody else's, and naming the wrong child is worse than naming none."""
+    student = system.repos["student"].list_for_class(system.orchestrator.scope)[0]
+    watch = watching(system)
+    watch.hands = OneSign("Pointing_Up")
+    looking(system, student["id"], x=1100, y=600, w=60)
+
+    for seq in range(3):
+        watch.read(frame(picture(), seq=seq + 1))
+
+    hands = seen(system, HAND_UP)
+    assert hands and hands[-1].student_id == "", "a hand was given to a face across the room"
+
+
+def test_a_hand_with_nobody_recognised_still_asks(system) -> None:
+    """The robot does not know who, but somebody wants to speak - and the
+    speaker chain has its own ways of working out who, afterwards."""
+    watch = watching(system)
+    watch.hands = OneSign("Pointing_Up")
+
+    for seq in range(3):
+        watch.read(frame(picture(), seq=seq + 1))
+
+    assert seen(system, HAND_UP), "a hand nobody could name was ignored"
+
+
 def test_a_thumb_means_nothing_until_a_school_says_so(system) -> None:
     """The recognizer knows thumbs, victory and the rest. They stay unmapped:
     a classroom full of signs to remember is a class learning the robot
@@ -301,14 +356,15 @@ def test_a_school_that_wants_more_signs_edits_config() -> None:
         system.close()
 
 
-def test_hands_are_off_until_a_school_turns_them_on() -> None:
-    """The expensive half. Cards cost milliseconds; a hand model costs tens,
-    on a Pi that is already running a face detector."""
-    cfg = load("config", "debug", [], use_env=False)
+def test_hands_cost_something_so_nothing_switches_them_on_by_accident() -> None:
+    """The expensive half: cards cost milliseconds, a hand model costs tens,
+    on a Pi already running a face detector. The robot asks for them; a
+    laptop or a school without the model gets cards and no surprise bill."""
+    assert load("config", "debug", [], use_env=False).signs.hands.reader == "none"
 
-    assert cfg.signs.hands.reader == "none"
-    assert load("config", "pi", [], use_env=False).signs.hands.reader == "none"
-    assert load("config", "pi", [], use_env=False).signs.cards.reader == "aruco"
+    robot = load("config", "pi", [], use_env=False).signs
+    assert robot.hands.reader == "mediapipe", "the robot is the one that wanted hands"
+    assert robot.fps <= 4.0, "a held sign does not need a high frame rate"
 
 
 def test_a_missing_hand_model_is_not_a_broken_robot() -> None:

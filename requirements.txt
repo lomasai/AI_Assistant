@@ -28,6 +28,12 @@ websockets>=12
 #   pip install mediapipe
 #   python tools/fetch_models.py --hands
 # mediapipe>=0.10
+#
+# Watch what pip does to opencv while installing it: mediapipe depends on
+# opencv-contrib-python, and two opencv wheels in one environment is how
+# `import cv2` starts failing in a way that looks like a code bug. If it
+# does, reinstall the headless one on top:
+#   pip install --force-reinstall opencv-python-headless
 
 # The local voice, loaded once inside the robot (speech.tts.engine: piper_python).
 # Pulls in onnxruntime, which the arcface embedder can use too.
