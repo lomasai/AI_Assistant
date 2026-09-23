@@ -190,6 +190,32 @@ def test_a_commit_that_cannot_be_pushed_is_still_a_commit(git_cfg) -> None:
     assert "not pushed" in said
 
 
+def test_a_push_that_says_nothing_does_not_crash_the_filer(git_cfg) -> None:
+    """The robot reported "could not file the trace: list index out of
+    range", which is a message about nothing at all: a failed push with no
+    output was being asked for its first line."""
+    filer = GitFiler(git_cfg)
+    replies = {"add": (True, ""), "commit": (True, "1 file changed"), "push": (False, "")}
+    filer._git = lambda argv: replies[argv[0]]
+
+    said = filer.send(["data/logs"], "trace: test")
+
+    assert "not pushed" in said
+
+
+def test_a_robot_behind_its_remote_is_told_how_to_catch_up(git_cfg) -> None:
+    """It files its own traces, so it drifts behind whoever is working on
+    it, and then every push is refused for the same reason."""
+    filer = GitFiler(git_cfg)
+    replies = {"add": (True, ""), "commit": (True, "1 file changed"),
+               "push": (False, " ! [rejected] lomasai -> lomasai (fetch first)")}
+    filer._git = lambda argv: replies[argv[0]]
+
+    said = filer.send(["data/logs"], "trace: test")
+
+    assert "git pull --rebase --autostash" in said
+
+
 def test_a_robot_with_no_network_can_be_told_not_to_push() -> None:
     cfg = load("config", "debug", ["sync.push=false"], use_env=False).sync
     filer = GitFiler(cfg)

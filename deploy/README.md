@@ -145,6 +145,16 @@ It commits and pushes those paths when a class ends and when the robot is
 switched off. A push that fails leaves the commit behind, and the next class
 sends it.
 
+Because the robot commits its own traces, its working tree is usually dirty
+and it is usually a commit or two behind. So on the robot, always:
+
+```bash
+git pull --rebase --autostash
+```
+
+A plain `git pull` answers "cannot pull with rebase: You have unstaged
+changes", which is the trace file it is writing this second.
+
 ## What still wants a screen
 
 - **Reports.** A teacher reads these after class, sitting down:

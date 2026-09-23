@@ -13,6 +13,12 @@ INSIDE = ["rev-parse", "--is-inside-work-tree"]
 TRUE = "true"
 NOTHING = ("nothing to commit", "no changes added")
 FAILED = 200  # how much of git's complaint is worth keeping
+SILENT = "git said nothing"
+# A robot that files its own traces drifts behind whoever is working on it,
+# and then every push is refused for the same reason.
+BEHIND = ("fetch first", "non-fast-forward", "rejected")
+CATCH_UP = ("this robot is behind its remote. On the robot: "
+            "git pull --rebase --autostash")
 
 
 @SYNCS.register(GIT)
@@ -60,7 +66,7 @@ class GitFiler:
         if not pushed:
             # The commit is made and the next class will push it, so this is
             # a note rather than a problem.
-            return f"committed but not pushed: {complaint.splitlines()[0][:FAILED]}"
+            return f"committed but not pushed: {_first_line(complaint)}"
         return f"pushed {', '.join(here)}: {message}"
 
     def _push(self) -> list[str]:
@@ -85,3 +91,18 @@ class GitFiler:
                 self.log.debug("git %s said: %s", argv[0], reply[:FAILED])
             return False, reply
         return True, reply
+
+
+def _first_line(complaint: str) -> str:
+    """The first thing git said, or an honest note that it said nothing.
+
+    A failed push with empty output used to raise IndexError inside the
+    filer, and the robot reported "could not file the trace: list index out
+    of range" - a message about nothing at all.
+    """
+    lines = [line for line in complaint.splitlines() if line.strip()]
+    if not lines:
+        return SILENT
+    if any(word in complaint for word in BEHIND):
+        return f"{lines[0][:FAILED]} - {CATCH_UP}"
+    return lines[0][:FAILED]
