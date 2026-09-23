@@ -12,6 +12,9 @@ class FaceSurface(Protocol):
     A browser tab is one. A window drawn on the Pi's own panel is another,
     and a ring of LEDs on a cheaper robot would be a third - which is why
     this is a registry and not an `if`.
+
+    Each is built with the config, the face's state, and the robot's volume
+    knob - which a surface with no controls on it simply ignores.
     """
 
     name: str

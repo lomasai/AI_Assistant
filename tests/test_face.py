@@ -229,6 +229,87 @@ def test_a_face_that_cannot_draw_is_not_a_robot_that_cannot_teach() -> None:
     assert 'optional(logger, "face"' in inspect.getsource(run.main)
 
 
+def a_knob(tmp_path):
+    from lomas_core.schema import VolumeConfig
+    from lomas_speech.volume import volume_control
+
+    return volume_control(VolumeConfig(control="software", level=0.5,
+                                       state_file=str(tmp_path / "volume.json")))
+
+
+def test_the_robot_can_be_turned_down_from_its_own_screen(tmp_path) -> None:
+    """A robot whose volume only a laptop can change is a robot that depends
+    on a laptop."""
+    pytest.importorskip("pygame")
+    system = built("display.face_screen.surface=pygame")
+    knob = a_knob(tmp_path)
+    try:
+        face = FACE_SURFACES.create("pygame", system.cfg, FaceState(system.bus), knob)
+        size = (1024, 600)
+        buttons = dict((label, at) for label, at in face._buttons(*size))
+
+        face._pressed(buttons["+"], size)
+        assert knob.level > 0.5, "louder did nothing"
+
+        face._pressed(buttons["-"], size)
+        face._pressed(buttons["-"], size)
+        assert knob.level < 0.5, "quieter did nothing"
+
+        face._pressed(buttons["M"], size)
+        assert knob.muted and knob.gain == 0.0
+        face._pressed(buttons["M"], size)
+        assert not knob.muted, "mute did not let go"
+    finally:
+        system.close()
+
+
+def test_a_tap_on_the_face_is_not_a_volume_change(tmp_path) -> None:
+    pytest.importorskip("pygame")
+    system = built("display.face_screen.surface=pygame")
+    knob = a_knob(tmp_path)
+    try:
+        face = FACE_SURFACES.create("pygame", system.cfg, FaceState(system.bus), knob)
+
+        face._pressed((100, 100), (1024, 600))
+
+        assert knob.level == 0.5
+    finally:
+        system.close()
+
+
+def test_the_keys_do_what_the_buttons_do(tmp_path) -> None:
+    pygame = pytest.importorskip("pygame")
+    system = built("display.face_screen.surface=pygame")
+    knob = a_knob(tmp_path)
+    try:
+        face = FACE_SURFACES.create("pygame", system.cfg, FaceState(system.bus), knob)
+
+        face._keyed(pygame, pygame.K_UP, None)
+        assert knob.level > 0.5
+        face._keyed(pygame, pygame.K_m, None)
+        assert knob.muted
+    finally:
+        system.close()
+
+
+def test_a_face_with_no_knob_still_draws(tmp_path) -> None:
+    """A browser surface, a robot wired to an amplifier with its own dial,
+    and every test that builds a face without one."""
+    pygame = pytest.importorskip("pygame")
+    os.environ["SDL_VIDEODRIVER"] = "dummy"
+    pygame.init()
+    system = built("display.face_screen.surface=pygame")
+    try:
+        face = FACE_SURFACES.create("pygame", system.cfg, FaceState(system.bus))
+        surface = pygame.Surface((640, 480))
+
+        face._draw(pygame, surface, pygame.font.Font(None, 32), pygame.font.Font(None, 18))
+        face._pressed((600, 450), (640, 480))
+    finally:
+        pygame.quit()
+        system.close()
+
+
 def test_the_face_actually_draws(tmp_path) -> None:
     pygame = pytest.importorskip("pygame")
     os.environ["SDL_VIDEODRIVER"] = "dummy"

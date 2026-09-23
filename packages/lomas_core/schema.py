@@ -799,6 +799,17 @@ class ScreenConfig(BaseModel):
     # (x11, kmsdrm, fbcon) only when that guessing gets it wrong.
     driver: str = ""
 
+    # A volume control on the robot's own screen, because a robot whose
+    # volume can only be changed from a laptop is a robot that depends on a
+    # laptop. Three big targets - quieter, louder, mute - sized for a finger
+    # on a 7-inch panel, and the up, down and M keys do the same.
+    show_volume: bool = True
+    volume_button_px: int = Field(default=64, ge=16)
+    volume_margin_px: int = Field(default=18, ge=0)
+    # The bar and the number fade out this long after the last press, so the
+    # face is a face again rather than a control panel.
+    volume_shown_seconds: float = Field(default=4.0, ge=0)
+
 
 class DisplayConfig(BaseModel):
     """Two surfaces on one Pi. The 7-inch chest panel is the robot's face and

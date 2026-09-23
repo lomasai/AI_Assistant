@@ -259,7 +259,11 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     # the /face/ page and needs nothing here.
     face = None
     if cfg.display.face_screen.enabled and cfg.display.face_screen.surface in FACE_SURFACES:
-        face = FACE_SURFACES.create(cfg.display.face_screen.surface, cfg, FaceState(bus))
+        # With the volume knob, so the robot's own screen can turn it down.
+        # A robot whose volume only a laptop can change is a robot that
+        # depends on a laptop.
+        face = FACE_SURFACES.create(cfg.display.face_screen.surface, cfg, FaceState(bus),
+                                    getattr(getattr(tts, "player", None), "volume", None))
 
     vision = build_vision(cfg, bus, clock, repos)
     report = ReportBuilder(cfg, repos, content)

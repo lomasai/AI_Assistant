@@ -150,8 +150,10 @@ sends it.
 - **Reports.** A teacher reads these after class, sitting down:
   `http://raspberrypi.local:8080/teacher/` -> Report.
 - **Removing a child**, and correcting who the robot thinks spoke.
-- **Volume.** The slider is in the bar at the top of the teacher's page, in
-  every tab, with a mute beside it. On the Pi it moves the sound card's own
+- **Volume** can be changed from either screen. On the robot's own face
+  there are three round buttons in the bottom right - mute, quieter, louder -
+  and the up, down and M keys do the same; a bar shows the level and fades.
+  The teacher's page has the slider in the bar at the top, in every tab. On the Pi it moves the sound card's own
   mixer, so whatever else plays obeys it too, and the level is remembered
   across a reboot (`data/volume.json`). A school that never wants the robot
   above conversation volume sets `speech.tts.volume.max_level`.

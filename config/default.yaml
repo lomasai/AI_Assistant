@@ -660,6 +660,14 @@ display:
     surface: browser
     fullscreen: true
 
+    # A volume control on the robot's own screen: quieter, louder, mute, big
+    # enough for a finger on a 7-inch panel. The up, down and M keys do the
+    # same, and the bar fades once nobody is pressing anything.
+    show_volume: true
+    volume_button_px: 64
+    volume_margin_px: 18
+    volume_shown_seconds: 4.0
+
   board_screen:
     enabled: false          # turn on where the room has a projector
     output: HDMI-2

@@ -59,6 +59,19 @@ TALK_HZ = 6.0
 IDLE_FPS = 10
 LINE_SHARE = 0.86  # of the screen width, before a line wraps
 WAITING = "waiting for a class"
+
+# The volume control, in the corner where a hand rests rather than across
+# the face. Quieter, louder, mute.
+KNOB = (36, 44, 62)
+KNOB_LIT = (110, 168, 254)
+KNOB_MUTED = (180, 68, 52)
+KNOB_TEXT = (226, 232, 244)
+KNOB_RADIUS = 14
+BAR_HEIGHT = 10
+BAR_WIDTH_SHARE = 0.34
+QUIETER, LOUDER, MUTE = "-", "+", "M"
+ONE_STEP = 1.0
+FULL = 100
 RUNTIME_DIR = "XDG_RUNTIME_DIR"  # where Wayland leaves its socket
 WAYLAND_SOCKETS = "wayland-*"
 LOCK = ".lock"  # beside each socket, and not itself a screen
@@ -83,13 +96,17 @@ class PygameFace:
 
     name = "pygame"
 
-    def __init__(self, cfg: Config, state: FaceState) -> None:
+    def __init__(self, cfg: Config, state: FaceState, volume=None) -> None:
         self.cfg = cfg
         self.screen = cfg.display.face_screen
         self.state = state
+        # The robot's own volume knob. None is a face with no controls on
+        # it, which is what a browser surface and a test both want.
+        self.volume = volume
         self.log = log.get("face")
         self._stop = threading.Event()
         self._full = cfg.display.face_screen.fullscreen
+        self._touched = 0.0
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
@@ -132,7 +149,9 @@ class PygameFace:
         flags = pygame.FULLSCREEN if self._full else 0
         surface = pygame.display.set_mode((self.screen.width, self.screen.height), flags)
         pygame.display.set_caption("LomasAI")
-        pygame.mouse.set_visible(False)
+        # Visible where there is a volume control to point at: an invisible
+        # cursor over a button nobody can see is two problems.
+        pygame.mouse.set_visible(bool(self._knob() and self.screen.show_volume))
         self.log.info("face on %sx%s through %s - Esc leaves fullscreen, Q closes it",
                       self.screen.width, self.screen.height, opened)
 
@@ -147,6 +166,10 @@ class PygameFace:
                         self._stop.set()
                     elif event.type == pygame.KEYDOWN:
                         surface = self._keyed(pygame, event.key, surface)
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        # A tap on the panel, or a click over VNC. Same
+                        # three targets either way.
+                        self._pressed(event.pos, surface.get_size())
                 self._draw(pygame, surface, big, small)
                 pygame.display.flip()
                 clock.tick(IDLE_FPS)
@@ -160,7 +183,8 @@ class PygameFace:
             pygame.quit()
 
     def _keyed(self, pygame, key, surface):
-        """Escape leaves fullscreen; Q closes the face.
+        """Escape leaves fullscreen; Q closes the face; up, down and M are
+        the volume.
 
         A face that covers the whole screen with no way back is a robot you
         have to kill from another terminal, which is exactly the wrong thing
@@ -168,6 +192,12 @@ class PygameFace:
         """
         if key == pygame.K_q:
             self._stop.set()
+            return surface
+        if key in (pygame.K_UP, pygame.K_DOWN):
+            self._turn(ONE_STEP if key == pygame.K_UP else -ONE_STEP)
+            return surface
+        if key == pygame.K_m:
+            self._mute()
             return surface
         if key not in (pygame.K_ESCAPE, pygame.K_f):
             return surface
@@ -188,6 +218,7 @@ class PygameFace:
         self._mouth(pygame, surface, look, now, width, height)
         self._words(surface, big, small, look, width, height)
         self._ribbon(pygame, surface, small, look, width, height)
+        self._volume(pygame, surface, small, now, width, height)
 
     def _eyes(self, pygame, surface, look, now, width, height) -> None:
         """Two eyes that blink, and close rather than vanish.
@@ -293,6 +324,91 @@ class PygameFace:
             drawn = small.render(child.name, True, DIM if child.mood == AWAY else TEXT)
             surface.blit(drawn, (left + 18, bottom - drawn.get_height() // 2))
             left += drawn.get_width() + 44
+
+
+    # --- the volume, on the robot's own screen ----------------------------
+
+    def _knob(self):
+        """The control, if this robot has one. A face is a face without it."""
+        return self.volume
+
+    def _buttons(self, width: int, height: int) -> list[tuple[str, tuple[int, int]]]:
+        """Three targets along the bottom right, sized for a finger.
+
+        Bottom right because that is where a hand rests on a panel on a desk,
+        and away from the names along the bottom left.
+        """
+        size = self.screen.volume_button_px
+        margin = self.screen.volume_margin_px
+        y = height - margin - size // 2
+        return [
+            (MUTE, (width - margin - size // 2 - (size + margin) * 2, y)),
+            (QUIETER, (width - margin - size // 2 - (size + margin), y)),
+            (LOUDER, (width - margin - size // 2, y)),
+        ]
+
+    def _pressed(self, where, size) -> None:
+        knob = self._knob()
+        if knob is None or not self.screen.show_volume:
+            return
+
+        reach = self.screen.volume_button_px // 2
+        for label, (x, y) in self._buttons(*size):
+            if abs(where[0] - x) <= reach and abs(where[1] - y) <= reach:
+                if label == MUTE:
+                    self._mute()
+                else:
+                    self._turn(ONE_STEP if label == LOUDER else -ONE_STEP)
+                return
+
+    def _turn(self, steps: float) -> None:
+        knob = self._knob()
+        if knob is None:
+            return
+        import time
+
+        knob.nudge(steps)
+        self._touched = time.monotonic()
+        self.log.info("volume %s", knob.describe())
+
+    def _mute(self) -> None:
+        knob = self._knob()
+        if knob is None:
+            return
+        import time
+
+        knob.mute(not knob.muted)
+        self._touched = time.monotonic()
+        self.log.info("volume %s", knob.describe())
+
+    def _volume(self, pygame, surface, small, now, width, height) -> None:
+        knob = self._knob()
+        if knob is None or not self.screen.show_volume:
+            return
+
+        for label, (x, y) in self._buttons(width, height):
+            lit = KNOB_MUTED if (label == MUTE and knob.muted) else KNOB
+            pygame.draw.circle(surface, lit, (x, y), self.screen.volume_button_px // 2)
+            glyph = small.render(label, True, KNOB_TEXT)
+            surface.blit(glyph, glyph.get_rect(center=(x, y)))
+
+        # The bar only while somebody is changing it. A number on a face all
+        # day makes the robot a control panel with eyes.
+        if now - self._touched > self.screen.volume_shown_seconds:
+            return
+
+        bar = int(width * BAR_WIDTH_SHARE)
+        left = (width - bar) // 2
+        top = height - self.screen.volume_margin_px * 2 - BAR_HEIGHT
+        pygame.draw.rect(surface, KNOB, (left, top, bar, BAR_HEIGHT),
+                         border_radius=BAR_HEIGHT // 2)
+        filled = 0 if knob.muted else int(bar * knob.level)
+        if filled:
+            pygame.draw.rect(surface, KNOB_LIT, (left, top, filled, BAR_HEIGHT),
+                             border_radius=BAR_HEIGHT // 2)
+        said = "muted" if knob.muted else f"{round(knob.level * FULL)}%"
+        label = small.render(said, True, DIM)
+        surface.blit(label, label.get_rect(center=(width // 2, top - KNOB_RADIUS)))
 
 
 def running_sessions() -> list[tuple[str, dict]]:
