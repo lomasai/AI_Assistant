@@ -26,29 +26,12 @@ from lomas_core.schema import Config
 from lomas_face import AttentionMonitor, IdentityMatcher, Tracker, estimate_pose
 from lomas_face.mouth import Mouths
 from lomas_face.types import Pose, Track
-from lomas_vision import Frame, FrameBus
+from lomas_vision import Frame, FrameBus, downscale
 
 NO_SCALE = 1.0
 MILLISECONDS = 1000.0
 LEVEL = Pose(yaw=0.0, pitch=0.0, roll=0.0)
 NO_SOURCE = ""
-
-
-def downscale(image: np.ndarray, width: int) -> tuple[np.ndarray, float]:
-    """Detect on a small copy, crop faces from the big one.
-
-    The returned factor maps a box back to full-resolution pixels, which is
-    what the embedder and the overlay both need.
-    """
-    height, full_width = image.shape[:2]
-    if full_width <= width:
-        return image, NO_SCALE
-
-    import cv2  # only needed when a frame is actually bigger than the target
-
-    factor = full_width / width
-    small = cv2.resize(image, (width, int(height / factor)), interpolation=cv2.INTER_AREA)
-    return small, factor
 
 
 def source_for(cfg: Config) -> str:

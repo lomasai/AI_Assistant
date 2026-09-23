@@ -1,6 +1,6 @@
 from lomas_core.schema import SourceConfig, VisionConfig
 from lomas_vision.bus import ANY_SOURCE, FrameBus
-from lomas_vision.frame import Frame
+from lomas_vision.frame import Frame, downscale
 from lomas_vision.source import CAMERA_SOURCES, BaseSource, CameraSource
 from lomas_vision.zoom import crop_rectangle
 
@@ -26,5 +26,6 @@ __all__ = [
     "SourceConfig",
     "VisionConfig",
     "build_sources",
+    "downscale",
     "crop_rectangle",
 ]

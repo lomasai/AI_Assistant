@@ -26,10 +26,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(ROOT))
 
+from lomas_core.clock import RealClock  # noqa: E402
 from lomas_core.config import load  # noqa: E402
-from lomas_core.secrets import load_secrets  # noqa: E402
+from lomas_core.secrets import SECRETS_FILE, load_secrets  # noqa: E402
 from lomas_signs import CARD_READERS, HAND_READERS  # noqa: E402
-from lomas_vision import FrameBus, build_sources  # noqa: E402
+from lomas_vision import FrameBus, build_sources, downscale  # noqa: E402
 
 # Only to turn a marker width in pixels into "about this far", which is a
 # sentence somebody can act on. The card's printed size and the camera's
@@ -57,15 +58,16 @@ def distance_m(width_px: float, frame_px: int) -> float:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--mode", default="pi")
+    ap.add_argument("--config-dir", default=str(ROOT / "config"))
     ap.add_argument("--seconds", type=float, default=30.0)
     ap.add_argument("--hands", action="store_true", help="measure the hand model too")
     args = ap.parse_args()
 
-    load_secrets()
+    load_secrets(Path(args.config_dir) / SECRETS_FILE)
     overrides = ["signs.enabled=true"]
     if args.hands:
         overrides.append("signs.hands.reader=mediapipe")
-    cfg = load(str(ROOT / "config"), args.mode, overrides, use_env=True)
+    cfg = load(args.config_dir, args.mode, overrides, use_env=True)
 
     cards = CARD_READERS.create(cfg.signs.cards.reader, cfg.signs.cards)
     hands = HAND_READERS.create(cfg.signs.hands.reader, cfg.signs.hands)
@@ -76,7 +78,12 @@ def main() -> int:
               "`pip install mediapipe` and the .task model.")
         return 1
 
-    frames = FrameBus(build_sources(cfg.sources), buffer_size=cfg.vision.buffer_size)
+    frames = FrameBus(
+        build_sources(cfg.sources),
+        buffer_size=cfg.vision.buffer_size,
+        clock=RealClock(),
+        read_timeout_ms=cfg.vision.read_timeout_ms,
+    )
     frames.start()
     source = cfg.signs.source or cfg.sources[0].id
 
@@ -99,21 +106,25 @@ def main() -> int:
                 continue
             last_seq = frame.seq
 
+            # The same small copy the robot reads, or the cost measured
+            # here is not the cost it pays.
+            small, factor = downscale(frame.image, cfg.signs.downscale_width)
+
             began = time.perf_counter()
-            seen = cards.read(frame.image, frame.ts)
+            seen = cards.read(small, frame.ts)
             card_ms.append((time.perf_counter() - began) * MILLISECONDS)
 
             signs = []
             if hands.available:
                 began = time.perf_counter()
-                signs = hands.read(frame.image, frame.ts)
+                signs = hands.read(small, frame.ts)
                 hand_ms.append((time.perf_counter() - began) * MILLISECONDS)
 
             if time.monotonic() < next_report:
                 continue
             next_report = time.monotonic() + REPORT_EVERY
 
-            wide = max((card.box.w for card in seen), default=0)
+            wide = int(max((card.box.w for card in seen), default=0) * factor)
             far = distance_m(wide, frame.image.shape[1]) if wide else 0.0
             widest = max(widest, wide)
             furthest = max(furthest, far)
