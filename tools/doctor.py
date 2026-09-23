@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(ROOT))
 
 from lomas_core.config import load  # noqa: E402
+from lomas_core.secrets import SECRETS_FILE, load_secrets  # noqa: E402
 
 OK = "ok"
 MISSING = "missing"
@@ -64,8 +65,13 @@ def main() -> int:
     ap.add_argument("--config-dir", default=str(ROOT / "config"))
     args = ap.parse_args()
 
+    # The same file run.py reads. Without it the doctor calls a key missing
+    # that the robot has, and one false alarm is how a report teaches the
+    # person reading it to skim.
+    keys = load_secrets(Path(args.config_dir) / SECRETS_FILE)
     cfg = load(args.config_dir, args.mode, [], use_env=True)
-    print(f"python {sys.version.split()[0]}, profile {args.mode}\n")
+    held = f", {len(keys)} keys from {SECRETS_FILE}" if keys else ""
+    print(f"python {sys.version.split()[0]}, profile {args.mode}{held}\n")
 
     well = True
     print("what everything is built on")

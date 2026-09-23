@@ -94,6 +94,23 @@ def test_the_doctor_does_not_call_a_machine_well_when_it_is_not() -> None:
     assert run(tool("doctor"), "--mode", "pi") == 1
 
 
+def test_the_doctor_reads_the_same_secrets_file_the_robot_does(tmp_path,
+                                                               monkeypatch) -> None:
+    """It reported GROQ_API_KEY missing on a robot that has it in
+    config/secrets.env, which is how a report teaches people to skim it."""
+    import os
+    import shutil
+
+    config = tmp_path / "config"
+    shutil.copytree(ROOT / "config", config)
+    (config / "secrets.env").write_text("GROQ_API_KEY=not-a-real-key", encoding="utf-8")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    run(tool("doctor"), "--mode", "debug", "--config-dir", str(config))
+
+    assert os.environ.get("GROQ_API_KEY") == "not-a-real-key"
+
+
 def test_the_model_fetcher_reports_without_downloading() -> None:
     assert run(tool("fetch_models"), "--check") in (0, 1)
 
