@@ -250,6 +250,13 @@ speech:
       card: ""              # alsa: empty takes it from player_device
       mixers: [PCM, Headphone, Speaker, Master, Digital, Playback]
       mixer_timeout_seconds: 3.0
+
+      # How many decibels the slider covers. A card's own percentage is not
+      # a level: 80% of a Pi's headphone jack is -17 dB, a seventh of the
+      # amplitude and inaudible under a fan. Halving the loudness is about
+      # -10 dB, so a slider worth having spans the top forty and its bottom
+      # end is quiet rather than off.
+      range_db: 40.0
       remember: true        # survives a reboot, because a wall switch is how
       state_file: data/volume.json   # a classroom robot is usually turned off
 

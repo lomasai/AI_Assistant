@@ -11,9 +11,17 @@ CARD_FLAG = "-c"
 CARD_IN_DEVICE = re.compile(r"CARD=([^,]+)")
 SCONTROL = re.compile(r"Simple mixer control '([^']+)'")
 LEVEL_IN_REPLY = re.compile(r"\[(\d+)%\]")
+# "Limits: Playback -10239 - 400", in hundredths of a decibel, and the
+# bracketed dB that says this card has a decibel scale at all.
+LIMITS = re.compile(r"Limits:\s*Playback\s*(-?\d+)\s*-\s*(-?\d+)")
+HAS_DECIBELS = re.compile(r"\[-?\d+\.\d+dB\]")
+HUNDREDTHS = 100.0
 MUTE_ON = "unmute"
 MUTE_OFF = "mute"
 NO_MIXER = "no mixer"
+# Remembered rather than asked twice: a card either has a decibel scale or
+# it does not, and it will not grow one.
+NO_SCALE = (0.0, 0.0)
 
 
 @VOLUME_CONTROLS.register(ALSA)
@@ -32,6 +40,7 @@ class AlsaVolume(Dial):
     def __init__(self, cfg, device: str = "") -> None:
         self.card = cfg.card or _card_of(device)
         self.mixer = ""
+        self.limits: tuple[float, float] | None = None
         super().__init__(cfg, device)
 
     @property
@@ -44,8 +53,22 @@ class AlsaVolume(Dial):
         mixer = self._found_mixer()
         if not mixer:
             return
-        percent = round(self.level * PERCENT)
-        self._amixer("sset", mixer, f"{percent}%", MUTE_OFF if self.muted else MUTE_ON)
+        self._amixer("sset", mixer, self._where(), MUTE_OFF if self.muted else MUTE_ON)
+
+    def _where(self) -> str:
+        """Where to put the knob, in the card's own terms.
+
+        Decibels where the card has a decibel scale, because its percentage
+        is not a level: 80% of the Pi's jack is -17 dB, which is a seventh
+        of the amplitude. A percentage only where there is nothing better.
+        """
+        limits = self._decibels()
+        if limits is None:
+            return f"{round(self.level * PERCENT)}%"
+
+        quietest, loudest = limits
+        floor = max(quietest, loudest - self.cfg.range_db)
+        return f"{floor + (loudest - floor) * self.level:.2f}dB"
 
     def describe(self) -> str:
         mixer = self._found_mixer()
@@ -80,6 +103,22 @@ class AlsaVolume(Dial):
             self.log.debug("amixer failed: %s", exc)
             return ""
         return done.stdout
+
+    def _decibels(self) -> tuple[float, float] | None:
+        """This card's quietest and loudest, in decibels, or None where it
+        does not think in decibels at all."""
+        if self.limits is not None:
+            return self.limits if self.limits != NO_SCALE else None
+
+        mixer = self._found_mixer()
+        reply = self._amixer("sget", mixer) if mixer else ""
+        found = LIMITS.search(reply)
+        if not found or not HAS_DECIBELS.search(reply):
+            self.limits = NO_SCALE
+            return None
+
+        self.limits = (int(found.group(1)) / HUNDREDTHS, int(found.group(2)) / HUNDREDTHS)
+        return self.limits
 
     def reads(self) -> float:
         """What the card says it is set to, which is not always what was

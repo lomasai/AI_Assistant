@@ -342,6 +342,15 @@ class VolumeConfig(BaseModel):
     ])
     mixer_timeout_seconds: float = Field(default=3.0, gt=0)
 
+    # How many decibels the slider spans, from full down to its bottom end.
+    #
+    # A card's own percentage is no use as a level. The Pi's jack runs from
+    # -102 dB to +4, so 80% of it is -17 dB - a seventh of the amplitude,
+    # and inaudible under a fan. Halving the loudness is about -10 dB, so a
+    # slider worth having covers the top thirty or forty of them and the
+    # bottom of it is quiet rather than off.
+    range_db: float = Field(default=40.0, gt=0)
+
     # Where the level set from the teacher's page is kept, so a robot that
     # is switched off at the wall comes back at the volume the room chose.
     remember: bool = True

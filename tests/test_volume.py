@@ -177,6 +177,85 @@ def test_the_mixer_card_comes_from_the_speaker() -> None:
     assert _card_of("") == ""
 
 
+# The Pi's headphone jack, word for word from `amixer -c Headphones sget PCM`.
+PI_JACK = """Simple mixer control 'PCM',0
+  Capabilities: pvolume pvolume-joined pswitch pswitch-joined
+  Playback channels: Mono
+  Limits: Playback -10239 - 400
+  Mono: Playback -1728 [80%] [-17.28dB] [on]"""
+
+# A card with a volume but no decibel scale, which some USB speakers are.
+NO_DECIBELS = """Simple mixer control 'Speaker',0
+  Capabilities: pvolume
+  Limits: Playback 0 - 65536
+  Mono: Playback 32768 [50%] [on]"""
+
+
+def a_card(tmp_path, reply: str, **values):
+    """An ALSA control talking to a card that answers like this."""
+    from lomas_speech.volumes.alsa import AlsaVolume
+
+    asked: list[list[str]] = []
+
+    class Card(AlsaVolume):
+        def _amixer(self, *args):
+            asked.append(list(args))
+            return reply
+
+    control = Card(VolumeConfig(control="alsa", state_file=str(tmp_path / "v.json"), **values))
+    return control, asked
+
+
+def test_the_slider_is_decibels_where_the_card_has_them(tmp_path) -> None:
+    """80% of the Pi's jack is -17 dB, which is a seventh of the amplitude
+    and inaudible under a fan. A percentage is not a level."""
+    control, asked = a_card(tmp_path, PI_JACK, level=0.8, range_db=40.0)
+
+    control.set(0.8)
+    put = [args for args in asked if args and args[0] == "sset"][-1]
+
+    assert put[2].endswith("dB"), f"it set {put[2]}, which is not a level"
+    assert float(put[2].rstrip("dB")) == pytest.approx(-4.0), "0.8 of a 40 dB span"
+
+
+def test_the_top_of_the_slider_is_as_loud_as_the_card_goes(tmp_path) -> None:
+    control, asked = a_card(tmp_path, PI_JACK, level=1.0)
+
+    control.set(1.0)
+    put = [args for args in asked if args and args[0] == "sset"][-1]
+
+    assert float(put[2].rstrip("dB")) == pytest.approx(4.0), "the card's own loudest"
+
+
+def test_the_bottom_is_quiet_rather_than_off(tmp_path) -> None:
+    """The card goes down to -102 dB, which is off. A slider whose bottom
+    half is silence is a slider with a cliff in it."""
+    control, asked = a_card(tmp_path, PI_JACK, level=0.0, range_db=40.0)
+
+    control.set(0.0)
+    put = [args for args in asked if args and args[0] == "sset"][-1]
+
+    assert float(put[2].rstrip("dB")) == pytest.approx(-36.0)
+
+
+def test_how_much_range_the_slider_covers_is_config(tmp_path) -> None:
+    control, asked = a_card(tmp_path, PI_JACK, level=0.5, range_db=20.0)
+
+    control.set(0.5)
+    put = [args for args in asked if args and args[0] == "sset"][-1]
+
+    assert float(put[2].rstrip("dB")) == pytest.approx(-6.0)
+
+
+def test_a_card_with_no_decibel_scale_still_works(tmp_path) -> None:
+    control, asked = a_card(tmp_path, NO_DECIBELS, level=0.6)
+
+    control.set(0.6)
+    put = [args for args in asked if args and args[0] == "sset"][-1]
+
+    assert put[2] == "60%", "a percentage only where there is nothing better"
+
+
 def test_a_machine_with_no_mixer_still_has_a_slider(tmp_path) -> None:
     """auto prefers the card's own knob and falls back to scaling samples. A
     laptop and a Pi with an HDMI-only card both end up here."""
