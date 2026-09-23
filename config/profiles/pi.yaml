@@ -132,6 +132,14 @@ signs:
     # so this does nothing until somebody runs tools/make_cards.py.
     reader: aruco
 
+# On while the robot is being worked on. The runtime log is deliberately
+# not committed - it is large and full of noise - so a run with the trace
+# off leaves nothing for anybody to read afterwards, which makes `sync`
+# push nothing and a question like "why was it silent?" unanswerable.
+# Turn it off once the robot is living in a school.
+trace:
+  enabled: true
+
 # Every audio, latency and face fix so far came out of a trace pushed from
 # this Pi by hand. A robot in a classroom has nobody to type three git
 # commands after a class, so it files its own: at the end of every class, and

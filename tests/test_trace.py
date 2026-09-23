@@ -67,9 +67,15 @@ def test_nothing_is_written_unless_it_is_switched_on(tmp_path: Path) -> None:
         system.close()
 
 
-def test_it_is_off_by_default() -> None:
-    for mode in ["debug", "user", "pi", "demo"]:
+def test_it_is_off_unless_somebody_is_going_to_read_it() -> None:
+    """Measuring costs something, so nothing measures by default - except
+    the robot being worked on, where a run that leaves nothing behind makes
+    "why was it silent?" unanswerable. The runtime log is not committed;
+    this is what `sync` actually pushes."""
+    for mode in ["debug", "user", "demo"]:
         assert load("config", mode, [], use_env=False).trace.enabled is False, mode
+
+    assert load("config", "pi", [], use_env=False).trace.enabled is True
 
 
 # --- what a run leaves behind ---------------------------------------------
