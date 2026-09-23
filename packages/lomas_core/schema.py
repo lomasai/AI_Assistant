@@ -964,19 +964,22 @@ class CardsConfig(BaseModel):
 
 
 class HandsConfig(BaseModel):
-    """Hand shapes. The expensive half, and the one to switch off first.
+    """A hand held up, however this machine is able to see one.
 
-    Google's recognizer already knows thumb up, thumb down, victory,
-    pointing up, open palm, closed fist and one more, so nothing here is
-    trained. What it costs is a model on every frame it is given - which is
-    why it is given few: a sign meant as an interrupt is *held*, and one
-    held for a second is caught at three reads a second as surely as at
-    thirty.
+    Two ways, and the robot's own CPU chose between them. `mediapipe` reads
+    hand shapes with Google's pre-trained recognizer - accurate, and its
+    aarch64 wheel is built for a processor with AES instructions, which a
+    Raspberry Pi 4 does not have: it aborts the whole process with an
+    illegal instruction.
+
+    `raised_hand` is what the Pi runs instead. It knows one thing - a hand
+    up beside a face - which is the only thing this robot needs a hand for,
+    costs a few milliseconds, and needs no model and no wheel.
     """
 
     model_config = Strict
 
-    reader: str = "none"           # mediapipe | none
+    reader: str = "none"           # raised_hand | mediapipe | none
     model: str = "models/gesture_recognizer.task"
     max_hands: int = Field(default=2, ge=1)
     min_score: float = Field(default=0.6, ge=0.0, le=1.0)
@@ -987,9 +990,27 @@ class HandsConfig(BaseModel):
     # that child's hand. Beyond it, nobody owns the sign.
     near_face: float = Field(default=0.25, gt=0.0, le=1.0)
 
-    # What each sign means here. The names are the recognizer's own; the
-    # meanings are this school's, which is why they are config: a sign that
-    # is polite in one classroom is not in another.
+    # --- raised_hand only -------------------------------------------------
+    # Where a raised hand is, relative to the face it belongs to: this much
+    # of a face height above it, and this much of a face width to either
+    # side. A hand goes up beside the head, not in front of the chest.
+    above_face: float = Field(default=1.8, gt=0)
+    beside_face: float = Field(default=0.9, ge=0)
+    below_face: float = Field(default=0.3, ge=0)
+
+    # Skin, in chroma rather than brightness: Cr and Cb barely move across
+    # skin tones where brightness moves a great deal, which is what makes
+    # one setting work for a whole classroom.
+    skin_cr: tuple[int, int] = (133, 180)
+    skin_cb: tuple[int, int] = (77, 130)
+    blur_px: int = Field(default=5, ge=1)
+
+    # How big the blob has to be, as a share of the area of the face it is
+    # next to. Below the first it is a finger's worth of noise; above the
+    # second it is a wall.
+    min_area: float = Field(default=0.12, gt=0)
+    max_area: float = Field(default=1.6, gt=0)
+
     # One sign, one meaning. The recognizer knows thumbs and the rest, and
     # they stay unmapped: the only thing a hand is for here is saying "I
     # would like to ask something", and the name comes from the face beside

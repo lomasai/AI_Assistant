@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from lomas_signs.hand import HAND_READERS
-from lomas_signs.types import Sign
+from lomas_signs.types import Box, Sign
 
 NOTHING = "no hand reader"
 
@@ -24,7 +24,8 @@ class NoHands:
     def available(self) -> bool:
         return False
 
-    def read(self, image: np.ndarray, at: float = 0.0) -> list[Sign]:
+    def read(self, image: np.ndarray, at: float = 0.0,
+             _faces: tuple[Box, ...] = ()) -> list[Sign]:
         return []
 
     def describe(self) -> str:

@@ -78,24 +78,37 @@ who raised the hand comes from the face beside it.
 Not a sign language on purpose. A classroom full of signs to remember is a
 class learning the robot instead of the subject.
 
-**Hands** are what the pi profile uses. They need a model, and a measurement:
+**Hands** are what the pi profile uses, through `raised_hand`: skin above
+and beside a face the camera has already found. No wheel, no model, a few
+milliseconds, and it knows one thing - somebody's hand is up.
 
 ```bash
-pip install mediapipe
-pip install --force-reinstall opencv-python-headless   # mediapipe drags in its own
-python tools/fetch_models.py --hands
 python tools/signs_check.py --mode pi --hands
 ```
 
-The last one prints the cost as a share of one core. Dials, in the order to
-turn them: `signs.fps` (3 is plenty - a hand stays up for seconds),
-`signs.hands.every` (look at one read in two), then `signs.hands.reader:
-none`. `signs.enabled: false` turns the lot off.
+It prints what reading hands costs and, separately, what finding the faces
+cost - the robot does not pay that twice, because the lesson's own detector
+has already found them. Dials, in order: `signs.fps` (3 is plenty),
+`signs.hands.every` (one read in two), then `signs.hands.reader: none`.
 
-The sign is `Pointing_Up` ☝, mapped in `signs.hands.actions`. The recognizer
-also knows Thumb_Up, Thumb_Down, Victory, Open_Palm and Closed_Fist; they
-stay unmapped until there is a reason, and what a sign means is a school's
-decision, so it is config and not code.
+**Not mediapipe on a Pi 4.** Its aarch64 wheel is compiled for a processor
+with AES instructions, which this one does not have: importing it does not
+raise, it aborts - `FATAL ERROR: compiled with aes enabled`, the whole
+process, at boot. The reader asks a separate process whether it can run
+before importing it, so choosing it on the wrong machine now degrades
+instead of killing the robot. On a machine that can run it, it reads hand
+*shapes*, and `signs.hands.actions` maps them (`Pointing_Up` ☝ and the
+rest) to meanings.
+
+Installing it also drags in its own OpenCV, which drags in numpy 2, which
+is a different ABI from the one picamera2 was built against - the camera
+then fails with `numpy.dtype size changed`. To undo that:
+
+```bash
+pip uninstall -y mediapipe opencv-contrib-python
+pip install "numpy<2" "opencv-python-headless<5"
+python tools/doctor.py --mode pi
+```
 
 **What happens when a hand goes up** (`signs.asking`): the robot finishes
 the sentence it is saying and stops there, keeps what it had not said, says

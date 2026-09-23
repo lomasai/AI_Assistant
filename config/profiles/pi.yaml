@@ -113,19 +113,19 @@ enrolment:
 # A hand held up, meaning "I would like to ask something". Who raised it
 # comes from the face beside it.
 #
-# The hand model is the one expensive thing in this robot, so measure it
-# before believing it:
-#     pip install mediapipe
-#     python tools/fetch_models.py --hands
-#     python tools/signs_check.py --mode pi --hands
-# It prints the cost as a share of a core. Too dear? `reader: none` here, or
-# raise `every` so it looks at one read in two. signs.enabled: false turns
-# the lot off.
+# raised_hand and not mediapipe: mediapipe's aarch64 wheel is built for a
+# processor with AES instructions and this Pi has none, so importing it
+# aborts the whole process - "FATAL ERROR: compiled with aes enabled".
+# raised_hand needs no wheel and no model, knows one thing, and that one
+# thing is all this robot ever wanted a hand for.
+#
+#     python tools/doctor.py --mode pi        # can this machine do it
+#     python tools/signs_check.py --mode pi   # what it costs, and how far
 signs:
   enabled: true
   fps: 3.0                # a hand is held up for seconds; this is plenty
   hands:
-    reader: mediapipe
+    reader: raised_hand
     every: 1              # one read in this many - the first dial to turn
   cards:
     # Kept on: a card costs about 2 ms a frame and nothing is printed yet,

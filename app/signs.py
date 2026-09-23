@@ -17,7 +17,7 @@ from lomas_core.contracts import (
 )
 from lomas_core.events import EventBus
 from lomas_core.schema import Config
-from lomas_signs import CARD_READERS, HAND_READERS, Card, Sign
+from lomas_signs import CARD_READERS, HAND_READERS, Box, Card, Sign
 from lomas_store import TenantScope
 
 from app.pipeline import downscale, source_for
@@ -135,11 +135,20 @@ class SignWatch:
             self._on_card(card, factor, frame.ts)
 
         if self.hands.available and self.reads % self.cfg.signs.hands.every == 0:
-            for sign in self.hands.read(small, frame.ts):
+            # The faces as they are in this smaller copy: a reader that
+            # looks beside a face needs them in the picture it is given.
+            for sign in self.hands.read(small, frame.ts, self._faces(factor)):
                 self._on_sign(sign, factor, frame.ts)
 
         self.reads += 1
         self.read_seconds += time.perf_counter() - began
+
+    def _faces(self, factor: float) -> tuple[Box, ...]:
+        if factor <= 0:
+            return ()
+        return tuple(Box(x=int(track.x / factor), y=int(track.y / factor),
+                         w=int(track.w / factor), h=int(track.h / factor))
+                     for track in self._tracks)
 
     def _on_card(self, card: Card, factor: float, at: float) -> None:
         card = Card(marker_id=card.marker_id, box=card.box.scaled(factor), turn=card.turn, at=at)

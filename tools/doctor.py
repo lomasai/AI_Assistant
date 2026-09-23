@@ -206,11 +206,15 @@ def _signs(cfg) -> bool:
         say("hands", NOT_ASKED, "switched off in this profile")
         return True
 
-    state, detail = imports("mediapipe")
-    say("mediapipe", state, detail)
-    model = Path(cfg.signs.hands.model)
-    here = model if model.is_absolute() else ROOT / model
-    say(model.name, OK if here.exists() else MISSING, "python tools/fetch_models.py --hands")
+    # Only what this reader actually needs. raised_hand needs nothing, which
+    # is why the robot uses it.
+    if cfg.signs.hands.reader == "mediapipe":
+        state, detail = imports("mediapipe")
+        say("mediapipe", state, detail)
+        model = Path(cfg.signs.hands.model)
+        here = model if model.is_absolute() else ROOT / model
+        say(model.name, OK if here.exists() else MISSING,
+            "python tools/fetch_models.py --hands")
 
     hands = HAND_READERS.create(cfg.signs.hands.reader, cfg.signs.hands)
     say(f"hands: {cfg.signs.hands.reader}", OK if hands.available else MISSING, hands.describe())

@@ -215,6 +215,97 @@ def test_a_school_can_have_cards_that_only_answer() -> None:
         system.close()
 
 
+# --- a hand, with no model at all ------------------------------------------
+
+
+SKIN = (120, 150, 200)   # BGR, in the Cr/Cb band the reader looks for
+
+
+def room(face: Box, hand: Box | None = None, size=(480, 640)) -> np.ndarray:
+    """A picture with a face in it, and sometimes a hand beside the head."""
+    page = np.full((*size, 3), 30, np.uint8)
+    cv2.rectangle(page, (face.x, face.y), (face.x + face.w, face.y + face.h), SKIN, -1)
+    if hand is not None:
+        cv2.rectangle(page, (hand.x, hand.y), (hand.x + hand.w, hand.y + hand.h), SKIN, -1)
+    return page
+
+
+def reader(*extra: str):
+    from lomas_signs import HAND_READERS
+
+    cfg = load("config", "debug", list(extra), use_env=False).signs.hands
+    return HAND_READERS.create("raised_hand", cfg)
+
+
+def test_a_hand_beside_a_head_is_a_hand_up() -> None:
+    """The whole feature, on a Pi that cannot run a hand model: skin above
+    and beside a face the camera already found."""
+    face = Box(x=300, y=200, w=100, h=120)
+    hand = Box(x=420, y=110, w=60, h=70)
+
+    found = reader().read(room(face, hand), faces=(face,))
+
+    assert len(found) == 1
+    assert found[0].name == "raised_hand"
+    assert found[0].box.x > face.x, "it found something to the left of the face"
+
+
+def test_a_face_on_its_own_is_not_a_raised_hand() -> None:
+    """Every face is cut out of the search first, or a robot would see forty
+    hands in a room of forty children sitting still."""
+    face = Box(x=300, y=200, w=100, h=120)
+
+    assert reader().read(room(face), faces=(face,)) == []
+
+
+def test_somebody_behind_you_is_not_your_hand() -> None:
+    face = Box(x=300, y=200, w=100, h=120)
+    behind = Box(x=380, y=120, w=90, h=100)
+    page = room(face)
+    cv2.rectangle(page, (behind.x, behind.y),
+                  (behind.x + behind.w, behind.y + behind.h), SKIN, -1)
+
+    found = reader().read(page, faces=(face, behind))
+
+    assert found == [], "a face over your shoulder was read as your raised hand"
+
+
+def test_a_hand_in_your_lap_is_not_a_hand_up() -> None:
+    """Below the face, where a child's hands rest. A raised hand goes up
+    beside the head, and that is the difference between asking and sitting."""
+    face = Box(x=300, y=200, w=100, h=120)
+    resting = Box(x=320, y=420, w=60, h=50)
+
+    assert reader().read(room(face, resting), faces=(face,)) == []
+
+
+def test_a_speck_is_not_a_hand() -> None:
+    face = Box(x=300, y=200, w=100, h=120)
+    speck = Box(x=430, y=150, w=8, h=8)
+
+    assert reader().read(room(face, speck), faces=(face,)) == []
+
+
+def test_it_needs_a_face_to_look_beside() -> None:
+    """A hand on its own says nothing about who is asking, so this reader
+    does not go looking for one."""
+    assert reader().read(room(Box(x=300, y=200, w=100, h=120)), faces=()) == []
+
+
+def test_how_far_a_hand_may_be_is_config() -> None:
+    face = Box(x=300, y=200, w=100, h=120)
+    far = Box(x=530, y=110, w=60, h=70)
+
+    assert reader().read(room(face, far), faces=(face,)) == []
+    assert reader("signs.hands.beside_face=2.5").read(room(face, far), faces=(face,))
+
+
+def test_this_one_needs_nothing_installed() -> None:
+    """Which is the point of it: the robot could not run the model wheel at
+    all - it aborts with an illegal instruction on a Pi 4."""
+    assert reader().available is True
+
+
 # --- a hand ----------------------------------------------------------------
 
 
@@ -227,7 +318,7 @@ class OneSign:
         self.available = True
         self.reads = 0
 
-    def read(self, image, at: float = 0.0):
+    def read(self, image, at: float = 0.0, faces=()):
         self.reads += 1
         return [Sign(name=self.name, box=Box(x=10, y=10, w=40, h=40), score=0.9, at=at)]
 
@@ -363,7 +454,9 @@ def test_hands_cost_something_so_nothing_switches_them_on_by_accident() -> None:
     assert load("config", "debug", [], use_env=False).signs.hands.reader == "none"
 
     robot = load("config", "pi", [], use_env=False).signs
-    assert robot.hands.reader == "mediapipe", "the robot is the one that wanted hands"
+    assert robot.hands.reader == "raised_hand", (
+        "the robot reads hands without a model: mediapipe's wheel aborts on a Pi 4"
+    )
     assert robot.fps <= 4.0, "a held sign does not need a high frame rate"
 
 

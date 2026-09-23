@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +14,10 @@ MEDIAPIPE = "mediapipe"
 NONE_FOUND = "none"
 MILLISECONDS = 1000.0
 FIRST = 0
+# Asked in a process of its own, because the answer can be a signal rather
+# than an exception.
+PROBE = "import mediapipe.tasks.python.vision"
+PROBE_SECONDS = 60.0
 
 
 @HAND_READERS.register(MEDIAPIPE)
@@ -29,7 +35,14 @@ class MediapipeHands:
     caught at three frames a second as surely as at thirty.
 
     Needs `pip install mediapipe` and the .task file; without either it
-    reports itself unavailable and the robot carries on with cards.
+    reports itself unavailable and the robot carries on.
+
+    It is also asked, in a process of its own, whether it can run here at
+    all. The aarch64 wheel is compiled for a processor with AES
+    instructions, and a Raspberry Pi 4 has none: importing it does not
+    raise, it aborts - "illegal instruction", the whole robot, at boot. A
+    crash that cannot be caught has to be provoked somewhere it does not
+    matter, so that is what this does.
     """
 
     def __init__(self, cfg) -> None:
@@ -45,7 +58,8 @@ class MediapipeHands:
     def describe(self) -> str:
         return f"{MEDIAPIPE} {Path(self.cfg.model).name}" if self.available else "no hand reader"
 
-    def read(self, image: np.ndarray, at: float = 0.0) -> list[Sign]:
+    def read(self, image: np.ndarray, at: float = 0.0,
+             _faces: tuple[Box, ...] = ()) -> list[Sign]:
         reader = self._built()
         if reader is None or image is None:
             return []
@@ -78,6 +92,12 @@ class MediapipeHands:
     def _built(self):
         if self._reader is not None or self._broken:
             return self._reader
+        if not self._runs_on_this_processor():
+            self._refuse(
+                "this mediapipe wheel cannot run on this processor (it aborts with "
+                "an illegal instruction). Use signs.hands.reader: raised_hand."
+            )
+            return None
         try:
             from mediapipe.tasks import python as tasks
             from mediapipe.tasks.python import vision
@@ -99,6 +119,16 @@ class MediapipeHands:
         )
         self._reader = vision.GestureRecognizer.create_from_options(options)
         return self._reader
+
+    def _runs_on_this_processor(self) -> bool:
+        """Import it somewhere that dying does not cost a lesson."""
+        try:
+            done = subprocess.run([sys.executable, "-c", PROBE], capture_output=True,
+                                  timeout=PROBE_SECONDS, check=False)
+        except (OSError, subprocess.SubprocessError) as exc:
+            self.log.debug("could not ask whether mediapipe runs here: %s", exc)
+            return False
+        return done.returncode == 0
 
     def _refuse(self, why: str) -> None:
         self._broken = True

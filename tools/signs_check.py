@@ -29,7 +29,9 @@ sys.path.insert(0, str(ROOT))
 from lomas_core.clock import RealClock  # noqa: E402
 from lomas_core.config import load  # noqa: E402
 from lomas_core.secrets import SECRETS_FILE, load_secrets  # noqa: E402
+from lomas_face import DETECTORS  # noqa: E402
 from lomas_signs import CARD_READERS, HAND_READERS  # noqa: E402
+from lomas_signs.types import Box  # noqa: E402
 from lomas_vision import FrameBus, build_sources, downscale  # noqa: E402
 
 # Only to turn a marker width in pixels into "about this far", which is a
@@ -60,17 +62,23 @@ def main() -> int:
     ap.add_argument("--mode", default="pi")
     ap.add_argument("--config-dir", default=str(ROOT / "config"))
     ap.add_argument("--seconds", type=float, default=30.0)
-    ap.add_argument("--hands", action="store_true", help="measure the hand model too")
+    ap.add_argument("--hands", action="store_true", help="measure hands too")
     args = ap.parse_args()
 
     load_secrets(Path(args.config_dir) / SECRETS_FILE)
     overrides = ["signs.enabled=true"]
-    if args.hands:
-        overrides.append("signs.hands.reader=mediapipe")
     cfg = load(args.config_dir, args.mode, overrides, use_env=True)
+    if args.hands and cfg.signs.hands.reader == "none":
+        # Asked for hands on a profile that has them off: measure the one
+        # that needs nothing installed.
+        cfg = load(args.config_dir, args.mode,
+                   [*overrides, "signs.hands.reader=raised_hand"], use_env=True)
 
     cards = CARD_READERS.create(cfg.signs.cards.reader, cfg.signs.cards)
     hands = HAND_READERS.create(cfg.signs.hands.reader, cfg.signs.hands)
+    # A raised hand is found beside a face, so this has to find the faces -
+    # and the total it prints is then what a cycle really costs.
+    detector = DETECTORS.create(cfg.face.detector, cfg.face) if args.hands else None
     print(f"cards: {cards.describe()}")
     print(f"hands: {hands.describe()}")
     if not cards.available and not hands.available:
@@ -92,6 +100,7 @@ def main() -> int:
 
     card_ms: list[float] = []
     hand_ms: list[float] = []
+    face_ms: list[float] = []
     widest = 0
     furthest = 0.0
     ends = time.monotonic() + args.seconds
@@ -116,8 +125,15 @@ def main() -> int:
 
             signs = []
             if hands.available:
+                # Timed apart: the robot does not find faces for this. It
+                # reads the ones the lesson's own detector already found, so
+                # only the second number is what signing adds.
                 began = time.perf_counter()
-                signs = hands.read(small, frame.ts)
+                faces = _faces(detector, small)
+                face_ms.append((time.perf_counter() - began) * MILLISECONDS)
+
+                began = time.perf_counter()
+                signs = hands.read(small, frame.ts, faces)
                 hand_ms.append((time.perf_counter() - began) * MILLISECONDS)
 
             if time.monotonic() < next_report:
@@ -144,12 +160,22 @@ def main() -> int:
     print(f"reading cards costs {_mean(card_ms):.1f} ms a frame")
     if hand_ms:
         cost = _mean(hand_ms) * cfg.signs.fps / MILLISECONDS
-        print(f"reading hands costs {_mean(hand_ms):.1f} ms a frame, which at "
+        print(f"reading hands costs {_mean(hand_ms):.1f} ms a read, which at "
               f"{cfg.signs.fps} reads a second is {cost * 100:.0f}% of one core")
-        print("Too dear? signs.hands.reader: none keeps the cards.")
+        print(f"(finding the faces to look beside took another {_mean(face_ms):.1f} ms "
+              "here, which the robot does not pay twice - the lesson's own "
+              "detector has already found them)")
+        print("Too dear? Raise signs.hands.every, or signs.hands.reader: none.")
     else:
         print("hands were not measured (--hands, and mediapipe installed)")
     return 0
+
+
+def _faces(detector, image) -> tuple[Box, ...]:
+    if detector is None:
+        return ()
+    return tuple(Box(x=found.x, y=found.y, w=found.w, h=found.h)
+                 for found in detector.detect(image))
 
 
 def _mean(values: list[float]) -> float:
