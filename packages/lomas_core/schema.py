@@ -302,6 +302,52 @@ def _default_voices() -> dict[str, str]:
     return {"en": "en_US-lessac-medium", "hi": "hi_IN-pratham-medium"}
 
 
+class VolumeConfig(BaseModel):
+    """How loud the robot is, and who is allowed to change it.
+
+    A classroom is not a lab: the same robot is too quiet for forty children
+    after lunch and too loud for six of them at the back of a library. The
+    teacher needs a knob, and the knob has to survive a reboot, so this is
+    config with a level that is written back to disk.
+    """
+
+    model_config = Strict
+
+    # alsa moves the card's own mixer, which is the real knob and the one a
+    # headphone jack obeys. software scales the samples before they reach the
+    # player, which works on a laptop and on a card with no mixer at all.
+    control: Literal["auto", "alsa", "software", "none"] = "auto"
+
+    level: float = Field(default=0.8, ge=0.0, le=1.0)
+    muted: bool = False
+
+    # Loudness is not linear. Halfway along the slider should sound halfway,
+    # and samples scaled by 0.5 sound much louder than that - so the software
+    # control raises the level to this power before touching the audio.
+    curve: float = Field(default=2.0, gt=0)
+
+    # The slider's own limits. A school that never wants the robot above
+    # conversation volume sets max_level and the teacher cannot go past it.
+    min_level: float = Field(default=0.0, ge=0.0, le=1.0)
+    max_level: float = Field(default=1.0, ge=0.0, le=1.0)
+    step: float = Field(default=0.05, gt=0, le=1.0)
+
+    # alsa only. Empty takes the card out of speech.tts.player_device, which
+    # is where the speaker already is.
+    card: str = ""
+    # The first of these the card actually has wins. Different Pi audio
+    # devices call the same knob different things.
+    mixers: list[str] = Field(default_factory=lambda: [
+        "PCM", "Headphone", "Speaker", "Master", "Digital", "Playback",
+    ])
+    mixer_timeout_seconds: float = Field(default=3.0, gt=0)
+
+    # Where the level set from the teacher's page is kept, so a robot that
+    # is switched off at the wall comes back at the volume the room chose.
+    remember: bool = True
+    state_file: str = "data/volume.json"
+
+
 class TtsConfig(BaseModel):
     model_config = Strict
 
@@ -335,6 +381,8 @@ class TtsConfig(BaseModel):
 
     # The longest a lesson waits on one sentence before moving on. A cloud
     # voice that never answers must not stop the class.
+    volume: VolumeConfig = Field(default_factory=VolumeConfig)
+
     utterance_timeout_seconds: float = Field(default=60.0, gt=0)
     stop_seconds: float = Field(default=2.0, gt=0)
     sample_rate: int = Field(default=22050, ge=8000)  # piper voices are 22.05 kHz

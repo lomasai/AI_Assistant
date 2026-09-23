@@ -32,7 +32,7 @@ class PiperPythonTts:
 
     def __init__(self, cfg: TtsConfig) -> None:
         self.cfg = cfg
-        self.player = Player(cfg.player, cfg.player_command, cfg.player_device)
+        self.player = Player(cfg.player, cfg.player_command, cfg.player_device, cfg.volume)
         self.log = log.get("tts")
         self._voices: dict[Path, object] = {}
         self._handle: SpeechHandle | None = None

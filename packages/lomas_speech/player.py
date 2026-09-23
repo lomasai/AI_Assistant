@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import array
 import io
 import shlex
 import shutil
@@ -11,6 +12,8 @@ from pathlib import Path
 
 from lomas_core import logging as log
 from lomas_core.errors import LomasError
+from lomas_core.schema import VolumeConfig
+from lomas_speech.volume import FULL, SILENCE, VolumeControl, volume_control
 
 # No dependency on purpose. Raspberry Pi OS has aplay, macOS has afplay, and
 # Windows has winsound in the standard library. A teaching robot that needs a
@@ -43,10 +46,29 @@ MP3_PLAYERS = ("ffplay", "mpg123", "afplay")
 DEVICE_FLAG = {"aplay": "-D", "paplay": "-d", "mpg123": "-a"}
 
 SAMPLE_WIDTH = 2  # piper emits signed 16-bit
+LOUDEST = 32767   # ...so this is as far as a sample goes
+QUIETEST = -32768
+SAMPLES = "h"
 MAX_CLIP_SECONDS = 30.0
 # How long past the end of a clip a player may take before it is stuck.
 STALL_GRACE = 5.0
 MONO = 1
+
+
+def scale_pcm(raw: bytes, gain: float) -> bytes:
+    """Samples made quieter, for a card with no mixer of its own.
+
+    Clipped rather than wrapped: a sample past the top that wraps round is a
+    loud crack in the middle of a word, which is worse than the loudness it
+    was trying to fix.
+    """
+    if gain >= FULL or not raw:
+        return raw
+    samples = array.array(SAMPLES)
+    samples.frombytes(raw)
+    for index, sample in enumerate(samples):
+        samples[index] = max(QUIETEST, min(LOUDEST, int(sample * gain)))
+    return samples.tobytes()
 
 
 def wrap_pcm(raw: bytes, sample_rate: int) -> bytes:
@@ -73,8 +95,12 @@ class Player:
     that gets switched off.
     """
 
-    def __init__(self, choice: str = AUTO, command: str = "", device: str = "") -> None:
+    def __init__(self, choice: str = AUTO, command: str = "", device: str = "",
+                 volume: VolumeConfig | VolumeControl | None = None) -> None:
         self.log = log.get("audio")
+        # A knob the teacher can reach. Which kind it is - the card's mixer
+        # or the samples themselves - is config, and only this line cares.
+        self.volume = _dial(volume, device)
         self.command = command
         self.device = device
         self.backend = self._choose(choice)
@@ -92,13 +118,14 @@ class Player:
 
     def describe(self) -> str:
         shown = f"{self.backend}:{self.device}" if self.device else self.backend
+        shown = f"{shown} at {self.volume.describe()}"
         if self.mp3_backend and self.mp3_backend != self.backend:
             shown = f"{shown} (+{self.mp3_backend} for mp3)"
         return shown
 
     def play_pcm(self, raw: bytes, sample_rate: int) -> None:
         if raw:
-            self.play_bytes(wrap_pcm(raw, sample_rate), WAV)
+            self.play_bytes(wrap_pcm(scale_pcm(raw, self.volume.gain), sample_rate), WAV)
 
     def play_bytes(self, body: bytes, suffix: str) -> None:
         import tempfile
@@ -113,6 +140,11 @@ class Player:
 
     def play_file(self, path: Path) -> None:
         """Blocks until the sound has finished or `stop` cuts it off."""
+        if self.volume.gain <= SILENCE:
+            # Muted. Dropped here rather than played at zero, because a card
+            # still opens, still takes its time and still holds the lesson
+            # up for the length of a sentence nobody can hear.
+            return
         backend = self.mp3_backend if path.suffix == MP3 else self.backend
         if backend == NONE:
             # An mp3 with nothing to play it is worth saying out loud; no
@@ -254,6 +286,19 @@ class Player:
             winsound.PlaySound(None, winsound.SND_PURGE)
         except (ImportError, RuntimeError):
             pass
+
+
+def _dial(volume, device: str) -> VolumeControl:
+    """Config becomes a control; a control is passed through.
+
+    Tests hand a control in directly, and the engines hand in the config
+    block they already have.
+    """
+    if volume is None:
+        return volume_control(VolumeConfig(), device)
+    if isinstance(volume, VolumeConfig):
+        return volume_control(volume, device)
+    return volume
 
 
 def _seconds(path: Path) -> float:

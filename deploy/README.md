@@ -30,6 +30,11 @@ lives somewhere else.
 - **Reports.** A teacher reads these after class, sitting down:
   `http://raspberrypi.local:8080/teacher/` -> Report.
 - **Removing a child**, and correcting who the robot thinks spoke.
+- **Volume.** The slider is in the bar at the top of the teacher's page, in
+  every tab, with a mute beside it. On the Pi it moves the sound card's own
+  mixer, so whatever else plays obeys it too, and the level is remembered
+  across a reboot (`data/volume.json`). A school that never wants the robot
+  above conversation volume sets `speech.tts.volume.max_level`.
 
 ## Switching the standalone parts off
 

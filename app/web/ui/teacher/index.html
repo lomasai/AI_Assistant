@@ -12,6 +12,15 @@
   <button class="tab on" data-panel="class">Class</button>
   <button class="tab" data-panel="enrol">Enrol</button>
   <button class="tab" data-panel="report">Report</button>
+  <!-- In the bar, not in a panel: a room that has gone too loud is not a
+       reason to go looking through tabs. -->
+  <div id="sound">
+    <button id="mute" type="button" title="mute the robot" aria-label="mute">Sound on</button>
+    <input id="volume" type="range" min="0" max="100" value="80"
+           aria-label="speaker volume" title="speaker volume">
+    <span id="volumeAt">80%</span>
+  </div>
+
   <span id="status">connecting</span>
 </nav>
 

@@ -236,6 +236,23 @@ speech:
     preload: true           # piper_python: load the voice at boot
     scratch_file: data/tts-out.mp3
 
+    # How loud, and who may change it. The teacher's page has a slider on it
+    # and so does the robot's own screen; both move this.
+    volume:
+      control: auto         # auto | alsa | software | none
+      level: 0.8            # where the slider sits on a robot that has never
+                            # been touched. Remembered after that.
+      muted: false
+      curve: 2.0            # halfway along the slider should sound halfway
+      min_level: 0.0        # the slider's own ends. A school that never wants
+      max_level: 1.0        # the robot shouting sets max_level: 0.7.
+      step: 0.05            # one press of the +/- keys, and one arrow key
+      card: ""              # alsa: empty takes it from player_device
+      mixers: [PCM, Headphone, Speaker, Master, Digital, Playback]
+      mixer_timeout_seconds: 3.0
+      remember: true        # survives a reboot, because a wall switch is how
+      state_file: data/volume.json   # a classroom robot is usually turned off
+
   # Who just spoke. Tried in order; the first one sure of itself wins, and
   # the list is the whole of the behaviour:
   #   tapped       the teacher tapped a name. Always right, always first.

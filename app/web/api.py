@@ -38,6 +38,14 @@ class Halt(BaseModel):
     reason: str = Field(default=TEACHER)
 
 
+class Loudness(BaseModel):
+    """Either a place on the slider, a nudge along it, or the mute."""
+
+    level: float | None = None
+    steps: float = 0.0
+    muted: bool | None = None
+
+
 class StartClass(BaseModel):
     topic: str = ""
     language: str = ""
@@ -81,6 +89,7 @@ def router(system) -> APIRouter:
             "agents": system.agents.names() if system.agents else [],
             "vision": system.vision.stats() if system.vision else {},
             "microphone": system.listener.describe() if system.listener else "none",
+            "volume": loudness(),
         }
 
     @api.post("/session/start")
@@ -160,6 +169,40 @@ def router(system) -> APIRouter:
             ),
         )
         return OK
+
+    # --- how loud ---------------------------------------------------------
+
+    def dial():
+        """The robot's volume knob, if it has a speaker at all. A null voice
+        in a test has no player and therefore nothing to turn."""
+        return getattr(getattr(system.tts, "player", None), "volume", None)
+
+    def loudness() -> dict:
+        knob = dial()
+        return {**knob.report(), "available": True} if knob else {"available": False}
+
+    @api.get("/volume")
+    def volume() -> dict:
+        return loudness()
+
+    @api.post("/volume")
+    def set_volume(body: Loudness) -> dict:
+        """The slider, the +/- buttons and the mute, in one place.
+
+        The level that comes back is the one the robot settled on, not the
+        one asked for: a school can cap the maximum, and some cards only
+        have a handful of steps.
+        """
+        knob = dial()
+        if knob is None:
+            raise LomasError("this robot has no speaker to turn up")
+        if body.muted is not None:
+            knob.mute(body.muted)
+        if body.level is not None:
+            knob.set(body.level)
+        elif body.steps:
+            knob.nudge(body.steps)
+        return loudness()
 
     @api.get("/display")
     def display() -> dict:

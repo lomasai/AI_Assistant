@@ -14,6 +14,11 @@
     }).then((r) => r.json());
 
   const RECONNECT_MS = 1500;
+  // While a finger is still on the slider. Posting on every pixel moves an
+  // ALSA mixer sixty times a second for one drag.
+  const VOLUME_SETTLE_MS = 120;
+  // The slider runs 0-100; the robot's own level is a fraction.
+  const FULL_DIAL = 100;
   const SWEEP_TICK_MS = 180;
   const RING = 327;
 
@@ -24,6 +29,41 @@
   let sweeping = 0;
 
   fetch('/api/display').then((r) => r.json()).then((cfg) => { engagedAt = cfg.attention_threshold; });
+
+  // --- how loud ------------------------------------------------------------
+  //
+  // The knob itself is on the robot - the card's mixer on the Pi, the samples
+  // themselves on a laptop. This only moves it and shows where it is.
+
+  let settling = null;
+
+  const showVolume = (state) => {
+    if (!state || state.available === false) { $('sound').classList.add('missing'); return; }
+    $('sound').classList.remove('missing');
+    $('volume').min = Math.round(state.min * FULL_DIAL);
+    $('volume').max = Math.round(state.max * FULL_DIAL);
+    $('volume').step = Math.round(state.step * FULL_DIAL);
+    if (document.activeElement !== $('volume')) $('volume').value = state.dial;
+    $('volumeAt').textContent = state.muted ? 'muted' : state.dial + '%';
+    $('mute').textContent = state.muted ? 'Muted' : 'Sound on';
+    $('mute').classList.toggle('muted', state.muted);
+    $('mute').title = state.describe;
+  };
+
+  const setVolume = (body) => post('/volume', body).then(showVolume);
+
+  $('volume').oninput = () => {
+    // Shown straight away, sent once the drag stops: the number under the
+    // teacher's finger should never lag behind the finger.
+    $('volumeAt').textContent = $('volume').value + '%';
+    clearTimeout(settling);
+    settling = setTimeout(() => setVolume({ level: $('volume').value / FULL_DIAL, muted: false }),
+                          VOLUME_SETTLE_MS);
+  };
+
+  $('mute').onclick = () => setVolume({ muted: !$('mute').classList.contains('muted') });
+
+  fetch('/api/volume').then((r) => r.json()).then(showVolume);
 
   // --- panels --------------------------------------------------------------
 
@@ -415,6 +455,7 @@
   const refresh = () =>
     fetch('/api/state').then((r) => r.json()).then((body) => {
       drawRoster(body.roster);
+      showVolume(body.volume);
       for (const student of body.roster) names.set(student.id, student.name);
       $('step').textContent = body.step ? `${body.state} — ${body.step}` : body.state;
       showTeaching(body.teaching);

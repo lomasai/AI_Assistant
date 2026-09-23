@@ -81,6 +81,12 @@ speech:
     # HDMI port ("audio open error: Unknown error 524") and the robot mute.
     player_device: plughw:CARD=Headphones,DEV=0
 
+    # The jack has a real mixer, so the slider moves that rather than
+    # scaling samples: it is louder at the top and quieter at the bottom
+    # than anything software can do, and whatever else plays obeys it too.
+    volume:
+      control: alsa
+
   stt:
     engine: groq        # whisper, covered by the same key as the tutor
     fallback_engine: vosk
