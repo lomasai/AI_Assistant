@@ -1035,7 +1035,13 @@ class HandsConfig(BaseModel):
     # they stay unmapped: the only thing a hand is for here is saying "I
     # would like to ask something", and the name comes from the face beside
     # it. Everything else a child can say with their mouth.
-    actions: dict[str, str] = Field(default_factory=lambda: {"Pointing_Up": "ask"})
+    # Every reader's own name for the thing it saw, because the names are
+    # the reader's and the meanings are the school's. raised_hand comes from
+    # the reader that needs no model; Pointing_Up is what mediapipe calls a
+    # finger in the air. A robot that switches reader must not go deaf.
+    actions: dict[str, str] = Field(
+        default_factory=lambda: {"raised_hand": "ask", "Pointing_Up": "ask"}
+    )
 
 
 class AskingConfig(BaseModel):

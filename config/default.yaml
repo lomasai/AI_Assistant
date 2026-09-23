@@ -561,7 +561,11 @@ signs:
     # Thumb_Down, Victory, Open_Palm and Closed_Fist; they stay unmapped
     # until there is a reason for them, and a sign that is polite in one
     # classroom is not in another - which is why this is config, not code.
+    # Both readers' names for it. raised_hand is the one that needs no
+    # model; Pointing_Up is what mediapipe calls a finger in the air.
+    # Changing the reader must not quietly make the robot deaf.
     actions:
+      raised_hand: ask
       Pointing_Up: ask
 
   asking:

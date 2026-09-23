@@ -329,6 +329,44 @@ class OneSign:
         return None
 
 
+def test_the_reader_the_robot_uses_is_mapped(system) -> None:
+    """The bug that cost a class: the reader that needs no model calls it
+    `raised_hand`, and the meanings table knew only mediapipe's word for the
+    same thing - so every hand was seen and then dropped."""
+    watch = watching(system)
+    watch.hands = OneSign("raised_hand")
+
+    for seq in range(3):
+        watch.read(frame(picture(), seq=seq + 1))
+
+    assert seen(system, HAND_UP), "a raised hand meant nothing to the robot"
+    assert seen(system, SIGN_SEEN)[-1].means == "ask"
+
+
+def test_every_readers_name_for_it_is_mapped() -> None:
+    """A robot that changes reader must not go quietly deaf."""
+    actions = load("config", "pi", [], use_env=False).signs.hands.actions
+
+    assert actions.get("raised_hand") == "ask"
+    assert actions.get("Pointing_Up") == "ask", "and mediapipe's word, where it runs"
+
+
+def test_a_sign_nobody_mapped_is_said_out_loud(system, caplog) -> None:
+    """Silent by nature: it looks exactly like a reader that sees nothing."""
+    import logging
+
+    watch = watching(system)
+    watch.hands = OneSign("Some_New_Gesture")
+
+    with caplog.at_level(logging.INFO):
+        for seq in range(3):
+            watch.read(frame(picture(), seq=seq + 1))
+
+    said = " ".join(record.getMessage() for record in caplog.records)
+    assert "Some_New_Gesture" in said, "it dropped the sign and said nothing"
+    assert "signs.hands.actions" in said, "and did not say where to fix it"
+
+
 def test_a_sign_means_what_the_school_says_it_means(system) -> None:
     watch = watching(system)
     watch.hands = OneSign("Pointing_Up")
@@ -445,6 +483,16 @@ def test_a_school_that_wants_more_signs_edits_config() -> None:
         assert watch.agreement(within_seconds=60.0) == "yes"
     finally:
         system.close()
+
+
+def test_the_robot_pays_for_what_it_uses() -> None:
+    """Measured on the robot: a hand costs 10 ms a read and a card costs 41,
+    and there is no printer in the building. Reading markers nobody has
+    printed was an eighth of a core."""
+    robot = load("config", "pi", [], use_env=False).signs
+
+    assert robot.hands.reader == "raised_hand"
+    assert robot.cards.reader == "none", "it was looking for cards that do not exist"
 
 
 def test_hands_cost_something_so_nothing_switches_them_on_by_accident() -> None:

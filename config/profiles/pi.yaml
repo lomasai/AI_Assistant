@@ -157,9 +157,13 @@ signs:
     reader: raised_hand
     every: 1              # one read in this many - the first dial to turn
   cards:
-    # Kept on: a card costs about 2 ms a frame and nothing is printed yet,
-    # so this does nothing until somebody runs tools/make_cards.py.
-    reader: aruco
+    # Off, because it is not free on this machine. Measured by
+    # `tools/signs_check.py --mode pi`: reading markers costs 41 ms a frame
+    # here against 2.4 on a laptop, which at three reads a second is an
+    # eighth of a core spent looking for cards nobody has printed.
+    #
+    # `reader: aruco` the day a sheet comes off a printer.
+    reader: none
 
 # On while the robot is being worked on. The runtime log is deliberately
 # not committed - it is large and full of noise - so a run with the trace

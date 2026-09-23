@@ -67,6 +67,7 @@ class SignWatch:
 
         self._tracks: list[Any] = []
         self._held: dict[str, int] = {}
+        self._unknown: set[str] = set()
         self._recent: dict[str, tuple[str, float]] = {}
         self._cards_now: dict[int, tuple[Card, float]] = {}
         self._source = cfg.signs.source or source_for(cfg)
@@ -171,6 +172,7 @@ class SignWatch:
     def _on_sign(self, sign: Sign, factor: float, at: float) -> None:
         means = self.cfg.signs.hands.actions.get(sign.name, NOBODY)
         if not means:
+            self._unmapped(sign.name)
             return
         if not self._steady(f"{HAND}:{sign.name}", self.cfg.signs.hands.hold_reads):
             return
@@ -184,6 +186,19 @@ class SignWatch:
 
         if means == ASK:
             self._wants_to_ask(student_id, name, HAND, at)
+
+    def _unmapped(self, name: str) -> None:
+        """A sign seen and then dropped for having no meaning.
+
+        Said once per name, because this is silent by nature and cost a
+        class: the reader saw every raised hand and the meanings table knew
+        only the other reader's word for it.
+        """
+        if name in self._unknown:
+            return
+        self._unknown.add(name)
+        self.log.info("saw '%s' and nothing says what it means. Add it under "
+                      "signs.hands.actions.", name)
 
     def _wants_to_ask(self, student_id: str, name: str, by: str, at: float) -> None:
         self.bus.publish(HAND_UP, HandUp(student_id=student_id, student_name=name, by=by, at=at))
