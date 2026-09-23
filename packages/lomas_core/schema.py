@@ -474,6 +474,13 @@ class AudioConfig(BaseModel):
     stop_after_silence_ms: int = Field(default=1200, ge=0)
     # Give up when nobody has started speaking by then.
     no_speech_seconds: float = Field(default=5.0, gt=0)
+    # Some questions deserve more patience than others. A child answering
+    # "what shall we learn about?" thinks mid-sentence, and on the Pi the
+    # pause after "can we start topic on" ended the turn and the lesson was
+    # written about nothing. Anything not named here uses the value above.
+    patience_ms: dict[str, int] = Field(
+        default_factory=lambda: {"topic": 2500, "name": 2000, "confirm": 1000}
+    )
     chunk_ms: int = Field(default=100, ge=10)
     # How far above the room's own noise a chunk has to be to count as
     # speech, as a share of the way up to the loudest thing in the turn. A
@@ -502,7 +509,7 @@ class AudioConfig(BaseModel):
     # teacher's button. During these steps a child can just talk; everywhere
     # else a press is still what starts a turn.
     hands_free: bool = True
-    hands_free_steps: list[str] = Field(default_factory=lambda: ["interaction"])
+    hands_free_steps: list[str] = Field(default_factory=lambda: ["interaction", "teach"])
     hands_free_gap_seconds: float = Field(default=0.4, ge=0)
 
     wait_for_robot_seconds: float = Field(default=30.0, ge=0)
@@ -596,7 +603,11 @@ class LlmConfig(BaseModel):
 
 
 def _default_sequence() -> list[str]:
-    return ["attendance", "greeting", "lesson", "interaction", "quiz", "wrapup"]
+    # teach is lesson, interaction and quiz interleaved: say one idea, then
+    # turn it over to the class. The three separate steps are still
+    # registered, so [attendance, greeting, topic, lesson, interaction, quiz,
+    # wrapup] gives back the straight read-through a syllabus wants.
+    return ["attendance", "greeting", "topic", "teach", "quiz", "wrapup"]
 
 
 def _default_timeouts() -> dict[str, float]:
@@ -604,10 +615,60 @@ def _default_timeouts() -> dict[str, float]:
         "attendance": 120.0,
         "greeting": 30.0,
         "lesson": 900.0,
+        "teach": 1500.0,
+        "topic": 120.0,
         "interaction": 420.0,
         "quiz": 300.0,
         "wrapup": 90.0,
     }
+
+
+class TeachConfig(BaseModel):
+    """Teaching as a conversation rather than a reading.
+
+    One idea, then the class gets it back: a doubt invited, or a question
+    asked about what was just said. Checking understanding while the idea is
+    still in the room is the whole difference between a lesson and a
+    recital.
+    """
+
+    model_config = Strict
+
+    # How many segments between checks. 1 is after every idea, 2 is after
+    # every other one, and a big number is a lecture with a check at the end.
+    check_every: int = Field(default=1, ge=1)
+
+    # alternate keeps a class awake: a question they must answer, then an
+    # invitation to ask, then a question again.
+    check_style: Literal["alternate", "doubts", "question"] = "alternate"
+
+    # A check aimed at a named child, taken round the roster so the quiet
+    # ones are asked too. false asks the room.
+    name_a_child: bool = True
+
+    # How long the class has to say something after an idea, before the
+    # robot carries on. Short, because silence here is normal.
+    gap_seconds: float = Field(default=2.5, ge=0)
+    # ...and after it has invited doubts, which is longer because it has
+    # just asked a question and should look like it means it.
+    doubt_wait_seconds: float = Field(default=8.0, ge=0)
+    # A check question is a quiz question, and waits like one.
+    answer_wait_seconds: float = Field(default=20.0, gt=0)
+
+    # A question from a child holds the lesson: the next idea must not be
+    # spoken over the answer. This is how long that hold may last.
+    answer_hold_seconds: float = Field(default=60.0, gt=0)
+
+    # Hands free, the microphone is open almost all the time - it reopens
+    # half a second after every turn. So an open microphone only holds the
+    # lesson just after a check, and only for this long past the wait: long
+    # enough that a slow child is not cut off, short enough that a room
+    # which says nothing is not taught at a quarter speed.
+    microphone_grace_seconds: float = Field(default=5.0, ge=0)
+
+    # Said before carrying on after a child's question, so the class hears
+    # the lesson resume rather than a sentence arriving out of nowhere.
+    say_resuming: bool = True
 
 
 class FlowConfig(BaseModel):
@@ -624,13 +685,29 @@ class FlowConfig(BaseModel):
     tick_seconds: float = Field(default=0.25, gt=0)
     pause_poll_seconds: float = Field(default=0.1, gt=0)
 
+    teach: TeachConfig = Field(default_factory=TeachConfig)
+
     questions_per_lesson: int = Field(default=6, ge=0)
     # How long to wait on a quiz question before moving on. A class where
     # nobody answers still has to reach the end of the lesson.
     answer_wait_seconds: float = Field(default=20.0, gt=0)
     # How long the robot waits to be told what to teach before falling back
     # to the lesson it was started with. A class that says nothing gets one.
-    topic_wait_seconds: float = Field(default=25.0, gt=0)
+    topic_wait_seconds: float = Field(default=75.0, gt=0)
+
+    # Read the topic back before a whole class is written about it. On the Pi
+    # "can we start topic on..." was heard, nothing in it was a subject, and
+    # the writer invented the water cycle rather than admit it.
+    confirm_topic: bool = True
+    # How many times to ask again when nothing usable comes back.
+    topic_tries: int = Field(default=2, ge=1)
+    yes_phrases: list[str] = Field(
+        default_factory=lambda: ["yes", "yeah", "yep", "correct", "right", "ok", "okay",
+                                 "haan", "ha", "ji haan"]
+    )
+    no_phrases: list[str] = Field(
+        default_factory=lambda: ["no", "nope", "wrong", "not that", "nahi", "nahin"]
+    )
 
     # Said out loud to start a class, so the robot needs no screen at all.
     # Empty means it waits to be started from the teacher's page.
@@ -808,6 +885,44 @@ def _default_sampling() -> dict[str, int]:
     return {"vision.tracks": 8}
 
 
+class SyncConfig(BaseModel):
+    """Getting what the robot recorded off the robot, without being asked.
+
+    The traces are only useful where they can be read, and a Pi in a
+    classroom is not that place. Asking a teacher to type three git commands
+    after every class is asking for traces that never arrive - so the robot
+    files its own, when a class ends and when it is switched off.
+    """
+
+    model_config = Strict
+
+    enabled: bool = False
+    # A plain string, not a fixed list: this is a registry, and a school that
+    # writes its own filer registers it and names it here.
+    backend: str = "git"   # git | none
+
+    # Only these. A robot that commits its whole working tree is a robot that
+    # commits a half-finished edit somebody left on it.
+    paths: list[str] = Field(default_factory=lambda: ["data/logs"])
+
+    # When to file. session_closed is after every class; paused is the
+    # teacher pressing pause, which is usually why they want to look.
+    on: list[Literal["session_closed", "paused", "shutdown", "timer"]] = Field(
+        default_factory=lambda: ["session_closed", "shutdown"]
+    )
+    every_minutes: float = Field(default=0.0, ge=0.0)  # timer only; 0 is off
+
+    remote: str = "origin"
+    branch: str = ""            # empty pushes whatever branch is checked out
+    push: bool = True           # false commits locally, for a robot offline
+    message: str = "trace: {reason} {when}"
+    when_format: str = "%Y-%m-%d %H:%M"
+    timeout_seconds: float = Field(default=120.0, gt=0)
+    # A push that has to wait for the network must not hold a class up, so
+    # it happens on its own thread; this is how long shutdown waits for it.
+    wait_seconds: float = Field(default=20.0, gt=0)
+
+
 class TraceConfig(BaseModel):
     """A timeline of one run, written to a file for reading elsewhere.
 
@@ -977,6 +1092,23 @@ class AuthorConfig(BaseModel):
     )
     topic_max_words: int = Field(default=8, ge=1)
 
+    # Words that are only ever the asking. "can we start topic on" survived
+    # every lead-in above, went to the writer as a subject, and came back as
+    # a lesson on the water cycle that nobody had asked for. A topic made of
+    # nothing but these is not a topic, and the robot asks again.
+    topic_fillers: list[str] = Field(
+        default_factory=lambda: [
+            "a", "an", "the", "on", "of", "about", "can", "we", "you", "i", "us",
+            "start", "starting", "started", "do", "does", "let", "lets", "please",
+            "topic", "lesson", "class", "today", "now", "next", "new", "some",
+            "something", "anything", "and", "so", "then", "is", "it", "that", "this",
+            "want", "wanted", "like", "would", "should", "shall", "learn", "learning",
+            "teach", "teaching", "study", "know", "tell", "talk", "ok", "okay", "hi",
+        ]
+    )
+    # A subject shorter than this is a stray syllable, not a lesson.
+    topic_min_letters: int = Field(default=3, ge=1)
+
     # Written lessons are kept here, not in content/: those are reviewed and
     # these are not. The same topic tomorrow then costs nothing, and works
     # with the internet down.
@@ -1026,6 +1158,7 @@ class Config(BaseModel):
     teacher: TeacherConfig = Field(default_factory=TeacherConfig)
     debug: DebugConfig = Field(default_factory=DebugConfig)
     trace: TraceConfig = Field(default_factory=TraceConfig)
+    sync: SyncConfig = Field(default_factory=SyncConfig)
     hardware: HardwareConfig = Field(default_factory=HardwareConfig)
 
     @property

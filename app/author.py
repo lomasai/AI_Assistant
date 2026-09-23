@@ -124,6 +124,19 @@ def clean_topic(said: str, cfg) -> str:
     return " ".join(words[: cfg.topic_max_words])
 
 
+def is_a_topic(topic: str, cfg) -> bool:
+    """Whether what is left of a sentence is a subject at all.
+
+    "Can we start topic on..." survives every lead-in, and went to the writer
+    as a subject: the model would not admit it had been given nothing, so it
+    invented the water cycle and a class was taught that instead. Words that
+    are only ever the asking do not count towards a topic.
+    """
+    kept = [word for word in topic.split() if word.strip(" .,!?") not in cfg.topic_fillers]
+    letters = "".join(char for char in " ".join(kept) if char.isalpha())
+    return len(letters) >= cfg.topic_min_letters
+
+
 class LessonWriter:
     """Writes a lesson about whatever a child asks for.
 

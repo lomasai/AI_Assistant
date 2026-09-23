@@ -1,0 +1,8 @@
+# A check question, put to one child by name. {name} is taken round the
+# roster so the quiet ones are asked too, and {question} is a question from
+# the lesson's own quiz - the same one the end-of-class quiz would ask.
+
+lines:
+  - "{name}, here is one for you. {question}"
+  - "{name}, what do you think? {question}"
+  - "Let me ask {name}. {question}"

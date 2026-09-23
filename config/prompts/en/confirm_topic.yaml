@@ -1,0 +1,10 @@
+# Read back before a whole class is written about it. On the Pi the robot
+# heard "can we start topic on...", found no subject in it, and taught the
+# water cycle to a class that had asked for something else.
+#
+# Short, and shaped so that silence is a fair yes.
+
+lines:
+  - "{topic}. Shall we learn about that?"
+  - "You would like to learn about {topic}. Is that right?"
+  - "{topic} it is, unless somebody says no."

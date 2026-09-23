@@ -50,8 +50,10 @@ from app.author import LessonWriter
 from app.ears import Ears
 from app.face import FACE_SURFACES, FaceState
 from app.greeter import Greeter
+from app.sync import FileSync
 
 GREETER = "greeter"
+ASKING = "asking"
 from app.listener import Listener
 from app.runner import ClassRunner
 from app.speaker import Room, SpeakerChain
@@ -108,6 +110,7 @@ class System:
     face: Any = None
     runner: Any = None
     greeter: Any = None
+    sync: Any = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -120,6 +123,12 @@ class System:
         # still using, and the last thing a lesson does is write its report.
         if self.runner is not None and self.runner.teaching:
             self.runner.stop()
+
+        # Then the traces, while the files are still being written to and
+        # before the trace writer is told to stop.
+        if self.sync is not None:
+            self.sync.flush()
+            self.sync.close()
 
         if self.web is not None:
             self.web.stop()
@@ -229,7 +238,13 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
     if listener is not None:
         listener.speakers = speakers
         listener.voice = voice
-    ears = Ears(cfg, bus, clock, listener, voice) if listener is not None else None
+    # The ears can speak: reading a topic back before a class is written
+    # about it is the difference between teaching what was asked for and
+    # teaching what the microphone thought it heard.
+    ears = Ears(cfg, bus, clock, listener, voice, prompts=prompts,
+                say=lambda text: bus.publish(ROBOT_SAY, Utterance(
+                    text=text, language=cfg.content.language, reason=ASKING))
+                ) if listener is not None else None
 
     # The robot's own face, when it draws one itself. The browser surface is
     # the /face/ page and needs nothing here.
@@ -275,6 +290,10 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
             scope_of=lambda: orchestrator.scope,
             busy=lambda: system.runner.teaching,
         )
+
+    # The robot filing its own traces, so a class that went wrong can be
+    # read from anywhere without anybody typing a git command on the Pi.
+    system.sync = FileSync(cfg, bus, clock)
 
     # Last, because every surface is a view of the finished system. It is
     # built but not started: nothing listens until someone asks it to.

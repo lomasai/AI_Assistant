@@ -421,7 +421,7 @@ def test_without_the_tutor_a_question_simply_gets_no_answer() -> None:
                 QuestionAsked(session_id=ctx.session_id, text="why are leaves green"),
             )
 
-        during(system, "interaction", ask)
+        during(system, "teach", ask)
         assert system.orchestrator.run() is SessionState.CLOSED
         assert not seen(system, QUESTION_ANSWERED)
     finally:
@@ -452,7 +452,7 @@ def test_a_broken_agent_does_not_end_the_lesson() -> None:
                 QuestionAsked(session_id=ctx.session_id, text="why are leaves green"),
             )
 
-        during(system, "interaction", ask)
+        during(system, "teach", ask)
         assert system.orchestrator.run() is SessionState.CLOSED
 
         failed = seen(system, AGENT_FAILED)

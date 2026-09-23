@@ -4,7 +4,6 @@ from lomas_core.contracts import (
     QUIZ_ANSWERED,
     QUIZ_MARKED,
     QUIZ_POSED,
-    QUIZ_RECORDED,
     QuizAnswered,
     QuizMarked,
     QuizPosed,
@@ -12,6 +11,7 @@ from lomas_core.contracts import (
 
 from app.flow.states import StepResult
 from app.flow.step import STEPS, BaseStep
+from app.flow.steps import marks
 
 FIRST = 0
 # Set by whoever is recording a child, so the quiz does not move on under them.
@@ -30,6 +30,10 @@ class QuizStep(BaseStep):
 
     def enter(self, ctx) -> None:
         quiz = ctx.content.quiz_for(ctx.lesson.id)
+        # Only what the class has not already answered. The teach step asks
+        # these in the middle of the lesson, and asking them again at the end
+        # is a robot that was not listening the first time.
+        ctx.notes["quiz_left"] = marks.still_to_ask(ctx, quiz.questions) if quiz else []
         ctx.notes["quiz"] = quiz
         ctx.notes["quiz_index"] = FIRST
         ctx.notes["quiz_posed"] = None
@@ -45,15 +49,6 @@ class QuizStep(BaseStep):
 
     def _on_answer(self, ctx):
         def handler(_event, answered: QuizAnswered) -> None:
-            ctx.repo("answer").record(
-                ctx.scope,
-                session_id=ctx.session_id,
-                student_id=answered.student_id,
-                question_ref=answered.question_id,
-                response=answered.response,
-                correct=answered.correct,
-                latency_ms=answered.latency_ms,
-            )
             ctx.notes["quiz_recorded"] += 1
             # Only the question still waiting. A late answer to the last one
             # must not cut short the wait on this one.
@@ -64,9 +59,9 @@ class QuizStep(BaseStep):
                 ctx.notes["quiz_marking"] = answered.question_id
                 ctx.notes["quiz_marking_since"] = ctx.clock.now()
 
-            # Announced after the row exists, so whoever marks free text is
-            # updating something rather than racing the insert.
-            ctx.bus.publish(QUIZ_RECORDED, answered)
+            # Last, because the marking agent answers this on the spot and
+            # would otherwise clear a hold that had not been set yet.
+            marks.record(ctx, answered)
 
         return handler
 
@@ -78,12 +73,12 @@ class QuizStep(BaseStep):
         return handler
 
     def tick(self, ctx, now: float) -> StepResult:
-        quiz = ctx.notes["quiz"]
-        if quiz is None:
+        questions = ctx.notes["quiz_left"]
+        if not questions:
             return StepResult.DONE
 
         index = ctx.notes["quiz_index"]
-        asked_so_far = min(len(quiz.questions), ctx.cfg.flow.quiz_length)
+        asked_so_far = min(len(questions), ctx.cfg.flow.quiz_length)
         if index >= asked_so_far:
             return StepResult.DONE
 
@@ -106,8 +101,9 @@ class QuizStep(BaseStep):
             ctx.notes["quiz_posed"] = None
             ctx.notes["quiz_unanswered"] += 1
 
-        question = quiz.questions[index]
+        question = questions[index]
         ctx.notes["quiz_posed"] = question.id
+        marks.remember_asked(ctx, question.id)
         ctx.notes["quiz_index"] = index + 1
 
         ctx.bus.publish(

@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from lomas_core.contracts import TOPIC_CHOSEN, TOPIC_REQUESTED, TopicChosen
+from lomas_core.contracts import (
+    LESSON_CHANGED,
+    TOPIC_CHOSEN,
+    TOPIC_REQUESTED,
+    LessonChanged,
+    TopicChosen,
+)
 
 from app.flow.states import StepResult
 from app.flow.step import STEPS, BaseStep
@@ -8,6 +14,7 @@ from app.flow.step import STEPS, BaseStep
 ASK = "ask_topic"
 CHOSEN = "topic_chosen"
 ASKED_FOR = "topic_asked_for"
+GAVE_UP = "topic_gave_up"
 
 
 @STEPS.register("topic")
@@ -42,6 +49,11 @@ class Topic(BaseStep):
         def handler(_event, chosen: TopicChosen) -> None:
             if chosen.text.strip():
                 ctx.notes[CHOSEN] = chosen.text.strip()
+                return
+            # An empty one is whoever was listening saying it gave up. The
+            # class should not then sit through the rest of the wait in
+            # silence for a question already answered.
+            ctx.notes[GAVE_UP] = True
 
         return handler
 
@@ -51,7 +63,7 @@ class Topic(BaseStep):
             # that does not listen to the person who set it up.
             return StepResult.DONE
 
-        if ctx.notes.get(CHOSEN):
+        if ctx.notes.get(CHOSEN) or ctx.notes.get(GAVE_UP):
             return StepResult.DONE
 
         waiting = now - ctx.notes.get("topic_asked_at", now)
@@ -81,3 +93,14 @@ class Topic(BaseStep):
             ctx.library.remember(lesson, quiz, ctx.language)
         ctx.lesson = lesson
         ctx.topic = lesson.id
+
+        # The session row, not only this object. Every agent reads what is
+        # being taught back from that row: on the Pi a class was taught the
+        # water cycle while the tutor and the quiz still believed it was
+        # about leaves, and deflected every question as off-topic.
+        ctx.repo("session").retopic(ctx.scope, ctx.session_id, lesson.id)
+        ctx.bus.publish(
+            LESSON_CHANGED,
+            LessonChanged(session_id=ctx.session_id, lesson_id=lesson.id,
+                          title=lesson.title, written=lesson.written),
+        )

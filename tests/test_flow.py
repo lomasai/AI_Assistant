@@ -71,7 +71,7 @@ def test_a_full_class_runs_end_to_end(system):
 
     assert state is SessionState.CLOSED
     steps = [p.step for p in names_of(system.bus, STEP_ENTERED)]
-    assert steps == ["attendance", "greeting", "topic", "lesson", "interaction", "quiz", "wrapup"]
+    assert steps == ["attendance", "greeting", "topic", "teach", "quiz", "wrapup"]
 
     assert names_of(system.bus, SESSION_OPENED)
     assert names_of(system.bus, SESSION_CLOSED)[0].reason == "closed"
@@ -164,7 +164,7 @@ def test_a_student_question_gets_an_answer(system):
                           student_id="s1", student_name="Ananya"),
         )
 
-    during(system, "interaction", ask)
+    during(system, "teach", ask)
     system.orchestrator.run()
 
     answered = names_of(system.bus, QUESTION_ANSWERED)
@@ -183,7 +183,7 @@ def test_the_answer_is_addressed_to_the_child_who_asked(system):
                           student_id="s1", student_name="Ananya"),
         )
 
-    during(system, "interaction", ask)
+    during(system, "teach", ask)
     system.orchestrator.run()
 
     addressed = [u for u in names_of(system.bus, ROBOT_SAY) if u.student_name]
@@ -218,12 +218,12 @@ def test_quiz_answers_are_recorded_per_student(system):
 
 @pytest.mark.parametrize(
     "dropped",
-    ["attendance", "greeting", "topic", "lesson", "interaction", "quiz", "wrapup"],
+    ["attendance", "greeting", "topic", "teach", "quiz", "wrapup"],
 )
 def test_removing_any_step_still_produces_a_session(dropped):
     """Rule four: the system must run with any feature switched off."""
     remaining = [s for s in
-                 ["attendance", "greeting", "topic", "lesson", "interaction", "quiz", "wrapup"]
+                 ["attendance", "greeting", "topic", "teach", "quiz", "wrapup"]
                  if s != dropped]
     system = build(f"flow.sequence=[{','.join(remaining)}]")
     try:
@@ -277,7 +277,7 @@ def test_the_teacher_can_pause_and_resume_mid_lesson(system):
     seen: list[str] = []
 
     def on_lesson(_event, changed) -> None:
-        if changed.step != "lesson":
+        if changed.step != "teach":
             return
         system.orchestrator.pause()
         seen.append(machine.state.value)
@@ -291,7 +291,7 @@ def test_the_teacher_can_pause_and_resume_mid_lesson(system):
 
 def test_a_halt_raised_mid_lesson_ends_the_class(system):
     def on_lesson(_event, changed) -> None:
-        if changed.step == "lesson":
+        if changed.step == "teach":
             system.orchestrator.halt("emergency stop")
 
     system.bus.subscribe(STEP_ENTERED, on_lesson)

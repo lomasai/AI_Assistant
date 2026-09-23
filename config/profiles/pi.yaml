@@ -110,6 +110,14 @@ enrolment:
   # that wants a teacher to approve every enrolment sets this false.
   by_voice: true
 
+# Every audio, latency and face fix so far came out of a trace pushed from
+# this Pi by hand. A robot in a classroom has nobody to type three git
+# commands after a class, so it files its own: at the end of every class, and
+# when it is switched off. Only data/logs is touched.
+sync:
+  enabled: true
+  "on": [session_closed, shutdown]
+
 hardware:
   enabled: true
   backend: esp32        # pip install pyserial

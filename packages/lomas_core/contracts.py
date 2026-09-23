@@ -32,6 +32,8 @@ ROBOT_STATE = "robot.state"
 ROBOT_BLOCKED = "robot.blocked"
 
 LESSON_SEGMENT = "lesson.segment"
+LESSON_CHANGED = "lesson.changed"     # the class chose, and this is now the lesson
+UNDERSTANDING_CHECKED = "teach.checked"  # the robot turned an idea back to the room
 STORY_REQUESTED = "story.requested"
 
 STRANGER_SEEN = "student.stranger"    # a face the robot does not know, still here
@@ -136,6 +138,36 @@ class StrangerSeen:
     seen_for: float
     source_id: str
     at: float
+
+
+@dataclass(frozen=True, slots=True)
+class LessonChanged:
+    """The lesson this class is now on.
+
+    Published when a topic asked for out loud replaces the one the session
+    opened with, so a surface showing a title is not left showing the old
+    one and a report is filed under what was taught.
+    """
+
+    session_id: str
+    lesson_id: str
+    title: str
+    written: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class UnderstandingChecked:
+    """One check: an idea handed back to the class.
+
+    `kind` is doubts or question, `index` is which segment it followed, and
+    `student_name` is who it was aimed at when it was aimed at anyone.
+    """
+
+    session_id: str
+    index: int
+    kind: str
+    text: str = ""
+    student_name: str = ""
 
 
 @dataclass(frozen=True, slots=True)

@@ -22,6 +22,20 @@ class SessionRepo(Repository):
         )
         return session_id
 
+    def retopic(self, scope: TenantScope, session_id: str, topic: str) -> None:
+        """What is actually being taught, once the class has chosen it.
+
+        The row is written when the session opens, before anybody has been
+        asked. Everything an agent knows about the lesson is read back from
+        here, so a topic that changes in memory and not here gives a robot
+        that teaches one lesson and answers questions about another.
+        """
+        clause, params = self._where(scope, "id = ?")
+        self._store.execute(
+            f"UPDATE sessions SET topic = ? WHERE {clause}",
+            [topic, *params, session_id],
+        )
+
     def close(self, scope: TenantScope, session_id: str, status: str = STATUS_CLOSED) -> None:
         clause, params = self._where(scope, "id = ?")
         self._store.execute(

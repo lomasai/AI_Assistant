@@ -483,6 +483,14 @@
     'step.entered': (p) => { $('step').textContent = 'running — ' + p.step; },
     'step.skipped': (p) => { $('step').textContent = p.step + ' skipped'; },
     'session.opened': () => refresh(),
+    // The class chose a subject out loud and a lesson was written for it.
+    // Without this the page goes on showing the lesson it opened with.
+    'lesson.changed': (p) => { $('step').textContent = `teaching — ${p.title}`; },
+    'teach.checked': (p) => {
+      $('step').textContent = p.kind === 'doubts'
+        ? 'asking the class if that was clear'
+        : `asking ${p.student_name || 'the class'}: ${p.text}`;
+    },
     'session.closed': () => { $('step').textContent = 'class finished'; showTeaching(false); },
     'student.identified': (p) => mood(p.student_id, 'engaged'),
     'student.left': (p) => mood(p.student_id, 'away'),

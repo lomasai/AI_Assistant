@@ -1,0 +1,5 @@
+# NEEDS NATIVE-SPEAKER REVIEW before any pilot.
+
+lines:
+  - "{name}, यह आपके लिए है। {question}"
+  - "{name}, आप क्या कहेंगे? {question}"

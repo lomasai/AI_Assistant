@@ -73,6 +73,7 @@ class Listener:
         language: str = "",
         as_question: bool = True,
         attribute: bool = True,
+        patience: str = "",
     ) -> dict:
         """Record, transcribe, publish. Blocking, because the caller is a web
         request and the teacher is standing there waiting for it."""
@@ -82,7 +83,8 @@ class Listener:
                 "check speech.audio.recorder and the device."
             )
 
-        audio = self._capture(session_id, seconds or self.cfg.speech.audio.record_seconds)
+        audio = self._capture(session_id, seconds or self.cfg.speech.audio.record_seconds,
+                              patience)
         if not audio:
             return {"text": "", "reason": "nothing was recorded"}
 
@@ -146,7 +148,7 @@ class Listener:
             spoken, tapped=(student_id, student_name), session_id=session_id, language=language)
         return found.student_id, found.name, found.text or spoken, found.how
 
-    def _capture(self, session_id: str, seconds: float) -> bytes:
+    def _capture(self, session_id: str, seconds: float, patience: str = "") -> bytes:
         audio = self.cfg.speech.audio
         self._wait_for_robot()
 
@@ -155,7 +157,10 @@ class Listener:
         self._state(session_id, LISTENING, seconds)
         try:
             return self.recorder.record(seconds, audio.sample_rate, endpoint=Endpoint(
-                silence_ms=audio.stop_after_silence_ms,
+                # Some questions deserve more patience than others: a child
+                # choosing what to learn thinks mid-sentence, and the pause
+                # inside "can we start topic on..." ended the turn.
+                silence_ms=audio.patience_ms.get(patience, audio.stop_after_silence_ms),
                 no_speech_seconds=audio.no_speech_seconds,
                 chunk_ms=audio.chunk_ms,
                 speech_fraction=audio.speech_fraction,

@@ -16,10 +16,13 @@ from lomas_core.errors import LomasError
 from lomas_core.events import EventBus
 from lomas_core.schema import Config
 
-from app.author import clean_topic
+from app.author import clean_topic, is_a_topic
 
 MICROPHONE = "microphone"
 A_VOICE = "a voice in the room"
+CONFIRM = "confirm_topic"
+AGAIN = "ask_topic_again"
+TOPIC = "topic"
 
 
 class Ears:
@@ -37,7 +40,7 @@ class Ears:
     """
 
     def __init__(self, cfg: Config, bus: EventBus, clock: Clock, listener, voice=None,
-                 runner=None) -> None:
+                 runner=None, prompts=None, say=None) -> None:
         self.cfg = cfg
         self.bus = bus
         self.clock = clock
@@ -46,6 +49,11 @@ class Ears:
         # Set by the container. Without it the robot still teaches; it just
         # has to be told to start by the teacher's screen.
         self.runner = runner
+        # For reading a topic back before a whole class is written about it.
+        # Without either of these the robot takes the first thing it hears,
+        # which is what it did before.
+        self.prompts = prompts
+        self._say = say
         self.log = log.get("ears")
 
         self.turns = 0
@@ -118,15 +126,60 @@ class Ears:
                          name="ears-topic", daemon=True).start()
 
     def _hear_topic(self, session_id: str) -> None:
-        heard = self._listen(session_id, as_question=False, attribute=False)
-        topic = clean_topic(heard, self.cfg.content.author) if heard else ""
-        if not topic:
-            self.log.info("nobody said what to teach")
+        """Ask, and keep asking until there is a subject worth writing about.
+
+        On the Pi this heard "can we start topic on...", found nothing in it
+        that was a subject, and wrote a lesson on the water cycle anyway,
+        because a model handed nothing invents something. Now what is left
+        after the asking has to look like a topic, and the room hears it read
+        back before a class is built on it.
+        """
+        for attempt in range(self.cfg.flow.topic_tries):
+            topic = self._a_topic(session_id, attempt)
+            if not topic or not self._agreed(session_id, topic):
+                continue
+
+            self.log.info("the class asked for: %s", topic)
+            self.bus.publish(TOPIC_CHOSEN,
+                             TopicChosen(session_id=session_id, text=topic, by=MICROPHONE))
             return
 
-        self.log.info("the class asked for: %s", topic)
+        # Said out loud, so the step is not left waiting out its whole timer
+        # in silence for an answer that is not coming.
+        self.log.info("nobody said what to teach")
         self.bus.publish(TOPIC_CHOSEN,
-                         TopicChosen(session_id=session_id, text=topic, by=MICROPHONE))
+                         TopicChosen(session_id=session_id, text="", by=MICROPHONE))
+
+    def _a_topic(self, session_id: str, attempt: int) -> str:
+        if attempt:
+            self._line(AGAIN)
+        heard = self._listen(session_id, as_question=False, attribute=False, patience=TOPIC)
+        topic = clean_topic(heard, self.cfg.content.author) if heard else ""
+        if not topic or not is_a_topic(topic, self.cfg.content.author):
+            self.log.info("no subject in %r", heard)
+            return ""
+        return topic
+
+    def _agreed(self, session_id: str, topic: str) -> bool:
+        """The topic, read back. A silence is a yes - a robot that demands an
+        answer before it will teach is worse than one that mishears."""
+        if not self.cfg.flow.confirm_topic or self.prompts is None or self._say is None:
+            return True
+
+        self._line(CONFIRM, topic=topic)
+        heard = self._listen(session_id, as_question=False, attribute=False, patience="confirm")
+        if matches(heard, self.cfg.flow.no_phrases, self.cfg.speech.speaker.name_match):
+            self.log.info("not %r then", topic)
+            return False
+        return True
+
+    def _line(self, prompt: str, **values) -> None:
+        if self.prompts is None or self._say is None:
+            return
+        try:
+            self._say(self.prompts.line(prompt, self.cfg.content.language, **values))
+        except Exception as exc:  # a missing prompt file must not end the asking
+            self.log.debug("no %s prompt: %s", prompt, exc)
 
     # --- a conversation, with nobody pressing anything --------------------
 
@@ -165,11 +218,12 @@ class Ears:
 
     # --- the one place a turn is taken ------------------------------------
 
-    def _listen(self, session_id: str, as_question: bool, attribute: bool) -> str:
+    def _listen(self, session_id: str, as_question: bool, attribute: bool,
+                patience: str = "") -> str:
         self.turns += 1
         try:
             heard = self.listener.listen(session_id=session_id, as_question=as_question,
-                                         attribute=attribute)
+                                         attribute=attribute, patience=patience)
         except LomasError as exc:
             # A microphone that has been unplugged mid-class is not a class
             # that stops; it is a class the teacher drives by hand again.

@@ -302,6 +302,14 @@ speech:
     record_seconds: 15.0          # the longest turn
     stop_after_silence_ms: 1200   # 0 records the full length every time
     no_speech_seconds: 5.0        # nobody started speaking
+
+    # Some questions deserve more patience. A child answering "what shall we
+    # learn about?" thinks mid-sentence, and on the Pi the pause inside
+    # "can we start topic on..." ended the turn and cost the whole class.
+    patience_ms:
+      topic: 2500
+      name: 2000
+      confirm: 1000
     chunk_ms: 100
     speech_fraction: 0.35         # speech is this far from the room's noise to the loudest
     min_gap_rms: 0.01             # a pause needs this much difference...
@@ -312,7 +320,9 @@ speech:
     # The robot listens by itself during these steps: a child talks, the
     # robot answers, no button. [] gives back press-to-talk everywhere.
     hands_free: true
-    hands_free_steps: [interaction]
+    # teach is in here because that step is a conversation: a child may
+    # just talk, and the robot leaves gaps for exactly that.
+    hands_free_steps: [interaction, teach]
     hands_free_gap_seconds: 0.4
 
     wait_for_robot_seconds: 30.0
@@ -379,11 +389,17 @@ flow:
   # `topic` asks the class what they want to learn and writes it. Take it
   # out and the robot teaches the topic it was started with, which is what a
   # school following a syllabus wants.
-  sequence: [attendance, greeting, topic, lesson, interaction, quiz, wrapup]
+  # `teach` is lesson, interaction and quiz interleaved: one idea, then the
+  # class gets it back. Swap it for [lesson, interaction, quiz] and the robot
+  # reads the whole lesson out and asks everything at the end, which is the
+  # older behaviour and what a syllabus with a fixed script wants.
+  sequence: [attendance, greeting, topic, teach, quiz, wrapup]
 
   stage_timeout_seconds:
     attendance: 120.0
     greeting: 30.0
+    topic: 120.0
+    teach: 1500.0
     lesson: 900.0
     interaction: 420.0
     quiz: 300.0
@@ -393,9 +409,37 @@ flow:
   tick_seconds: 0.25
   pause_poll_seconds: 0.1
 
+  # Teaching as a conversation. One idea, then the class gets it back -
+  # checking understanding while the idea is still in the room is the whole
+  # difference between a lesson and a recital.
+  teach:
+    check_every: 1            # segments between checks; 2 is every other idea
+    check_style: alternate    # alternate | doubts | question
+    name_a_child: true        # asked of a named child, round the roster
+    gap_seconds: 2.5          # room to speak after an idea
+    doubt_wait_seconds: 8.0   # ...and after "any questions?", which is longer
+    answer_wait_seconds: 20.0 # a check question waits like a quiz question
+    answer_hold_seconds: 60.0 # the next idea never lands on top of an answer
+    # Hands free the microphone is almost always open, so it only holds the
+    # lesson just after a check, and only this long past the wait above.
+    microphone_grace_seconds: 5.0
+    say_resuming: true        # "so, back to the lesson"
+
   questions_per_lesson: 6
   answer_wait_seconds: 20.0   # move on if nobody answers
-  topic_wait_seconds: 25.0    # ...and teach the lesson it had if nobody chooses
+
+  # Long, because this now includes reading the topic back and asking again
+  # when nothing usable comes out of the room.
+  topic_wait_seconds: 75.0
+
+  # "Can we start topic on..." was heard on the Pi, nothing in it was a
+  # subject, and a whole class was written about the water cycle instead.
+  # Now the robot reads the topic back before anything is written.
+  confirm_topic: true
+  topic_tries: 2
+  # Quoted, all of them: YAML reads a bare yes, no, on and off as booleans.
+  yes_phrases: ["yes", "yeah", "yep", "correct", "right", "ok", "okay", "haan", "ha", "ji haan"]
+  no_phrases: ["no", "nope", "wrong", "not that", "nahi", "nahin"]
 
   # Said out loud to begin, so a robot switched on in a classroom needs no
   # screen at all. [] waits for the teacher's page instead.
@@ -454,6 +498,22 @@ hardware:
 # machine. Off by default: turn it on for a session when something feels
 # slow, then push data/logs/. Measuring first is the only way to tell a real
 # improvement from a believed one.
+# The robot filing its own traces, so nobody has to type three git commands
+# after every class. Only `paths` is touched, never the whole working tree.
+sync:
+  enabled: false
+  backend: git            # git | none
+  paths: [data/logs]
+  "on": [session_closed, shutdown] # session_closed | paused | shutdown | timer
+  every_minutes: 0.0      # timer only
+  remote: origin
+  branch: ""              # empty pushes whatever branch is checked out
+  push: true              # false commits locally, for a robot with no network
+  message: "trace: {reason} {when}"
+  when_format: "%Y-%m-%d %H:%M"
+  timeout_seconds: 120.0
+  wait_seconds: 20.0      # how long switching off waits for a push
+
 trace:
   enabled: false
   directory: data/logs

@@ -63,6 +63,17 @@ def said(system) -> list[str]:
     return [u.text for _n, u in system.bus.replay(ROBOT_SAY)]
 
 
+def phrasings(prompt: str) -> list[str]:
+    """Every way the robot might say one thing. A test that asserts on one
+    word instead fails whenever the dice pick another line."""
+    import yaml
+
+    from pathlib import Path
+
+    body = Path(f"config/prompts/en/{prompt}.yaml").read_text(encoding="utf-8")
+    return yaml.safe_load(body)["lines"]
+
+
 # --- being told to begin, out loud ---------------------------------------
 
 
@@ -176,9 +187,11 @@ def test_the_robot_introduces_itself_and_enrols(system) -> None:
     assert enrolled[0][1] == "Akshay", "enrolled as whatever sentence was said"
     assert "frame" in steps, "no pictures were taken"
 
-    spoken = " ".join(said(system)).lower()
-    assert "name" in spoken, "it never asked"
-    assert "akshay" in spoken, "it never said hello back"
+    spoken = said(system)
+    # Against the prompt file, not against a word: the phrasings are picked
+    # at random and only two of the three ask_name lines say "name".
+    assert spoken[0] in phrasings("ask_name"), "it never asked"
+    assert "akshay" in " ".join(spoken).lower(), "it never said hello back"
 
 
 def test_a_child_who_says_nothing_is_not_enrolled(system) -> None:

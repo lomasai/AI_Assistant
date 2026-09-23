@@ -389,16 +389,16 @@ def test_skip_moves_the_class_on(client, system) -> None:
     skipped: list[str] = []
 
     def on_step(_event, changed) -> None:
-        if changed.step == "lesson" and not skipped:
+        if changed.step == "teach" and not skipped:
             skipped.append(client.post("/api/skip").json()["skipped"])
 
     system.bus.subscribe("step.entered", on_step)
     assert system.orchestrator.run() is SessionState.CLOSED
 
-    assert skipped == ["lesson"]
+    assert skipped == ["teach"]
     segments = [p for _n, p in system.bus.replay(LESSON_SEGMENT)]
     assert len(segments) < 6, "the lesson ran to the end anyway"
-    assert [p.step for _n, p in system.bus.replay("step.skipped")] == ["lesson"]
+    assert [p.step for _n, p in system.bus.replay("step.skipped")] == ["teach"]
 
 
 def test_the_teacher_can_silence_nudging_for_the_session(client, system) -> None:
