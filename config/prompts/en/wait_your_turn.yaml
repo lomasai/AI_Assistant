@@ -1,0 +1,8 @@
+# Somebody already has the floor, or this child has just had a turn. Never
+# a reproach: a class that is told off for putting a hand up stops putting
+# hands up.
+
+lines:
+  - "One moment - I will come to you."
+  - "Keep your hand up, you are next."
+  - "Let us finish this part first."

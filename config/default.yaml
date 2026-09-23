@@ -498,6 +498,68 @@ hardware:
 # machine. Off by default: turn it on for a session when something feels
 # slow, then push data/logs/. Measuring first is the only way to tell a real
 # improvement from a believed one.
+# Saying something without saying anything.
+#
+# One microphone in a room of forty is the problem this is for: a card held
+# up is an answer from a named child with nothing to transcribe, and a hand
+# held up is a question asked without shouting over the lesson.
+signs:
+  enabled: false          # true in the pi profile
+  source: ""              # empty follows the camera recognition uses
+  fps: 4.0                # a sign is held; it does not need eight a second
+  downscale_width: 640
+  remember_seconds: 3.0
+  join_timeout_seconds: 2.0
+
+  cards:
+    # The cheap half: printed markers, read by OpenCV with no new
+    # dependency and no model file. A card also says *who* is holding it,
+    # which a hand never does.
+    reader: aruco         # aruco | none
+    dictionary: DICT_4X4_50
+    min_size_px: 24       # smaller is a speck across the room
+    hold_reads: 2         # seen this many reads running before it counts
+
+    # Which answer each edge means, clockwise from upright. The printed
+    # sheet puts these letters on the edges.
+    answers: [A, B, C, D]
+    ask_when_upright: true  # held upright means "I want to ask something"
+
+    print_px: 420         # about 10 cm printed, which reads out to ~3 m
+    print_across: 3
+    print_gap_px: 30
+    sheet_dir: data/cards
+
+  hands:
+    # The expensive half, and the first thing to switch off. Google's
+    # recognizer already knows these shapes, so nothing is trained here:
+    # what it costs is a model on every frame it is given.
+    reader: none          # mediapipe | none
+    model: models/gesture_recognizer.task
+    max_hands: 2
+    min_score: 0.6
+    every: 1              # one read in this many
+    hold_reads: 2         # held, not flashed - which is how a wave is ruled out
+    near_face: 0.25       # how close to a face a hand must be to be theirs
+
+    # What each sign means here. The names are the recognizer's own; the
+    # meanings are this school's. A sign that is polite in one classroom is
+    # not in another, so this is config and not code.
+    actions:
+      Pointing_Up: ask
+      Thumb_Up: "yes"
+      Thumb_Down: "no"
+
+  asking:
+    enabled: true
+    # Finish the sentence, then stop. Cutting off mid-word leaves a hole in
+    # the lesson that everybody hears.
+    finish_the_sentence: true
+    queue_limit: 3
+    per_step: 2           # interruptions allowed between one idea and the next
+    cooldown_seconds: 90  # the same child cannot have every turn
+    listen_seconds: 12.0
+
 # The robot filing its own traces, so nobody has to type three git commands
 # after every class. Only `paths` is touched, never the whole working tree.
 sync:

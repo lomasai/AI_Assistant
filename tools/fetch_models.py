@@ -29,6 +29,7 @@ TIMEOUT_SECONDS = 60
 
 ZOO = "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models"
 VOICES = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
+TASKS = "https://storage.googleapis.com/mediapipe-models"
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,15 @@ HINDI = [
     Model("piper/hi_IN-pratham-medium.onnx.json",
           f"{VOICES}/hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx.json",
           1_000, "that voice's settings"),
+]
+
+
+# Only for signs.hands.reader: mediapipe. The card reader needs nothing -
+# the marker dictionaries are built into OpenCV.
+HANDS = [
+    Model("gesture_recognizer.task",
+          f"{TASKS}/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
+          1_000_000, "reading a hand held up"),
 ]
 
 
@@ -109,10 +119,12 @@ def fetch(model: Model) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description="download the models a clone does not carry")
     parser.add_argument("--hindi", action="store_true", help="also fetch a Hindi voice")
+    parser.add_argument("--hands", action="store_true",
+                        help="also fetch the gesture model (signs.hands.reader: mediapipe)")
     parser.add_argument("--check", action="store_true", help="report only, download nothing")
     args = parser.parse_args()
 
-    wanted = CORE + (HINDI if args.hindi else [])
+    wanted = CORE + (HINDI if args.hindi else []) + (HANDS if args.hands else [])
     missing = [m for m in wanted if not present(m)]
 
     for model in wanted:

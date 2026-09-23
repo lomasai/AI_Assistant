@@ -40,8 +40,12 @@ class SpeakerChain:
     """
 
     def __init__(self, cfg: Config, bus: EventBus, clock: Clock, prompts: Any,
-                 repos: dict[str, Any], room: Room | None = None, scope_of=None) -> None:
+                 repos: dict[str, Any], room: Room | None = None, scope_of=None,
+                 signs: Any = None) -> None:
         self.cfg = cfg
+        # Set by the container once the watcher exists. Without it the card
+        # resolver simply never fires, which is a robot with no cards.
+        self.signs = signs
         self.clock = clock
         self.repos = repos
         self.room = room
@@ -72,6 +76,7 @@ class SpeakerChain:
             tapped=tapped,
             roster=self._roster(self.scope_of() if self.scope_of else None),
             visible=self.room.visible() if self.room else [],
+            cards=self._cards(),
             mouths=self.room.mouths() if self.room else {},
             last=last,
             since_last=self.clock.now() - last_at if last else 0.0,
@@ -90,6 +95,12 @@ class SpeakerChain:
             return spoken
 
         return Speaker(text=text, how="unknown")
+
+    def _cards(self) -> list[str]:
+        if self.signs is None:
+            return []
+        return [student_id for student_id, _name in self.signs.card_owners().values()
+                if student_id]
 
     def forget(self) -> None:
         """A new session starts with nobody speaking. Otherwise the first

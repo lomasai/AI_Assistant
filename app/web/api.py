@@ -90,6 +90,7 @@ def router(system) -> APIRouter:
             "vision": system.vision.stats() if system.vision else {},
             "microphone": system.listener.describe() if system.listener else "none",
             "volume": loudness(),
+            "signs": system.signs.stats() if system.signs else {},
         }
 
     @api.post("/session/start")

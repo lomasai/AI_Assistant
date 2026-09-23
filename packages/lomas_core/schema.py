@@ -923,6 +923,124 @@ class SyncConfig(BaseModel):
     wait_seconds: float = Field(default=20.0, gt=0)
 
 
+class CardsConfig(BaseModel):
+    """Printed markers: who is holding one, and which way up.
+
+    The cheap half of signing. A card costs a couple of milliseconds a frame
+    where a hand model costs tens, and it says *who* is holding it, which a
+    hand never does.
+    """
+
+    model_config = Strict
+
+    reader: str = "aruco"          # aruco | none
+    dictionary: str = "DICT_4X4_50"
+    # Smaller than this in the picture and it is a speck across the room or
+    # a pattern on somebody's shirt.
+    min_size_px: int = Field(default=24, ge=4)
+    # Seen this many reads running before it counts. A card that flashes by
+    # as somebody puts their bag down is not an answer.
+    hold_reads: int = Field(default=2, ge=1)
+
+    # Which answer each edge means, going clockwise from upright. The card
+    # sheet prints these letters on the edges.
+    answers: list[str] = Field(default_factory=lambda: ["A", "B", "C", "D"])
+    # Held upright, outside a question, means "I want to ask something".
+    ask_when_upright: bool = True
+
+    # Printing. 10 cm at 720p reads out to about 3 m - measure yours with
+    # `python tools/signs_check.py`.
+    print_px: int = Field(default=420, ge=60)
+    print_across: int = Field(default=3, ge=1)
+    print_gap_px: int = Field(default=30, ge=0)
+    sheet_dir: str = "data/cards"
+
+
+class HandsConfig(BaseModel):
+    """Hand shapes. The expensive half, and the one to switch off first.
+
+    Google's recognizer already knows thumb up, thumb down, victory,
+    pointing up, open palm, closed fist and one more, so nothing here is
+    trained. What it costs is a model on every frame it is given - which is
+    why it is given few: a sign meant as an interrupt is *held*, and one
+    held for a second is caught at three reads a second as surely as at
+    thirty.
+    """
+
+    model_config = Strict
+
+    reader: str = "none"           # mediapipe | none
+    model: str = "models/gesture_recognizer.task"
+    max_hands: int = Field(default=2, ge=1)
+    min_score: float = Field(default=0.6, ge=0.0, le=1.0)
+    # One read in this many. 1 is every read the watcher takes.
+    every: int = Field(default=1, ge=1)
+    hold_reads: int = Field(default=2, ge=1)
+    # How near a face a hand has to be, as a share of the frame width, to be
+    # that child's hand. Beyond it, nobody owns the sign.
+    near_face: float = Field(default=0.25, gt=0.0, le=1.0)
+
+    # What each sign means here. The names are the recognizer's own; the
+    # meanings are this school's, which is why they are config: a sign that
+    # is polite in one classroom is not in another.
+    actions: dict[str, str] = Field(default_factory=lambda: {
+        "Pointing_Up": "ask",
+        "Thumb_Up": "yes",
+        "Thumb_Down": "no",
+    })
+
+
+class AskingConfig(BaseModel):
+    """A child interrupting, and the robot letting them.
+
+    The rule that makes it sound like a teacher rather than a machine: it
+    finishes the sentence it is saying, then stops. Cutting off mid-word
+    leaves a hole in the lesson that everybody hears.
+    """
+
+    model_config = Strict
+
+    enabled: bool = True
+    # Finish the sentence, then yield. false waits for the whole paragraph,
+    # which is what a voice that cannot stream has to do anyway.
+    finish_the_sentence: bool = True
+
+    # Hands up, waiting. Beyond this the rest are asked to wait.
+    queue_limit: int = Field(default=3, ge=1)
+    # Interruptions allowed between one idea and the next, so a single
+    # question does not eat a lesson.
+    per_step: int = Field(default=2, ge=0)
+    # The same child cannot interrupt again within this. The quiet ones
+    # never get a turn otherwise.
+    cooldown_seconds: float = Field(default=90.0, ge=0)
+    listen_seconds: float = Field(default=12.0, gt=0)
+
+
+class SignsConfig(BaseModel):
+    """Saying something without saying anything.
+
+    A room of forty children and one microphone is the problem this is for:
+    a card held up is an answer from a named child with nothing to
+    transcribe, and a hand held up is a question asked without shouting.
+    """
+
+    model_config = Strict
+
+    enabled: bool = False
+    # Which camera. Empty follows the one recognition uses.
+    source: str = ""
+    # Reads a second. Cards are cheap; this is mostly the hand model's bill.
+    fps: float = Field(default=4.0, gt=0)
+    downscale_width: int = Field(default=640, ge=160)
+    # How long a sign counts for after it was last seen.
+    remember_seconds: float = Field(default=3.0, gt=0)
+    join_timeout_seconds: float = Field(default=2.0, gt=0)
+
+    cards: CardsConfig = Field(default_factory=CardsConfig)
+    hands: HandsConfig = Field(default_factory=HandsConfig)
+    asking: AskingConfig = Field(default_factory=AskingConfig)
+
+
 class TraceConfig(BaseModel):
     """A timeline of one run, written to a file for reading elsewhere.
 
@@ -1159,6 +1277,7 @@ class Config(BaseModel):
     debug: DebugConfig = Field(default_factory=DebugConfig)
     trace: TraceConfig = Field(default_factory=TraceConfig)
     sync: SyncConfig = Field(default_factory=SyncConfig)
+    signs: SignsConfig = Field(default_factory=SignsConfig)
     hardware: HardwareConfig = Field(default_factory=HardwareConfig)
 
     @property

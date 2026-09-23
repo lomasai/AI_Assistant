@@ -38,6 +38,12 @@ STORY_REQUESTED = "story.requested"
 
 STRANGER_SEEN = "student.stranger"    # a face the robot does not know, still here
 
+# Said without saying anything: a hand held in a shape, or a printed card.
+SIGN_SEEN = "sign.seen"
+CARD_SEEN = "card.seen"
+HAND_UP = "sign.hand_up"              # somebody wants to ask, mid-lesson
+ROBOT_YIELDED = "robot.yielded"       # it finished its sentence and stopped
+
 TOPIC_REQUESTED = "topic.requested"   # the robot is waiting to be told
 TOPIC_CHOSEN = "topic.chosen"         # a child said what they want to learn
 
@@ -138,6 +144,51 @@ class StrangerSeen:
     seen_for: float
     source_id: str
     at: float
+
+
+@dataclass(frozen=True, slots=True)
+class SignSeen:
+    """A hand, and who the robot thinks is holding it.
+
+    `means` is what this school decided the sign means, not what the model
+    called it: the mapping is config, because a sign that is polite in one
+    classroom is not in another.
+    """
+
+    name: str
+    means: str
+    student_id: str = ""
+    student_name: str = ""
+    score: float = 0.0
+    source_id: str = ""
+    at: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class CardSeen:
+    """A printed card held up, and which edge was at the top."""
+
+    marker_id: int
+    turn: int
+    answer: str = ""
+    student_id: str = ""
+    student_name: str = ""
+    source_id: str = ""
+    at: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class HandUp:
+    """Somebody wants to ask something, now, in the middle of the lesson.
+
+    `by` is the card or the hand, so a class that goes quiet can be traced
+    to whichever reader stopped seeing anything.
+    """
+
+    student_id: str = ""
+    student_name: str = ""
+    by: str = ""
+    at: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

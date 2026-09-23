@@ -5,6 +5,7 @@ from pathlib import Path
 from lomas_store.store import Store
 
 SCHEMA_FILE = Path(__file__).with_name("schema.sql")
+CARDS_FILE = Path(__file__).with_name("cards.sql")
 
 VERSION_TABLE = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -15,7 +16,12 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 
 def _steps() -> list[tuple[int, str]]:
-    return [(1, SCHEMA_FILE.read_text(encoding="utf-8"))]
+    """Forward-only, and never edit one that has shipped: a robot in a
+    classroom has a database with the last version already in it."""
+    return [
+        (1, SCHEMA_FILE.read_text(encoding="utf-8")),
+        (2, CARDS_FILE.read_text(encoding="utf-8")),
+    ]
 
 
 def current_version(store: Store) -> int:

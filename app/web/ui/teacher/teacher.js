@@ -486,6 +486,11 @@
     // The class chose a subject out loud and a lesson was written for it.
     // Without this the page goes on showing the lesson it opened with.
     'lesson.changed': (p) => { $('step').textContent = `teaching — ${p.title}`; },
+    // A hand or a card went up. Worth showing, because a teacher watching
+    // the robot go quiet mid-sentence should know why.
+    'sign.hand_up': (p) => {
+      $('step').textContent = `${p.student_name || 'somebody'} has a question`;
+    },
     'teach.checked': (p) => {
       $('step').textContent = p.kind === 'doubts'
         ? 'asking the class if that was clear'

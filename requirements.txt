@@ -21,6 +21,14 @@ websockets>=12
 # answering other clients perfectly well. The wheel brings its own SDL.
 # pygame>=2.5
 
+# Optional: only for signs.hands.reader=mediapipe, the hand shapes a child
+# can hold up. Cards need nothing - the marker dictionaries are built into
+# opencv - and this is the expensive half, so it is off until a Pi has been
+# measured with it (python tools/signs_check.py --hands).
+#   pip install mediapipe
+#   python tools/fetch_models.py --hands
+# mediapipe>=0.10
+
 # The local voice, loaded once inside the robot (speech.tts.engine: piper_python).
 # Pulls in onnxruntime, which the arcface embedder can use too.
 piper-tts>=1.3

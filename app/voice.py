@@ -4,12 +4,21 @@ import queue
 import threading
 
 from lomas_core import logging as log
-from lomas_core.contracts import ROBOT_SAY, ROBOT_SPOKE, SESSION_PAUSED, Utterance
+from lomas_core.contracts import (
+    ROBOT_SAY,
+    ROBOT_SPOKE,
+    ROBOT_YIELDED,
+    SESSION_PAUSED,
+    Utterance,
+)
 from lomas_core.errors import LomasError
 from lomas_core.events import EventBus
 from lomas_speech import DuplexGate, TextToSpeech
+from lomas_speech.types import SpeechHandle
 
 STOP = None
+RESUMING = "resuming"
+DEFAULT_LANGUAGE = "en"
 
 
 def allow_everything(_text: str, _language: str, _session_id: str = "") -> bool:
@@ -41,11 +50,15 @@ class Voice:
         self.guard = guard
         self.wait_seconds = wait_seconds or None
         self.stop_seconds = self.wait_seconds
+        self.language = DEFAULT_LANGUAGE
         self.log = log.get("voice")
 
         self._mute_reported = False
         self._stopping = False
         self._speaking = False
+        # What the robot had not said when a child put a hand up.
+        self.held = ""
+        self._current: SpeechHandle | None = None
         self._queue: queue.Queue = queue.Queue()
         self._worker = threading.Thread(target=self._speak_loop, name="voice", daemon=True)
         self._worker.start()
@@ -89,8 +102,10 @@ class Voice:
     def _speak(self, utterance: Utterance) -> None:
         self._speaking = True
         self.gate.on_speech_start()
+        handle: SpeechHandle | None = None
         try:
             handle = self.tts.speak(utterance.text, utterance.language)
+            self._current = handle
             handle.wait()
             if handle.error:
                 raise LomasError(handle.error)
@@ -104,17 +119,60 @@ class Voice:
                 self.log.error("no voice, teaching silently: %s", exc)
         finally:
             self._speaking = False
+            self._current = None
             self.gate.on_speech_end()
+            self._keep_the_rest(handle, utterance)
 
         who = f" [{utterance.student_name}]" if utterance.student_name else ""
         self.log.info("%s%s", utterance.text, who)
         self.bus.publish(ROBOT_SPOKE, utterance)
+
+    # --- letting a child in -----------------------------------------------
+
+    def yield_now(self) -> None:
+        """Finish this sentence, then stop and wait.
+
+        Not mid-word: cutting off in the middle of a sentence leaves a hole
+        in the lesson that everybody hears, and the robot sounds broken
+        rather than polite.
+
+        The queue is deliberately not blocked. What comes next is the robot
+        turning to the child and the answer to their question, and a lesson
+        that muzzled those would have stopped for nothing. Holding the
+        *lesson* is the teaching step's job, and it does it already.
+        """
+        handle = self._current
+        if handle is not None and not handle.done:
+            handle.ask_to_yield()
+
+    def resume(self) -> None:
+        """Pick the lesson up where it stopped.
+
+        Queued behind whatever was said to the child, because the voice is
+        one mouth and its order is the order the room hears.
+        """
+        unsaid, self.held = self.held, ""
+        if unsaid:
+            self.bus.publish(ROBOT_SAY, Utterance(text=unsaid, language=self.language,
+                                                  reason=RESUMING))
+
+    def _keep_the_rest(self, handle: SpeechHandle | None, utterance: Utterance) -> None:
+        if handle is None or not handle.left_to_say:
+            return
+        self.held = handle.left_to_say
+        self.language = utterance.language or self.language
+        self.bus.publish(ROBOT_YIELDED, {"session_id": utterance.session_id,
+                                         "left": len(self.held)})
+        self.log.info("stopped for a raised hand, %d characters left to say", len(self.held))
 
     def _on_pause(self, _event: str, _payload) -> None:
         # Queued sentences go too. Otherwise the next one starts the moment
         # the current one is cut off, and the pause did nothing audible.
         self._drain()
         self.tts.stop()
+        # A paused class is not a class waiting on a child, and the held
+        # remainder would otherwise arrive when it resumed.
+        self.held = ""
 
     def _drain(self) -> None:
         while True:

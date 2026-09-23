@@ -8,11 +8,14 @@ from lomas_core import logging as log
 from lomas_core.errors import LomasError
 from lomas_core.schema import TtsConfig
 from lomas_speech.player import Player
+from lomas_speech.sentences import split
 from lomas_speech.tts import TTS_ENGINES
 from lomas_speech.types import SpeechHandle
 
 SILENT = 0.0
 TALKING = 0.6
+NOTHING_YET = -1
+ONE = 1
 DONE = None
 WARMUP_TEXT = "Hello."
 
@@ -86,39 +89,61 @@ class PiperPythonTts:
         with self._lock:
             self._handle = handle
 
+        # Split here rather than inside piper, so that when a child puts a
+        # hand up the robot knows which sentences it had not said yet and
+        # the lesson can be picked up exactly where it stopped.
+        said_as = split(text)
         sentences: queue.Queue = queue.Queue()
-        threading.Thread(target=self._synthesise, args=(voice, text, handle, sentences),
+        threading.Thread(target=self._synthesise, args=(voice, said_as, handle, sentences),
                          name="piper-synth", daemon=True).start()
-        threading.Thread(target=self._play, args=(handle, sentences),
+        threading.Thread(target=self._play, args=(handle, sentences, said_as),
                          name="piper-play", daemon=True).start()
         return handle
 
-    def _synthesise(self, voice, text: str, handle: SpeechHandle, sentences: queue.Queue) -> None:
+    def _synthesise(self, voice, said_as: list[str], handle: SpeechHandle,
+                    sentences: queue.Queue) -> None:
+        """One sentence at a time, running ahead of the playing.
+
+        Ahead, so there is no gap between sentences; one at a time, so the
+        queue carries which sentence each piece of audio belongs to.
+        """
         try:
-            for chunk in voice.synthesize(text):
-                if handle.cancelled:
+            for index, sentence in enumerate(said_as):
+                if handle.cancelled or handle.yielding:
                     break
-                sentences.put((chunk.audio_int16_bytes, chunk.sample_rate))
+                for chunk in voice.synthesize(sentence):
+                    if handle.cancelled:
+                        break
+                    sentences.put((index, chunk.audio_int16_bytes, chunk.sample_rate))
         except Exception as exc:  # onnxruntime raises its own types
             sentences.put(LomasError(f"piper could not synthesise: {exc}"))
         finally:
             sentences.put(DONE)
 
-    def _play(self, handle: SpeechHandle, sentences: queue.Queue) -> None:
+    def _play(self, handle: SpeechHandle, sentences: queue.Queue,
+              said_as: list[str]) -> None:
         # Kept apart from synthesis so the next sentence is being made while
         # this one plays; after the first, there is no gap to wait out.
+        spoken = NOTHING_YET
         try:
             while (item := sentences.get()) is not DONE:
                 if isinstance(item, LomasError):
                     raise item
                 if handle.cancelled:
                     continue
-                audio, rate = item
+                index, audio, rate = item
+                if handle.yielding and index > spoken:
+                    # A hand went up during the last sentence. That one has
+                    # been said in full; this one has not started.
+                    break
+                spoken = index
                 self.player.play_pcm(audio, rate)
         except LomasError as exc:
             if not handle.cancelled:
                 handle.fail(str(exc))
         finally:
+            if handle.yielding:
+                handle.keep(" ".join(said_as[spoken + ONE:]))
             handle.finish()
 
     def stop(self) -> None:

@@ -25,6 +25,7 @@ from lomas_speech import (
     Recorder,
 )
 from lomas_store import (
+    CardRepo,
     STORES,
     TenantScope,
     AnswerRepo,
@@ -49,7 +50,10 @@ from app.enrolment import EnrolmentService
 from app.author import LessonWriter
 from app.ears import Ears
 from app.face import FACE_SURFACES, FaceState
+from app.answering import Answering
+from app.asking import Asking
 from app.greeter import Greeter
+from app.signs import SignWatch
 from app.sync import FileSync
 
 GREETER = "greeter"
@@ -111,6 +115,9 @@ class System:
     runner: Any = None
     greeter: Any = None
     sync: Any = None
+    signs: Any = None
+    asking: Any = None
+    answering: Any = None
     web: WebServer | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -140,6 +147,8 @@ class System:
             self.body.stop()
         if self.face is not None:
             self.face.stop()
+        if self.signs is not None:
+            self.signs.stop()
         # Signal the pipeline first, then close the bus that wakes it. The
         # other order leaves the vision thread parked on an idle camera.
         if self.vision is not None:
@@ -290,6 +299,22 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
             scope_of=lambda: orchestrator.scope,
             busy=lambda: system.runner.teaching,
         )
+
+    # Saying something without saying anything: a card held up, or a hand.
+    # The watcher only reports; what a sign means is config, and what is
+    # done about it belongs to the two services below.
+    if cfg.signs.enabled and vision is not None:
+        system.signs = SignWatch(cfg, bus, clock, vision.frames, repos,
+                                 scope_of=lambda: orchestrator.scope)
+        speakers.signs = system.signs
+        system.answering = Answering(cfg, bus, clock)
+        # With the class, like the camera: a robot watching an empty room
+        # for raised hands is a robot spending a core on nothing.
+        bus.subscribe(SESSION_OPENED, lambda *_: system.signs.start())
+        bus.subscribe(SESSION_CLOSED, lambda *_: system.signs.stop())
+        if listener is not None:
+            system.asking = Asking(cfg, bus, clock, voice, listener, prompts,
+                                   teaching=lambda: system.runner.teaching)
 
     # The robot filing its own traces, so a class that went wrong can be
     # read from anywhere without anybody typing a git command on the Pi.
@@ -468,6 +493,7 @@ def _repos(store) -> dict[str, Any]:
         "embedding": EmbeddingRepo(store),
         "session": SessionRepo(store),
         "answer": AnswerRepo(store),
+        "card": CardRepo(store),
         "event": EventRepo(store),
     }
 

@@ -50,6 +50,48 @@ A school that wants the old read-it-all-out lesson sets
 `flow.sequence: [attendance, greeting, topic, lesson, interaction, quiz, wrapup]`
 and nothing else changes.
 
+## Cards, and hands
+
+A room of forty children and one microphone is the problem these are for.
+
+**Cards** are printed markers - one per child, ~10 cm, matte paper. They
+cost a couple of milliseconds a frame, need nothing installed, and say *who*
+is holding one, which a hand never does.
+
+```bash
+python tools/make_cards.py --mode pi --issue --spare 4   # print and record
+python tools/signs_check.py --mode pi                    # measure the range here
+```
+
+Cut on the white, never into it: the quiet border is what makes a marker
+readable. Then:
+
+| A child... | ...and the robot |
+|---|---|
+| holds the card upright | takes it as "I want to ask", stops, and listens |
+| holds it with B at the top | answers B - the whole class in one frame |
+| says something with it up | is attributed to them, above any guess |
+
+**Hands** are the expensive half and are **off** until measured:
+
+```bash
+pip install mediapipe
+python tools/fetch_models.py --hands
+python tools/signs_check.py --mode pi --hands    # what it costs on this Pi
+```
+
+It prints the cost as a share of one core. Too dear? `signs.hands.reader:
+none` keeps the cards. Which sign means what is config - `signs.hands.actions`
+maps the recognizer's own names (`Pointing_Up`, `Thumb_Up`, `Thumb_Down`, …)
+to `ask`, `yes` and `no`, because a sign that is polite in one classroom is
+not in another.
+
+**Interrupting** is `signs.asking`: the robot finishes the sentence it is
+saying and stops there, keeps the rest, answers the child, then picks the
+lesson up exactly where it left off. `per_step` caps how many interruptions
+one idea may absorb and `cooldown_seconds` stops the same confident child
+having every turn.
+
 ## Traces, without typing git
 
 ```yaml

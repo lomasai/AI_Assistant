@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from lomas_core.contracts import (
+    HAND_UP,
     LESSON_SEGMENT,
     QUESTION_ANSWERED,
     QUESTION_ASKED,
@@ -77,6 +78,10 @@ class Teach(BaseStep):
         ctx.notes[HOLDING] = 0.0
         ctx.notes[MIC_OPEN] = False
         self._unsubscribe = [
+            # A hand goes up before a word is said. Holding from here means
+            # the next idea is not already being spoken when the child
+            # starts talking.
+            ctx.bus.subscribe(HAND_UP, self._on_question(ctx)),
             ctx.bus.subscribe(QUESTION_ASKED, self._on_question(ctx)),
             ctx.bus.subscribe(QUESTION_ANSWERED, self._on_answered(ctx)),
             ctx.bus.subscribe(QUIZ_ANSWERED, self._on_quiz_answer(ctx)),

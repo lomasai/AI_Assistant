@@ -48,6 +48,13 @@ class SpeechHandle:
     # a playback thread. Read after `wait`.
     error: str = ""
 
+    # A child has their hand up. The robot finishes the sentence it is
+    # saying and stops there - cutting off mid-word leaves a hole in the
+    # lesson that everybody hears - and what it had not said yet is kept, so
+    # the class can be picked up exactly where it was left.
+    _yielding: bool = False
+    left_to_say: str = ""
+
     @property
     def done(self) -> bool:
         return self._done.is_set()
@@ -55,6 +62,19 @@ class SpeechHandle:
     @property
     def cancelled(self) -> bool:
         return self._cancelled
+
+    @property
+    def yielding(self) -> bool:
+        return self._yielding
+
+    def ask_to_yield(self) -> None:
+        """Stop at the end of this sentence. An engine that cannot do that
+        finishes the whole utterance, which is the same promise more
+        coarsely kept."""
+        self._yielding = True
+
+    def keep(self, unsaid: str) -> None:
+        self.left_to_say = unsaid.strip()
 
     def finish(self) -> None:
         self._done.set()

@@ -1,5 +1,6 @@
 from lomas_store.migrations import migrate
 from lomas_store.repos.answers import AnswerRepo
+from lomas_store.repos.cards import CardRepo
 from lomas_store.repos.classes import ClassRepo
 from lomas_store.repos.consent import ConsentRepo
 from lomas_store.repos.embeddings import EmbeddingRepo
@@ -17,6 +18,7 @@ from lomas_store.backends import sqlite as _sqlite  # noqa: F401
 __all__ = [
     "STORES",
     "AnswerRepo",
+    "CardRepo",
     "ClassRepo",
     "ConsentRepo",
     "EmbeddingRepo",

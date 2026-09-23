@@ -1,0 +1,11 @@
+# Said the moment the robot stops for a raised hand. Short, because the
+# child is already waiting and has been since the sentence started.
+#
+# {name} is empty when nobody could be identified - a hand with no card and
+# no recognised face beside it - so every line has to read without it.
+
+lines:
+  - "Yes {name}?"
+  - "Go ahead {name}."
+  - "{name}, ask your question."
+  - "Yes? I am listening."

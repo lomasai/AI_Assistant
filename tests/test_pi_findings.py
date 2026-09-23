@@ -380,18 +380,24 @@ class Chunk:
 
 
 class FakeVoice:
-    """Yields a sentence at a time, like piper, slowly enough to race."""
+    """piper, as it is now called: once per sentence.
+
+    The engine splits the paragraph itself rather than handing piper the
+    whole thing, because a robot that stops for a raised hand has to know
+    which sentences it had not said yet.
+    """
 
     def __init__(self, delay: float = 0.0, fail_after: int = -1) -> None:
         self.delay = delay
         self.fail_after = fail_after
+        self.calls = 0
 
     def synthesize(self, text: str):
-        for index, sentence in enumerate(s for s in text.split(". ") if s):
-            if index == self.fail_after:
-                raise RuntimeError("onnx went away")
-            time.sleep(self.delay)
-            yield Chunk(sentence)
+        self.calls += 1
+        if self.fail_after >= 0 and self.calls > self.fail_after:
+            raise RuntimeError("onnx went away")
+        time.sleep(self.delay)
+        yield Chunk(text)
 
 
 def in_process(voice: FakeVoice, tmp_path):
@@ -424,7 +430,7 @@ def test_the_first_sentence_plays_before_the_last_is_made(tmp_path) -> None:
     handle = tts.speak("One. Two. Three. Four", "en")
     assert handle.wait(5)
 
-    assert [text for text, _ in played] == ["One", "Two", "Three", "Four"]
+    assert [text for text, _ in played] == ["One.", "Two.", "Three.", "Four"]
     assert played[0][1] - started < 0.3, "the first sentence waited for the rest"
     assert not handle.error
 
@@ -448,7 +454,7 @@ def test_a_synthesis_failure_reaches_the_handle(tmp_path) -> None:
     handle = tts.speak("One. Two. Three", "en")
     assert handle.wait(5)
 
-    assert [text for text, _ in played] == ["One"]
+    assert [text for text, _ in played] == ["One."]
     assert "onnx went away" in handle.error
 
 
