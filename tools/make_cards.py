@@ -2,9 +2,13 @@
 """Print a card for every child in the class.
 
 Nothing is bought and nothing is downloaded: the markers are generated here
-and printed on whatever printer the school has. Each card carries one child's
-marker, their name, and a letter on each edge - so holding it with B at the
-top is answering B, and a whole class answers a question in one frame.
+and printed on whatever printer the school has. Each card carries one
+child's marker and their name. Held up, it means one thing: "I would like to
+ask something", and the robot stops at the end of the sentence it is saying
+and turns to them by name.
+
+Answer letters along the edges are printed only where a school has turned
+card answering on (signs.cards.answering), because answers are spoken.
 
     python tools/make_cards.py --mode pi               # a sheet for the class
     python tools/make_cards.py --mode pi --issue       # ...and record who has which
@@ -62,6 +66,9 @@ def main() -> int:
             "such as signs.cards.dictionary: DICT_4X4_250."
         )
 
+    # Letters only where the class answers with cards. A card otherwise
+    # means one thing: held up, "I would like to ask something".
+    letters = settings.answers if settings.print_answers else None
     faces = []
     for index, student in enumerate(students):
         # The roll number order, so the sheet comes off the printer in the
@@ -70,7 +77,7 @@ def main() -> int:
         # when handing the cards out.
         faces.append(card(settings.dictionary, index,
                           f"{student['roll_no']} {student['name']}", settings.print_px,
-                          settings.answers))
+                          letters))
         if args.issue:
             cards.issue(scope, student["id"], index)
 
@@ -78,7 +85,7 @@ def main() -> int:
     # March gets the next number and nobody has two of anything.
     for spare in range(args.spare):
         faces.append(card(settings.dictionary, len(students) + spare, "", settings.print_px,
-                          settings.answers))
+                          letters))
 
     page = sheet(faces, settings.print_across, settings.print_gap_px)
     out = Path(args.out) if args.out else Path(settings.sheet_dir) / PAGE

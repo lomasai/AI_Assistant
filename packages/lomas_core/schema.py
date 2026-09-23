@@ -942,11 +942,18 @@ class CardsConfig(BaseModel):
     # as somebody puts their bag down is not an answer.
     hold_reads: int = Field(default=2, ge=1)
 
-    # Which answer each edge means, going clockwise from upright. The card
-    # sheet prints these letters on the edges.
-    answers: list[str] = Field(default_factory=lambda: ["A", "B", "C", "D"])
-    # Held upright, outside a question, means "I want to ask something".
+    # Held up means one thing: "I want to ask something". That is the whole
+    # vocabulary on purpose - a classroom full of signs to remember is a
+    # classroom learning the robot instead of the lesson.
     ask_when_upright: bool = True
+
+    # Answering a quiz by which edge is up. Built, measured and off: answers
+    # are spoken, because a child explaining their thinking out loud is the
+    # point of the lesson and a letter is not. Turn it on for a class too
+    # big to hear one by one.
+    answering: bool = False
+    answers: list[str] = Field(default_factory=lambda: ["A", "B", "C", "D"])
+    print_answers: bool = False   # the letters on the printed card's edges
 
     # Printing. 10 cm at 720p reads out to about 3 m - measure yours with
     # `python tools/signs_check.py`.
@@ -983,11 +990,11 @@ class HandsConfig(BaseModel):
     # What each sign means here. The names are the recognizer's own; the
     # meanings are this school's, which is why they are config: a sign that
     # is polite in one classroom is not in another.
-    actions: dict[str, str] = Field(default_factory=lambda: {
-        "Pointing_Up": "ask",
-        "Thumb_Up": "yes",
-        "Thumb_Down": "no",
-    })
+    # One sign, one meaning. The recognizer knows thumbs and the rest, and
+    # they stay unmapped: the only thing a hand is for here is saying "I
+    # would like to ask something", and the name comes from the face beside
+    # it. Everything else a child can say with their mouth.
+    actions: dict[str, str] = Field(default_factory=lambda: {"Pointing_Up": "ask"})
 
 
 class AskingConfig(BaseModel):

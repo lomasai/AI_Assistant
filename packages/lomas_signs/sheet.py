@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from lomas_core.errors import LomasError
+from lomas_signs.types import TURNS
 
 # A class's cards, on paper. Nothing is bought and nothing is downloaded:
 # the markers are generated here and printed on whatever printer the school
@@ -46,10 +47,13 @@ def marker(dictionary: str, marker_id: int, pixels: int) -> np.ndarray:
     )
 
 
-def card(dictionary: str, marker_id: int, name: str, pixels: int, answers: list[str],
-         quiet_px: int = 0) -> np.ndarray:
-    """One child's card: the marker, a quiet border, the name, and a letter
-    along each edge so a child can see which way up they are holding it.
+def card(dictionary: str, marker_id: int, name: str, pixels: int,
+         answers: list[str] | None = None, quiet_px: int = 0) -> np.ndarray:
+    """One child's card: the marker, a quiet border and the name.
+
+    Answer letters along the edges only where a school answers with cards.
+    Without them a card means one thing - held up, "I would like to ask
+    something" - and one thing is what a Class 3 room can remember.
 
     The quiet border is not decoration. A marker printed to the edge of the
     paper is a marker the detector will not find.
@@ -70,7 +74,7 @@ def card(dictionary: str, marker_id: int, name: str, pixels: int, answers: list[
     _write(face, _short(name) or f"#{marker_id}", (border // HALF, side - border // 5),
            side / NAME_SCALE_DIVISOR)
     scale = side / FONT_SCALE_DIVISOR
-    for turn, letter in enumerate(answers[:4]):
+    for turn, letter in enumerate((answers or [])[:TURNS]):
         _edge_letter(face, letter, turn, side, border, scale)
     return face
 

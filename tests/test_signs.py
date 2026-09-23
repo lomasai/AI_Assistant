@@ -264,16 +264,41 @@ def test_a_sign_nobody_mapped_is_ignored() -> None:
         system.close()
 
 
-def test_a_nod_can_answer_a_spoken_question(system) -> None:
-    """The robot reads a topic back and asks "is that right?". A thumb is an
-    answer, and a class that cannot make itself heard still has one."""
+def test_a_thumb_means_nothing_until_a_school_says_so(system) -> None:
+    """The recognizer knows thumbs, victory and the rest. They stay unmapped:
+    a classroom full of signs to remember is a class learning the robot
+    instead of the subject."""
     watch = watching(system)
     watch.hands = OneSign("Thumb_Up")
 
     for seq in range(3):
         watch.read(frame(picture(), seq=seq + 1))
 
-    assert watch.agreement(within_seconds=60.0) == "yes"
+    assert seen(system, SIGN_SEEN) == []
+
+
+def test_the_whole_vocabulary_is_one_sign() -> None:
+    """Hands say "I would like to ask something" and nothing else. Answers
+    are spoken, and who is asking comes from the face."""
+    cfg = load("config", "pi", [], use_env=False).signs
+
+    assert set(cfg.hands.actions.values()) == {"ask"}
+    assert cfg.cards.ask_when_upright is True
+    assert cfg.cards.answering is False, "a card is not an answer by default"
+
+
+def test_a_school_that_wants_more_signs_edits_config() -> None:
+    system = build("signs.hands.actions={'Thumb_Up': 'yes'}")
+    try:
+        watch = watching(system)
+        watch.hands = OneSign("Thumb_Up")
+
+        for seq in range(3):
+            watch.read(frame(picture(), seq=seq + 1))
+
+        assert watch.agreement(within_seconds=60.0) == "yes"
+    finally:
+        system.close()
 
 
 def test_hands_are_off_until_a_school_turns_them_on() -> None:
@@ -325,32 +350,56 @@ def posed(system, options=("Sunlight", "Water", "Air", "Soil")):
                                              text="what do leaves use?", options=tuple(options)))
 
 
-def test_a_class_answers_in_one_frame(system) -> None:
-    student = with_a_card(system)
-    answering = Answering(system.cfg, system.bus, system.clock)
+def test_a_class_answers_in_one_frame() -> None:
+    """Off by default and kept for the class that is too big to hear one at
+    a time. A school turns it on; nothing else changes."""
+    system = build("signs.cards.answering=true")
+    try:
+        student = with_a_card(system)
+        answering = Answering(system.cfg, system.bus, system.clock)
+        watch = watching(system)
+        posed(system)
+
+        for seq in range(3):
+            watch.read(frame(picture(3, turn=1), seq=seq + 1))
+
+        answers = seen(system, QUIZ_ANSWERED)
+        assert answers, "a card held up answered nothing"
+        assert answers[-1].student_id == student["id"]
+        assert answers[-1].response == "Water", "B is the second option, not the letter"
+        assert answering.recorded == 1
+    finally:
+        system.close()
+
+
+def test_a_card_held_steady_answers_once() -> None:
+    system = build("signs.cards.answering=true")
+    try:
+        with_a_card(system)
+        Answering(system.cfg, system.bus, system.clock)
+        watch = watching(system)
+        posed(system)
+
+        for seq in range(9):
+            watch.read(frame(picture(3, turn=1), seq=seq + 1))
+
+        assert len(seen(system, QUIZ_ANSWERED)) == 1
+    finally:
+        system.close()
+
+
+def test_a_card_is_not_an_answer_unless_a_school_asked_for_that(system) -> None:
+    """The default. A child says why they think it is sunlight, and that
+    saying is the lesson - a letter held up is not."""
+    with_a_card(system)
+    Answering(system.cfg, system.bus, system.clock)
     watch = watching(system)
     posed(system)
 
     for seq in range(3):
         watch.read(frame(picture(3, turn=1), seq=seq + 1))
 
-    answers = seen(system, QUIZ_ANSWERED)
-    assert answers, "a card held up answered nothing"
-    assert answers[-1].student_id == student["id"]
-    assert answers[-1].response == "Water", "B should be the second option, not the letter"
-    assert answering.recorded == 1
-
-
-def test_a_card_held_steady_answers_once(system) -> None:
-    with_a_card(system)
-    Answering(system.cfg, system.bus, system.clock)
-    watch = watching(system)
-    posed(system)
-
-    for seq in range(9):
-        watch.read(frame(picture(3, turn=1), seq=seq + 1))
-
-    assert len(seen(system, QUIZ_ANSWERED)) == 1
+    assert seen(system, QUIZ_ANSWERED) == []
 
 
 def test_a_card_up_when_nothing_was_asked_is_not_an_answer(system) -> None:

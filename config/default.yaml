@@ -500,9 +500,13 @@ hardware:
 # improvement from a believed one.
 # Saying something without saying anything.
 #
-# One microphone in a room of forty is the problem this is for: a card held
-# up is an answer from a named child with nothing to transcribe, and a hand
-# held up is a question asked without shouting over the lesson.
+# One thing only: saying "I would like to ask something" without shouting
+# over the lesson. Who is asking comes from the face, or from the card if
+# they are holding one.
+#
+# Deliberately not a sign language. Answers are spoken - a child explaining
+# their thinking out loud is the lesson - and a classroom full of signs to
+# remember is a class learning the robot instead of the subject.
 signs:
   enabled: false          # true in the pi profile
   source: ""              # empty follows the camera recognition uses
@@ -520,10 +524,14 @@ signs:
     min_size_px: 24       # smaller is a speck across the room
     hold_reads: 2         # seen this many reads running before it counts
 
-    # Which answer each edge means, clockwise from upright. The printed
-    # sheet puts these letters on the edges.
+    ask_when_upright: true  # held up means "I want to ask something"
+
+    # Answering a quiz by which edge is up: built, measured, and off.
+    # Answers are spoken. Turn this on for a class too big to hear one at a
+    # time, and print the letters to go with it.
+    answering: false
     answers: [A, B, C, D]
-    ask_when_upright: true  # held upright means "I want to ask something"
+    print_answers: false
 
     print_px: 420         # about 10 cm printed, which reads out to ~3 m
     print_across: 3
@@ -542,13 +550,12 @@ signs:
     hold_reads: 2         # held, not flashed - which is how a wave is ruled out
     near_face: 0.25       # how close to a face a hand must be to be theirs
 
-    # What each sign means here. The names are the recognizer's own; the
-    # meanings are this school's. A sign that is polite in one classroom is
-    # not in another, so this is config and not code.
+    # One sign, one meaning. The recognizer also knows Thumb_Up,
+    # Thumb_Down, Victory, Open_Palm and Closed_Fist; they stay unmapped
+    # until there is a reason for them, and a sign that is polite in one
+    # classroom is not in another - which is why this is config, not code.
     actions:
       Pointing_Up: ask
-      Thumb_Up: "yes"
-      Thumb_Down: "no"
 
   asking:
     enabled: true

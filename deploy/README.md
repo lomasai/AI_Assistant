@@ -50,13 +50,18 @@ A school that wants the old read-it-all-out lesson sets
 `flow.sequence: [attendance, greeting, topic, lesson, interaction, quiz, wrapup]`
 and nothing else changes.
 
-## Cards, and hands
+## Putting a hand up
 
-A room of forty children and one microphone is the problem these are for.
+One signal, and only one: **"I would like to ask something."** Answers are
+spoken - a child saying why they think it is sunlight is the lesson - and
+who is asking comes from the face, or from the card if they hold one.
 
-**Cards** are printed markers - one per child, ~10 cm, matte paper. They
-cost a couple of milliseconds a frame, need nothing installed, and say *who*
-is holding one, which a hand never does.
+Not a sign language on purpose. A classroom full of signs to remember is a
+class learning the robot instead of the subject.
+
+**Cards** are the cheap way to raise a hand: printed markers, one per child,
+~10 cm on matte paper. A couple of milliseconds a frame, nothing to install,
+and the card says who is holding it.
 
 ```bash
 python tools/make_cards.py --mode pi --issue --spare 4   # print and record
@@ -64,15 +69,9 @@ python tools/signs_check.py --mode pi                    # measure the range her
 ```
 
 Cut on the white, never into it: the quiet border is what makes a marker
-readable. Then:
+readable.
 
-| A child... | ...and the robot |
-|---|---|
-| holds the card upright | takes it as "I want to ask", stops, and listens |
-| holds it with B at the top | answers B - the whole class in one frame |
-| says something with it up | is attributed to them, above any guess |
-
-**Hands** are the expensive half and are **off** until measured:
+**Hands** need a model and are **off** until measured on the robot:
 
 ```bash
 pip install mediapipe
@@ -81,16 +80,19 @@ python tools/signs_check.py --mode pi --hands    # what it costs on this Pi
 ```
 
 It prints the cost as a share of one core. Too dear? `signs.hands.reader:
-none` keeps the cards. Which sign means what is config - `signs.hands.actions`
-maps the recognizer's own names (`Pointing_Up`, `Thumb_Up`, `Thumb_Down`, …)
-to `ask`, `yes` and `no`, because a sign that is polite in one classroom is
-not in another.
+none` keeps the cards. `signs.hands.actions` maps one recognizer name to
+`ask` and leaves the rest unmapped; thumbs and the others are there if a
+school ever wants them, and mean nothing until it says so.
 
-**Interrupting** is `signs.asking`: the robot finishes the sentence it is
-saying and stops there, keeps the rest, answers the child, then picks the
-lesson up exactly where it left off. `per_step` caps how many interruptions
-one idea may absorb and `cooldown_seconds` stops the same confident child
-having every turn.
+**What happens when a hand goes up** (`signs.asking`): the robot finishes
+the sentence it is saying and stops there, keeps what it had not said, says
+"Yes, Ananya?", listens, answers, then picks the lesson up exactly where it
+left off. `per_step` caps how many interruptions one idea may absorb;
+`cooldown_seconds` stops the same confident child having every turn.
+
+**Answering with cards** - the whole class holding a letter up - is built,
+measured and **off** (`signs.cards.answering`). It is there for a class too
+big to hear one at a time, not for a class that can talk.
 
 ## Traces, without typing git
 

@@ -307,7 +307,10 @@ def build(cfg: Config, clock: Clock | None = None, bus: EventBus | None = None) 
         system.signs = SignWatch(cfg, bus, clock, vision.frames, repos,
                                  scope_of=lambda: orchestrator.scope)
         speakers.signs = system.signs
-        system.answering = Answering(cfg, bus, clock)
+        # Only where a school asked for it. Answers are spoken otherwise,
+        # which is what a lesson is for.
+        if cfg.signs.cards.answering:
+            system.answering = Answering(cfg, bus, clock)
         # With the class, like the camera: a robot watching an empty room
         # for raised hands is a robot spending a core on nothing.
         bus.subscribe(SESSION_OPENED, lambda *_: system.signs.start())

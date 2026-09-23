@@ -20,14 +20,14 @@ NOBODY = ""
 class Answering:
     """A whole class answering a question by holding up a card.
 
-    One microphone in a room of forty is the problem this is for. Spoken
-    answers cost a turn each, arrive one at a time, and come back through a
-    transcriber that mishears a child at three metres. Cards arrive in one
-    frame, already attributed, with nothing to transcribe - so every child
-    answers every question instead of the one who was asked.
+    Off unless a school turns it on, and that is the right default: a child
+    saying why they think the answer is sunlight is the lesson, and a letter
+    held up is not. Spoken answers cost a turn each and come back through a
+    transcriber that mishears a child at three metres - which is a price
+    worth paying for hearing them think.
 
-    Which edge means which answer is config, and so is whether this is on at
-    all: a school with no cards printed loses nothing.
+    It exists for the class that is too big to hear one at a time. Every
+    child answers every question, in one frame, already attributed.
     """
 
     def __init__(self, cfg: Config, bus: EventBus, clock: Clock) -> None:
@@ -46,7 +46,8 @@ class Answering:
 
     @property
     def enabled(self) -> bool:
-        return bool(self.cfg.signs.enabled and self.cfg.signs.cards.answers)
+        return bool(self.cfg.signs.enabled and self.cfg.signs.cards.answering
+                    and self.cfg.signs.cards.answers)
 
     def _on_posed(self, _event: str, posed: QuizPosed) -> None:
         # A new question closes the last one. A card still held up from the
