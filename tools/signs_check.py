@@ -29,8 +29,7 @@ sys.path.insert(0, str(ROOT))
 from lomas_core.config import load  # noqa: E402
 from lomas_core.secrets import load_secrets  # noqa: E402
 from lomas_signs import CARD_READERS, HAND_READERS  # noqa: E402
-from lomas_vision import FrameBus  # noqa: E402
-from lomas_vision.source import build_sources  # noqa: E402
+from lomas_vision import FrameBus, build_sources  # noqa: E402
 
 # Only to turn a marker width in pixels into "about this far", which is a
 # sentence somebody can act on. The card's printed size and the camera's
