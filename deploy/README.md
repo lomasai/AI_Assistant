@@ -150,6 +150,10 @@ sends it.
 - **Reports.** A teacher reads these after class, sitting down:
   `http://raspberrypi.local:8080/teacher/` -> Report.
 - **Removing a child**, and correcting who the robot thinks spoke.
+- **Volume** starts at whatever `speech.tts.volume.level` says, once, and
+  after that `data/volume.json` wins - delete that file to start again.
+  Careful with ALSA percentages: on a Pi's headphone jack, 80% is -17 dB,
+  which is a seventh of the amplitude and inaudible under a fan.
 - **Volume** can be changed from either screen. On the robot's own face
   there are three round buttons in the bottom right - mute, quieter, louder -
   and the up, down and M keys do the same; a bar shows the level and fades.

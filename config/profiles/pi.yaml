@@ -91,6 +91,16 @@ speech:
     # scaling samples: it is louder at the top and quieter at the bottom
     # than anything software can do, and whatever else plays obeys it too.
     volume:
+      # Loud, because this card is not. `amixer` on the Pi's jack maps its
+      # percentage across a range from -102 dB to +4 dB, so the 0.8 that
+      # sounds like a sensible default came out at -17 dB - a seventh of
+      # the amplitude, which under a fan is nothing at all.
+      #
+      # This is the level a robot starts at, once. After that the buttons
+      # on its face and the teacher's slider own it, and what they choose
+      # is remembered in data/volume.json - which wins over this line.
+      level: 1.0
+
       # auto, not alsa: this Pi has four playback cards and only the
       # headphone jack has a mixer on it. Pointed at an i2s DAC or an HDMI
       # port, `alsa` would find no knob and the slider would move nothing;
