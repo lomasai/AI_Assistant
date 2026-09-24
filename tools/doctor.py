@@ -205,8 +205,12 @@ def _signs(cfg) -> bool:
 
     from lomas_signs import CARD_READERS, HAND_READERS
 
-    cards = CARD_READERS.create(cfg.signs.cards.reader, cfg.signs.cards)
-    say(f"cards: {cfg.signs.cards.reader}", OK if cards.available else MISSING, cards.describe())
+    if cfg.signs.cards.reader == "none":
+        say("cards", NOT_ASKED, "switched off in this profile")
+    else:
+        cards = CARD_READERS.create(cfg.signs.cards.reader, cfg.signs.cards)
+        say(f"cards: {cfg.signs.cards.reader}", OK if cards.available else MISSING,
+            cards.describe())
 
     if cfg.signs.hands.reader == "none":
         say("hands", NOT_ASKED, "switched off in this profile")
@@ -214,15 +218,24 @@ def _signs(cfg) -> bool:
 
     # Only what this reader actually needs. raised_hand needs nothing, which
     # is why the robot uses it.
+    state = MISSING
     if cfg.signs.hands.reader == "mediapipe":
-        state, detail = imports("mediapipe")
-        say("mediapipe", state, detail)
+        # Three separate things, and a robot owner needs to know which:
+        # installed at all, runs on this processor, has its model.
+        state, version = imports("mediapipe")
+        say("mediapipe", state, version)
         model = Path(cfg.signs.hands.model)
         here = model if model.is_absolute() else ROOT / model
         say(model.name, OK if here.exists() else MISSING,
             "python tools/fetch_models.py --hands")
 
     hands = HAND_READERS.create(cfg.signs.hands.reader, cfg.signs.hands)
+    runs = getattr(hands, "runs_here", None)
+    # Only where it is installed: "the wheel aborts here" about a wheel that
+    # is not here at all is the kind of false alarm that teaches skimming.
+    if state == OK and runs is not None and not runs():
+        say("on this processor", BROKEN,
+            'the wheel aborts. pip install "mediapipe==0.10.18"')
     say(f"hands: {cfg.signs.hands.reader}", OK if hands.available else MISSING, hands.describe())
     hands.close()
     return True

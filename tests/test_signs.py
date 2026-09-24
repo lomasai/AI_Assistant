@@ -393,23 +393,34 @@ def test_a_school_that_wants_more_signs_edits_config() -> None:
         system.close()
 
 
-def test_the_robot_does_not_pretend_to_see_hands() -> None:
-    """mediapipe aborts on a Pi 4, and the reader written to replace it
-    found hands in the wall however it was tuned. A robot that reports a
-    raised hand at a person sitting still is worse than one that reports
-    nothing: it interrupts the lesson to ask a question nobody asked."""
+def test_a_wheel_that_cannot_run_here_is_not_a_broken_robot() -> None:
+    """mediapipe 1.x aborts on a Pi 4 - an illegal instruction, which no
+    `except` catches - so the import is tried in a process of its own
+    first. Getting that wrong is a robot that will not boot."""
+    from lomas_signs import HAND_READERS
+
+    cfg = load("config", "pi", [], use_env=False).signs.hands
+    reader = HAND_READERS.create("mediapipe", cfg)
+
+    assert reader.available is False, "no mediapipe here, and nothing crashed"
+    assert reader.read(np.zeros((10, 10, 3), np.uint8)) == []
+
+
+def test_a_laptop_does_not_read_hands_by_itself() -> None:
+    """A model on every frame, on a machine already running a face
+    detector. Nothing switches that on without being asked."""
+    assert load("config", "debug", [], use_env=False).signs.hands.reader == "none"
+
+
+def test_the_robot_asks_for_the_model_that_knows_what_a_hand_is() -> None:
+    """Colour was not a hand and was removed. This is a trained model, and
+    the robot is allowed to ask for it because a wheel that cannot run here
+    now degrades to no hands rather than to no robot."""
     robot = load("config", "pi", [], use_env=False).signs
 
-    assert robot.enabled is False
-    assert robot.hands.reader == "none"
-
-
-def test_nothing_reads_hands_by_itself() -> None:
-    """A model on every frame, on a machine already running a face
-    detector, and the one that needs no model was removed for calling a
-    wall a hand. Neither turns on by itself."""
-    for mode in ("debug", "pi"):
-        assert load("config", mode, [], use_env=False).signs.hands.reader == "none", mode
+    assert robot.enabled is True
+    assert robot.hands.reader == "mediapipe"
+    assert robot.fps <= 4.0, "a held sign does not need a high frame rate"
 
 
 def test_a_missing_hand_model_is_not_a_broken_robot() -> None:

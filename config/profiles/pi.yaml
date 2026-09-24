@@ -142,19 +142,32 @@ enrolment:
 # A hand held up, meaning "I would like to ask something". Who raised it
 # comes from the face beside it.
 #
-# Off. The robot cannot see a raised hand and should not pretend to.
+# A hand held up, read by the model Google trained for it.
 #
-# mediapipe's aarch64 wheel aborts on this processor - no AES instructions -
-# and the reader written to replace it found hands in the wall: skin colour
-# in a room of wood and warm paint is not a hand, and neither movement nor a
-# learned background fixed it. Four rounds was three too many.
+# Two things had to be true before this was worth turning on again. The
+# first: mediapipe 1.x aborts on this processor - its aarch64 wheel wants
+# AES instructions the BCM2711 does not have - so the version matters:
 #
-# What works instead, when there is a printer: `cards.reader: aruco` and
-# `enabled: true`. A card is two milliseconds, it is never a wall, and it
-# says which child is holding it. Until then a child asks by speaking, which
-# the robot hears perfectly well.
+#     pip install "mediapipe==0.10.18"        # 0.10.x, not 1.x
+#     python tools/fetch_models.py --hands
+#     python tools/doctor.py --mode pi        # says whether it can run here
+#
+# The second: a wheel that cannot run must not take the robot down with it.
+# The reader asks a separate process whether the import survives before
+# doing it itself, so a bad wheel is a robot with no hands rather than a
+# robot that will not boot.
+#
+# Measure before believing: python tools/signs_check.py --mode pi --hands
 signs:
-  enabled: false
+  enabled: true
+  fps: 3.0                # a hand is held up for seconds; this is plenty
+  hands:
+    reader: mediapipe
+    every: 1              # one read in this many - the first dial to turn
+  cards:
+    # Nothing is printed yet, and reading markers costs 41 ms a frame on
+    # this machine. `aruco` the day a sheet comes off a printer.
+    reader: none
 
 # On while the robot is being worked on. The runtime log is deliberately
 # not committed - it is large and full of noise - so a run with the trace

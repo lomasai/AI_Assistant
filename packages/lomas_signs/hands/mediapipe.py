@@ -50,6 +50,7 @@ class MediapipeHands:
         self.log = log.get("signs")
         self._reader = None
         self._broken = False
+        self._runs: bool | None = None
 
     @property
     def available(self) -> bool:
@@ -92,10 +93,10 @@ class MediapipeHands:
     def _built(self):
         if self._reader is not None or self._broken:
             return self._reader
-        if not self._runs_on_this_processor():
+        if not self.runs_here():
             self._refuse(
-                "this mediapipe wheel cannot run on this processor (it aborts with "
-                "an illegal instruction). Use signs.hands.reader: raised_hand."
+                "this mediapipe wheel aborts on this processor. 1.x wants AES "
+                'instructions a Pi 4 does not have: pip install "mediapipe==0.10.18".'
             )
             return None
         try:
@@ -120,15 +121,26 @@ class MediapipeHands:
         self._reader = vision.GestureRecognizer.create_from_options(options)
         return self._reader
 
-    def _runs_on_this_processor(self) -> bool:
-        """Import it somewhere that dying does not cost a lesson."""
+    def runs_here(self) -> bool:
+        """Whether importing it survives on this processor.
+
+        Asked in a process of its own, and the answer is remembered: the
+        aarch64 wheel for 1.x is compiled for a processor with AES
+        instructions, and on one without them it does not raise - it aborts,
+        which no `except` can catch. So it is made to abort somewhere that
+        costs nothing.
+        """
+        if self._runs is not None:
+            return self._runs
+
         try:
             done = subprocess.run([sys.executable, "-c", PROBE], capture_output=True,
                                   timeout=PROBE_SECONDS, check=False)
+            self._runs = done.returncode == 0
         except (OSError, subprocess.SubprocessError) as exc:
             self.log.debug("could not ask whether mediapipe runs here: %s", exc)
-            return False
-        return done.returncode == 0
+            self._runs = False
+        return self._runs
 
     def _refuse(self, why: str) -> None:
         self._broken = True

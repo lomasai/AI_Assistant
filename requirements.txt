@@ -25,9 +25,14 @@ websockets>=12
 # can hold up. Cards need nothing - the marker dictionaries are built into
 # opencv - and this is the expensive half, so it is off until a Pi has been
 # measured with it (python tools/signs_check.py --hands).
-#   pip install mediapipe
+# On a Raspberry Pi 4, the version matters: 1.x is compiled for a processor
+# with AES instructions, which the BCM2711 has none of, and it does not
+# raise - it aborts the process with an illegal instruction. 0.10.x was
+# built before that.
+#   pip install "mediapipe==0.10.18"
 #   python tools/fetch_models.py --hands
-# mediapipe>=0.10
+#   python tools/doctor.py --mode pi      # says whether it runs on this one
+# mediapipe>=0.10,<1
 #
 # Watch what pip does to opencv while installing it: mediapipe depends on
 # opencv-contrib-python, and two opencv wheels in one environment is how

@@ -71,42 +71,52 @@ and nothing else changes.
 
 ## Putting a hand up
 
-**Off on this robot, and honestly so.** A child asks by speaking, which it
-hears well.
+☝ `Pointing_Up`, read by the model Google trained for it. Held up, it means
+"I would like to ask something": the robot finishes the sentence it is
+saying, stops, says "Yes, Ananya?", listens, answers, and picks the lesson
+up where it left off - capped at `signs.asking.per_step` interruptions per
+idea, with a cooldown per child so the same one cannot have every turn.
 
-The history is worth keeping, because it is the argument against trying the
-same thing again:
+**The version matters on a Pi 4.** mediapipe 1.x is compiled for a
+processor with AES instructions, which the BCM2711 does not have. It does
+not fail politely - it aborts the process with an illegal instruction, at
+boot. 0.10.x was built before that:
 
-- **mediapipe** has a pre-trained recognizer and its aarch64 wheel aborts on
-  a Pi 4 - no AES instructions, `FATAL ERROR: compiled with aes enabled`,
-  the whole process, at boot. The reader asks a separate process whether it
-  can run before importing it, so choosing it on the wrong machine degrades
-  instead of killing the robot.
-- **A reader with no model** - skin colour in an arch beside the face - was
-  written to replace it and removed after four rounds. In a room of wood and
-  warm paint most of a wall is skin-coloured. Requiring movement did not
-  help: a Pi camera with auto-exposure changes every pixel a little, every
-  frame. Learning which patches are usually skin did not help either. It
-  reported a raised hand at a person sitting still.
+```bash
+pip install "mediapipe==0.10.18"
+python tools/fetch_models.py --hands
+python tools/doctor.py --mode pi          # says which of the three is wrong
+python tools/signs_check.py --mode pi --hands   # what it costs here
+```
 
-**What works, when there is a printer:** a card.
+The doctor separates the three things that can be wrong: not installed,
+installed but aborts on this processor, installed and runs but has no
+model. The reader asks a separate process whether the import survives
+before doing it itself, so the worst case is a robot with no hands rather
+than a robot that will not start.
+
+Dials, in order: `signs.fps` (3 is plenty - a hand stays up for seconds),
+`signs.hands.every` (look at one read in two), then `signs.hands.reader:
+none`.
+
+**What is not here, and why.** A reader with no model - skin colour in an
+arch beside the face - was written when 1.x aborted, and removed after four
+rounds: in a room of wood and warm paint most of a wall is skin-coloured,
+requiring movement did not help because a Pi camera with auto-exposure
+changes every pixel every frame, and learning which patches are usually
+skin did not either. It reported a raised hand at a person sitting still.
+Colour is not a hand.
+
+**Cards** are the other way, for a school with a printer: two milliseconds a
+frame, never a wall, and the card says which child is holding it.
 
 ```yaml
-signs:
-  enabled: true
-  cards: {reader: aruco}
+signs: {enabled: true, cards: {reader: aruco}}
 ```
 
 ```bash
 python tools/make_cards.py --mode pi --issue --spare 4
-python tools/signs_check.py --mode pi
 ```
-
-Two milliseconds a frame, never a wall, and the card says which child is
-holding it. Held up, it means "I would like to ask something": the robot
-finishes the sentence it is saying, stops, says "Yes, Ananya?", listens,
-answers, and picks the lesson up where it left off - capped at
-`signs.asking.per_step` interruptions per idea, with a cooldown per child.
 
 ## Traces, without typing git
 
