@@ -200,10 +200,51 @@ def a_card(tmp_path, reply: str, **values):
     class Card(AlsaVolume):
         def _amixer(self, *args):
             asked.append(list(args))
-            return reply
+            return True, reply
 
     control = Card(VolumeConfig(control="alsa", state_file=str(tmp_path / "v.json"), **values))
     return control, asked
+
+
+def _sset(asked: list[list[str]]) -> list[str]:
+    """The last thing the control asked the mixer to do."""
+    return [args for args in asked if "sset" in args][-1]
+
+
+def _value(asked: list[list[str]]) -> str:
+    """The level out of that command, wherever in it the level sits."""
+    return next(arg for arg in _sset(asked) if arg.endswith(("dB", "%")))
+
+
+def test_a_negative_decibel_reaches_the_card(tmp_path) -> None:
+    """The bug that made every button useless: amixer reads a leading minus
+    as an option, so `sset PCM -4.00dB` failed and only the loudest setting -
+    the one with no minus sign - ever worked. Silent at 0, unchanged at 45,
+    slightly louder at 100, and the log reporting levels it never applied."""
+    _control, asked = a_card(tmp_path, PI_JACK, level=0.8)
+
+    put = _sset(asked)
+
+    assert put[0] == "--", "amixer will read the decibels as a flag"
+    assert put.index("--") < put.index("sset")
+
+
+def test_a_mixer_that_refuses_is_not_kept_quiet(tmp_path, caplog) -> None:
+    """A knob that reports a level it never applied argues with the room."""
+    import logging
+
+    from lomas_speech.volumes.alsa import AlsaVolume
+
+    class Refuses(AlsaVolume):
+        def _amixer(self, *args):
+            if "sset" in args:
+                return False, "amixer: Unable to find simple control"
+            return True, PI_JACK
+
+    with caplog.at_level(logging.WARNING):
+        Refuses(VolumeConfig(control="alsa", state_file=str(tmp_path / "v.json"))).set(0.5)
+
+    assert any("refused" in record.getMessage() for record in caplog.records)
 
 
 def test_the_slider_is_decibels_where_the_card_has_them(tmp_path) -> None:
@@ -212,19 +253,17 @@ def test_the_slider_is_decibels_where_the_card_has_them(tmp_path) -> None:
     control, asked = a_card(tmp_path, PI_JACK, level=0.8, range_db=40.0)
 
     control.set(0.8)
-    put = [args for args in asked if args and args[0] == "sset"][-1]
+    put = _value(asked)
 
-    assert put[2].endswith("dB"), f"it set {put[2]}, which is not a level"
-    assert float(put[2].rstrip("dB")) == pytest.approx(-4.0), "0.8 of a 40 dB span"
+    assert put.endswith("dB"), f"it set {put}, which is not a level"
+    assert float(put.rstrip("dB")) == pytest.approx(-4.0), "0.8 of a 40 dB span"
 
 
 def test_the_top_of_the_slider_is_as_loud_as_the_card_goes(tmp_path) -> None:
     control, asked = a_card(tmp_path, PI_JACK, level=1.0)
 
     control.set(1.0)
-    put = [args for args in asked if args and args[0] == "sset"][-1]
-
-    assert float(put[2].rstrip("dB")) == pytest.approx(4.0), "the card's own loudest"
+    assert float(_value(asked).rstrip("dB")) == pytest.approx(4.0), "the card's own loudest"
 
 
 def test_the_bottom_is_quiet_rather_than_off(tmp_path) -> None:
@@ -233,27 +272,21 @@ def test_the_bottom_is_quiet_rather_than_off(tmp_path) -> None:
     control, asked = a_card(tmp_path, PI_JACK, level=0.0, range_db=40.0)
 
     control.set(0.0)
-    put = [args for args in asked if args and args[0] == "sset"][-1]
-
-    assert float(put[2].rstrip("dB")) == pytest.approx(-36.0)
+    assert float(_value(asked).rstrip("dB")) == pytest.approx(-36.0)
 
 
 def test_how_much_range_the_slider_covers_is_config(tmp_path) -> None:
     control, asked = a_card(tmp_path, PI_JACK, level=0.5, range_db=20.0)
 
     control.set(0.5)
-    put = [args for args in asked if args and args[0] == "sset"][-1]
-
-    assert float(put[2].rstrip("dB")) == pytest.approx(-6.0)
+    assert float(_value(asked).rstrip("dB")) == pytest.approx(-6.0)
 
 
 def test_a_card_with_no_decibel_scale_still_works(tmp_path) -> None:
     control, asked = a_card(tmp_path, NO_DECIBELS, level=0.6)
 
     control.set(0.6)
-    put = [args for args in asked if args and args[0] == "sset"][-1]
-
-    assert put[2] == "60%", "a percentage only where there is nothing better"
+    assert _value(asked) == "60%", "a percentage only where there is nothing better"
 
 
 def test_a_machine_with_no_mixer_still_has_a_slider(tmp_path) -> None:

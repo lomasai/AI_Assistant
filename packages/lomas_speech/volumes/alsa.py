@@ -16,6 +16,8 @@ LEVEL_IN_REPLY = re.compile(r"\[(\d+)%\]")
 LIMITS = re.compile(r"Limits:\s*Playback\s*(-?\d+)\s*-\s*(-?\d+)")
 HAS_DECIBELS = re.compile(r"\[-?\d+\.\d+dB\]")
 HUNDREDTHS = 100.0
+END_OF_FLAGS = "--"   # what stands between amixer and a negative decibel
+MESSAGE = 200
 MUTE_ON = "unmute"
 MUTE_OFF = "mute"
 NO_MIXER = "no mixer"
@@ -41,6 +43,7 @@ class AlsaVolume(Dial):
         self.card = cfg.card or _card_of(device)
         self.mixer = ""
         self.limits: tuple[float, float] | None = None
+        self._complained = False
         super().__init__(cfg, device)
 
     @property
@@ -53,7 +56,27 @@ class AlsaVolume(Dial):
         mixer = self._found_mixer()
         if not mixer:
             return
-        self._amixer("sset", mixer, self._where(), MUTE_OFF if self.muted else MUTE_ON)
+
+        # END_OF_FLAGS, because every level below the top of the range is a
+        # negative number of decibels and amixer reads a leading minus as an
+        # option. Without it, `sset PCM -4.00dB` fails and only the loudest
+        # setting - the one with no minus sign in it - ever works. Which is
+        # exactly what the robot did: silent at 0, unchanged at 45, and
+        # slightly louder at 100.
+        worked, complaint = self._amixer(
+            END_OF_FLAGS, "sset", mixer, self._where(),
+            MUTE_OFF if self.muted else MUTE_ON,
+        )
+        if not worked:
+            self._refused(complaint)
+
+    def _refused(self, complaint: str) -> None:
+        """Said once. A knob that reports a level it never applied is worse
+        than one that does nothing, because it argues with the room."""
+        if self._complained:
+            return
+        self._complained = True
+        self.log.warning("the mixer refused the volume: %s", complaint.strip()[:MESSAGE])
 
     def _where(self) -> str:
         """Where to put the knob, in the card's own terms.
@@ -82,7 +105,7 @@ class AlsaVolume(Dial):
         two processes per lookup and the card does not grow new controls."""
         if self.mixer:
             return self.mixer
-        reply = self._amixer("scontrols")
+        _worked, reply = self._amixer("scontrols")
         have = set(SCONTROL.findall(reply))
         for wanted in self.cfg.mixers:
             if wanted in have:
@@ -90,7 +113,7 @@ class AlsaVolume(Dial):
                 break
         return self.mixer
 
-    def _amixer(self, *args: str) -> str:
+    def _amixer(self, *args: str) -> tuple[bool, str]:
         argv = [AMIXER]
         if self.card:
             argv += [CARD_FLAG, self.card]
@@ -101,8 +124,8 @@ class AlsaVolume(Dial):
             # A mixer that cannot be moved must not stop a lesson; the robot
             # keeps its current loudness and says why once.
             self.log.debug("amixer failed: %s", exc)
-            return ""
-        return done.stdout
+            return False, str(exc)
+        return done.returncode == 0, f"{done.stdout}{done.stderr}"
 
     def _decibels(self) -> tuple[float, float] | None:
         """This card's quietest and loudest, in decibels, or None where it
@@ -111,7 +134,7 @@ class AlsaVolume(Dial):
             return self.limits if self.limits != NO_SCALE else None
 
         mixer = self._found_mixer()
-        reply = self._amixer("sget", mixer) if mixer else ""
+        _worked, reply = self._amixer("sget", mixer) if mixer else (False, "")
         found = LIMITS.search(reply)
         if not found or not HAS_DECIBELS.search(reply):
             self.limits = NO_SCALE
@@ -126,7 +149,8 @@ class AlsaVolume(Dial):
         mixer = self._found_mixer()
         if not mixer:
             return self.level
-        found = LEVEL_IN_REPLY.search(self._amixer("sget", mixer))
+        _worked, reply = self._amixer("sget", mixer)
+        found = LEVEL_IN_REPLY.search(reply)
         return int(found.group(1)) / PERCENT if found else self.level
 
 
