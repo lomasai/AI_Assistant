@@ -8,6 +8,8 @@ from lomas_signs.types import Box, Sign
 RAISED = "raised_hand"
 HALF = 2
 FULL = 255
+HALF_LIT = FULL // HALF
+ONE = 1.0
 NEEDS_FACES = "raised_hand, which needs a face to look beside"
 
 
@@ -35,7 +37,8 @@ class RaisedHand:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
         self._before: np.ndarray | None = None
-        self._stirred: list[tuple[Box, float]] = []
+        self._heat: np.ndarray | None = None
+        self._heat_at = 0.0
 
     @property
     def available(self) -> bool:
@@ -74,43 +77,71 @@ class RaisedHand:
     # --- a hand goes up; furniture does not --------------------------------
 
     def _remember_movement(self, image: np.ndarray, at: float, cv2) -> None:
-        """Where the picture has changed since the last look.
+        """Where the picture has changed, as a picture of its own.
 
-        Skin colour on its own calls a wooden door, a beige wall and a
-        cardboard box hands - and calls them hands in every frame for the
-        whole afternoon, which is exactly what the robot reported. What
-        separates a hand from a doorframe is that a hand arrived.
+        Skin colour alone calls a wooden door, a beige wall and a cardboard
+        box hands, in every frame, all afternoon - which is what the robot
+        reported. What separates a hand from a doorframe is that a hand
+        arrived.
+
+        A fading image rather than a list of the places it happened: the
+        list held every speck of sensor noise for four seconds and was
+        searched for every candidate, which cost 440 ms a read on the robot
+        - a core and a third, to answer a question about a few hundred
+        pixels. This is two array operations and it does not grow.
         """
         if not self.cfg.needs_motion:
             return
 
         grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         before, self._before = self._before, grey
-        self._stirred = [(box, seen) for box, seen in self._stirred
-                         if at - seen <= self.cfg.motion_window_seconds]
         if before is None or before.shape != grey.shape:
+            self._heat = np.zeros_like(grey)
+            self._heat_at = at
             return
 
         moving = cv2.threshold(cv2.absdiff(grey, before), self.cfg.motion_threshold,
                                FULL, cv2.THRESH_BINARY)[1]
-        contours, _ = cv2.findContours(moving, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for contour in contours:
-            x, y, w, h = cv2.boundingRect(contour)
-            self._stirred.append((Box(x=x, y=y, w=w, h=h), at))
+        self._heat = cv2.max(moving, self._faded(at, grey))
+        self._heat_at = at
+
+    def _faded(self, at: float, grey: np.ndarray) -> np.ndarray:
+        """What is left of the last few seconds' movement.
+
+        It fades rather than expires so that a hand raised and then held
+        still is still a hand - a child holding their hand up patiently is
+        who this is for - while a room that has gone quiet forgets.
+        """
+        if self._heat is None or self._heat.shape != grey.shape:
+            return np.zeros_like(grey)
+
+        gone = (at - self._heat_at) / self.cfg.motion_window_seconds
+        if gone >= ONE:
+            return np.zeros_like(grey)
+        return (self._heat * (ONE - gone)).astype(np.uint8)
 
     def _stirred_lately(self, hand: Box, at: float) -> bool:
-        """Whether anything moved where this hand is, recently enough.
-
-        A window rather than this frame alone: a hand is raised and then
-        held still, and a child holding their hand up patiently is the one
-        this whole feature is for.
-        """
+        """Whether anything moved where this hand is, recently enough."""
         if not self.cfg.needs_motion:
             return True
-        wanted = self.cfg.motion_fraction * hand.w * hand.h
-        return any(at - seen <= self.cfg.motion_window_seconds
-                   and _overlap(hand, box) >= wanted
-                   for box, seen in self._stirred)
+        if self._heat is None:
+            return False
+
+        patch = self._heat[max(hand.y, 0):hand.y + hand.h, max(hand.x, 0):hand.x + hand.w]
+        if not patch.size:
+            return False
+        return float((patch > HALF_LIT).mean()) >= self.cfg.motion_fraction
+
+    def seen_as(self, image: np.ndarray) -> dict:
+        """What this reader is looking at, for somebody to look at.
+
+        Public because two rounds of reasoning about which beige thing the
+        camera thought was a hand is two rounds too many. A tool draws
+        these; nothing in the robot reads them.
+        """
+        import cv2
+
+        return {"skin": self._skin(image, cv2), "moved": self._heat}
 
     # --- what skin looks like ---------------------------------------------
 
@@ -173,10 +204,3 @@ class RaisedHand:
         if not (self.cfg.min_area * face_area <= area <= self.cfg.max_area * face_area):
             return None
         return cv2.boundingRect(biggest)
-
-
-def _overlap(one: Box, other: Box) -> float:
-    """How much of the picture these two share."""
-    across = min(one.x + one.w, other.x + other.w) - max(one.x, other.x)
-    down = min(one.y + one.h, other.y + other.h) - max(one.y, other.y)
-    return float(across * down) if across > 0 and down > 0 else 0.0

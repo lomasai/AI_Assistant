@@ -26,6 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(ROOT))
 
+import numpy as np  # noqa: E402
+
 from lomas_core.clock import RealClock  # noqa: E402
 from lomas_core.config import load  # noqa: E402
 from lomas_core.secrets import SECRETS_FILE, load_secrets  # noqa: E402
@@ -160,7 +162,7 @@ def main() -> int:
             if signs:
                 names += " | " + ", ".join(f"{s.name} {s.score:.2f}" for s in signs)
             if args.save:
-                _picture(small, faces, signs, seen, shown)
+                _picture(small, faces, signs, seen, hands, shown)
             print(f"{len(seen):>6} {wide:>7} {far:>5.1f}m {_mean(card_ms):>7.1f} "
                   f"{_mean(hand_ms):>7.1f}  {names}")
     except KeyboardInterrupt:
@@ -185,7 +187,26 @@ def main() -> int:
     return 0
 
 
-def _picture(image, faces, signs, cards, where: Path) -> None:
+def _file_it(cfg, shown: Path) -> None:
+    """Push the picture the way the robot pushes its traces.
+
+    Otherwise the one thing that answers the question sits on an SD card in
+    a classroom, and somebody has to be told three git commands.
+    """
+    if not cfg.sync.enabled:
+        print(f"\n  {shown} written. sync is off, so it stays on this machine.")
+        return
+
+    from lomas_core.events import EventBus
+
+    from app.sync import FileSync
+
+    filed = FileSync(cfg, EventBus(cfg.runtime.event_replay_size), RealClock())
+    filed.flush("signs_check")
+    print(f"\n  {shown} written and filed.")
+
+
+def _picture(image, faces, signs, cards, reader, where: Path) -> None:
     """What the robot is looking at, with what it found drawn on it.
 
     Written because guessing twice is a habit: the reader said `raised_hand`
@@ -209,8 +230,22 @@ def _picture(image, faces, signs, cards, where: Path) -> None:
         cv2.rectangle(shot, (box.x, box.y), (box.x + box.w, box.y + box.h),
                       CARD_COLOUR, LINE)
 
+    # Beside it, what the reader is actually working from: everything it
+    # calls skin, and everywhere it thinks something moved. "Which beige
+    # thing did it think was a hand" is a question only a picture answers.
+    working = getattr(reader, "seen_as", None)
+    panels = [shot]
+    if working is not None:
+        for name, mask in working(image).items():
+            if mask is None:
+                continue
+            panel = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+            cv2.putText(panel, name, (TEXT_UP, TEXT_UP * 3), cv2.FONT_HERSHEY_SIMPLEX,
+                        TEXT_SIZE, SIGN_COLOUR, LINE)
+            panels.append(panel)
+
     where.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(where), shot)
+    cv2.imwrite(str(where), np.vstack(panels))
 
 
 def _faces(detector, image) -> tuple[Box, ...]:
