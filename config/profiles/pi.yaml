@@ -142,28 +142,19 @@ enrolment:
 # A hand held up, meaning "I would like to ask something". Who raised it
 # comes from the face beside it.
 #
-# raised_hand and not mediapipe: mediapipe's aarch64 wheel is built for a
-# processor with AES instructions and this Pi has none, so importing it
-# aborts the whole process - "FATAL ERROR: compiled with aes enabled".
-# raised_hand needs no wheel and no model, knows one thing, and that one
-# thing is all this robot ever wanted a hand for.
+# Off. The robot cannot see a raised hand and should not pretend to.
 #
-#     python tools/doctor.py --mode pi        # can this machine do it
-#     python tools/signs_check.py --mode pi   # what it costs, and how far
+# mediapipe's aarch64 wheel aborts on this processor - no AES instructions -
+# and the reader written to replace it found hands in the wall: skin colour
+# in a room of wood and warm paint is not a hand, and neither movement nor a
+# learned background fixed it. Four rounds was three too many.
+#
+# What works instead, when there is a printer: `cards.reader: aruco` and
+# `enabled: true`. A card is two milliseconds, it is never a wall, and it
+# says which child is holding it. Until then a child asks by speaking, which
+# the robot hears perfectly well.
 signs:
-  enabled: true
-  fps: 3.0                # a hand is held up for seconds; this is plenty
-  hands:
-    reader: raised_hand
-    every: 1              # one read in this many - the first dial to turn
-  cards:
-    # Off, because it is not free on this machine. Measured by
-    # `tools/signs_check.py --mode pi`: reading markers costs 41 ms a frame
-    # here against 2.4 on a laptop, which at three reads a second is an
-    # eighth of a core spent looking for cards nobody has printed.
-    #
-    # `reader: aruco` the day a sheet comes off a printer.
-    reader: none
+  enabled: false
 
 # On while the robot is being worked on. The runtime log is deliberately
 # not committed - it is large and full of noise - so a run with the trace

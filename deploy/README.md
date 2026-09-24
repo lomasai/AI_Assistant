@@ -71,65 +71,42 @@ and nothing else changes.
 
 ## Putting a hand up
 
-One signal, and only one: **"I would like to ask something."** Answers are
-spoken - a child saying why they think it is sunlight is the lesson - and
-who raised the hand comes from the face beside it.
+**Off on this robot, and honestly so.** A child asks by speaking, which it
+hears well.
 
-Not a sign language on purpose. A classroom full of signs to remember is a
-class learning the robot instead of the subject.
+The history is worth keeping, because it is the argument against trying the
+same thing again:
 
-**Hands** are what the pi profile uses, through `raised_hand`: skin above
-and beside a face the camera has already found. No wheel, no model, a few
-milliseconds, and it knows one thing - somebody's hand is up.
+- **mediapipe** has a pre-trained recognizer and its aarch64 wheel aborts on
+  a Pi 4 - no AES instructions, `FATAL ERROR: compiled with aes enabled`,
+  the whole process, at boot. The reader asks a separate process whether it
+  can run before importing it, so choosing it on the wrong machine degrades
+  instead of killing the robot.
+- **A reader with no model** - skin colour in an arch beside the face - was
+  written to replace it and removed after four rounds. In a room of wood and
+  warm paint most of a wall is skin-coloured. Requiring movement did not
+  help: a Pi camera with auto-exposure changes every pixel a little, every
+  frame. Learning which patches are usually skin did not help either. It
+  reported a raised hand at a person sitting still.
 
-```bash
-python tools/signs_check.py --mode pi --hands
+**What works, when there is a printer:** a card.
+
+```yaml
+signs:
+  enabled: true
+  cards: {reader: aruco}
 ```
-
-It prints what reading hands costs and, separately, what finding the faces
-cost - the robot does not pay that twice, because the lesson's own detector
-has already found them. Dials, in order: `signs.fps` (3 is plenty),
-`signs.hands.every` (one read in two), then `signs.hands.reader: none`.
-
-**Not mediapipe on a Pi 4.** Its aarch64 wheel is compiled for a processor
-with AES instructions, which this one does not have: importing it does not
-raise, it aborts - `FATAL ERROR: compiled with aes enabled`, the whole
-process, at boot. The reader asks a separate process whether it can run
-before importing it, so choosing it on the wrong machine now degrades
-instead of killing the robot. On a machine that can run it, it reads hand
-*shapes*, and `signs.hands.actions` maps them (`Pointing_Up` ☝ and the
-rest) to meanings.
-
-Installing it also drags in its own OpenCV, which drags in numpy 2, which
-is a different ABI from the one picamera2 was built against - the camera
-then fails with `numpy.dtype size changed`. To undo that:
-
-```bash
-pip uninstall -y mediapipe opencv-contrib-python
-pip install "numpy<2" "opencv-python-headless<5"
-python tools/doctor.py --mode pi
-```
-
-**What happens when a hand goes up** (`signs.asking`): the robot finishes
-the sentence it is saying and stops there, keeps what it had not said, says
-"Yes, Ananya?", listens, answers, then picks the lesson up exactly where it
-left off. `per_step` caps how many interruptions one idea may absorb;
-`cooldown_seconds` stops the same confident child having every turn. A hand
-nobody can name still gets a turn - the speaker chain works out who
-afterwards, from the voice.
-
-**Cards** are the other way to raise a hand, for a school with a printer:
-markers on ~10 cm matte card, about 2 ms a frame, no model and no install,
-and the card itself says who is holding it.
 
 ```bash
 python tools/make_cards.py --mode pi --issue --spare 4
-python tools/signs_check.py --mode pi              # measure the range here
+python tools/signs_check.py --mode pi
 ```
 
-Cut on the white, never into it: the quiet border is what makes a marker
-readable. Answering a quiz by which edge is up is built and **off**
-(`signs.cards.answering`) - it is for a class too big to hear one at a time.
+Two milliseconds a frame, never a wall, and the card says which child is
+holding it. Held up, it means "I would like to ask something": the robot
+finishes the sentence it is saying, stops, says "Yes, Ananya?", listens,
+answers, and picks the lesson up where it left off - capped at
+`signs.asking.per_step` interruptions per idea, with a cooldown per child.
 
 ## Traces, without typing git
 

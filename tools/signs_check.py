@@ -26,8 +26,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(ROOT))
 
-import numpy as np  # noqa: E402
-
 from lomas_core.clock import RealClock  # noqa: E402
 from lomas_core.config import load  # noqa: E402
 from lomas_core.secrets import SECRETS_FILE, load_secrets  # noqa: E402
@@ -79,11 +77,6 @@ def main() -> int:
     load_secrets(Path(args.config_dir) / SECRETS_FILE)
     overrides = ["signs.enabled=true"]
     cfg = load(args.config_dir, args.mode, overrides, use_env=True)
-    if args.hands and cfg.signs.hands.reader == "none":
-        # Asked for hands on a profile that has them off: measure the one
-        # that needs nothing installed.
-        cfg = load(args.config_dir, args.mode,
-                   [*overrides, "signs.hands.reader=raised_hand"], use_env=True)
 
     cards = CARD_READERS.create(cfg.signs.cards.reader, cfg.signs.cards)
     hands = HAND_READERS.create(cfg.signs.hands.reader, cfg.signs.hands)
@@ -162,7 +155,7 @@ def main() -> int:
             if signs:
                 names += " | " + ", ".join(f"{s.name} {s.score:.2f}" for s in signs)
             if args.save:
-                _picture(small, faces, signs, seen, hands, shown)
+                _picture(small, faces, signs, seen, shown)
             print(f"{len(seen):>6} {wide:>7} {far:>5.1f}m {_mean(card_ms):>7.1f} "
                   f"{_mean(hand_ms):>7.1f}  {names}")
     except KeyboardInterrupt:
@@ -206,12 +199,12 @@ def _file_it(cfg, shown: Path) -> None:
     print(f"\n  {shown} written and filed.")
 
 
-def _picture(image, faces, signs, cards, reader, where: Path) -> None:
+def _picture(image, faces, signs, cards, where: Path) -> None:
     """What the robot is looking at, with what it found drawn on it.
 
-    Written because guessing twice is a habit: the reader said `raised_hand`
-    on every frame of a room with nobody's hand up, and no amount of reading
-    the code says which beige thing it was.
+    Written because guessing twice is a habit: a reader once said it saw a
+    hand on every frame of a room with nobody's hand up, and no amount of
+    reading the code says which beige thing it thought it was.
     """
     import cv2
 
@@ -230,22 +223,8 @@ def _picture(image, faces, signs, cards, reader, where: Path) -> None:
         cv2.rectangle(shot, (box.x, box.y), (box.x + box.w, box.y + box.h),
                       CARD_COLOUR, LINE)
 
-    # Beside it, what the reader is actually working from: everything it
-    # calls skin, and everywhere it thinks something moved. "Which beige
-    # thing did it think was a hand" is a question only a picture answers.
-    working = getattr(reader, "seen_as", None)
-    panels = [shot]
-    if working is not None:
-        for name, mask in working(image).items():
-            if mask is None:
-                continue
-            panel = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-            cv2.putText(panel, name, (TEXT_UP, TEXT_UP * 3), cv2.FONT_HERSHEY_SIMPLEX,
-                        TEXT_SIZE, SIGN_COLOUR, LINE)
-            panels.append(panel)
-
     where.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(where), np.vstack(panels))
+    cv2.imwrite(str(where), shot)
 
 
 def _faces(detector, image) -> tuple[Box, ...]:

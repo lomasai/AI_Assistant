@@ -215,191 +215,6 @@ def test_a_school_can_have_cards_that_only_answer() -> None:
         system.close()
 
 
-# --- a hand, with no model at all ------------------------------------------
-
-
-SKIN = (120, 150, 200)   # BGR, in the Cr/Cb band the reader looks for
-
-
-def room(face: Box, hand: Box | None = None, size=(480, 640)) -> np.ndarray:
-    """A picture with a face in it, and sometimes a hand beside the head."""
-    page = np.full((*size, 3), 30, np.uint8)
-    cv2.rectangle(page, (face.x, face.y), (face.x + face.w, face.y + face.h), SKIN, -1)
-    if hand is not None:
-        cv2.rectangle(page, (hand.x, hand.y), (hand.x + hand.w, hand.y + hand.h), SKIN, -1)
-    return page
-
-
-def reader(*extra: str):
-    from lomas_signs import HAND_READERS
-
-    cfg = load("config", "debug", list(extra), use_env=False).signs.hands
-    return HAND_READERS.create("raised_hand", cfg)
-
-
-def arrives(face: Box, hand: Box | None, *extra: str, at: float = 1.0):
-    """The room, and then the room with a hand in it.
-
-    Two frames because a hand *goes* up: skin colour alone calls a wooden
-    door a hand, and calls it one in every frame all afternoon.
-    """
-    look = reader(*extra)
-    look.read(room(face), at=at - 1, faces=(face,))
-    return look.read(room(face, hand), at=at, faces=(face,))
-
-
-def test_a_hand_beside_a_head_is_a_hand_up() -> None:
-    """The whole feature, on a Pi that cannot run a hand model: skin above
-    and beside a face the camera already found."""
-    face = Box(x=300, y=200, w=100, h=120)
-    hand = Box(x=420, y=110, w=60, h=70)
-
-    found = arrives(face, hand)
-
-    assert len(found) == 1
-    assert found[0].name == "raised_hand"
-    assert found[0].box.x > face.x, "it found something to the left of the face"
-
-
-def test_a_face_on_its_own_is_not_a_raised_hand() -> None:
-    """Every face is cut out of the search first, or a robot would see forty
-    hands in a room of forty children sitting still."""
-    face = Box(x=300, y=200, w=100, h=120)
-
-    assert arrives(face, None) == []
-
-
-def test_somebody_behind_you_is_not_your_hand() -> None:
-    face = Box(x=300, y=200, w=100, h=120)
-    behind = Box(x=380, y=120, w=90, h=100)
-    look = reader()
-    look.read(room(face), at=0.0, faces=(face,))
-    page = room(face)
-    cv2.rectangle(page, (behind.x, behind.y),
-                  (behind.x + behind.w, behind.y + behind.h), SKIN, -1)
-
-    found = look.read(page, at=1.0, faces=(face, behind))
-
-    assert found == [], "a face over your shoulder was read as your raised hand"
-
-
-def test_a_neck_is_not_a_raised_hand() -> None:
-    """The one that ruined a class: 275 hand-ups in 258 seconds, because the
-    strip under a chin is skin, is always there, and was inside the search
-    box. A hand goes up beside the head or over it, never under the chin."""
-    face = Box(x=300, y=200, w=100, h=120)
-    neck = Box(x=320, y=325, w=60, h=60)
-
-    assert arrives(face, neck) == []
-
-
-def test_a_hand_beside_the_ear_still_counts() -> None:
-    """The arch goes down the sides, or a hand held at ear height - which is
-    where a shy child holds it - would not be seen."""
-    face = Box(x=300, y=200, w=100, h=120)
-    ear = Box(x=210, y=230, w=70, h=70)
-
-    assert arrives(face, ear)
-
-
-def test_a_hand_in_your_lap_is_not_a_hand_up() -> None:
-    """Below the face, where a child's hands rest. A raised hand goes up
-    beside the head, and that is the difference between asking and sitting."""
-    face = Box(x=300, y=200, w=100, h=120)
-    resting = Box(x=320, y=420, w=60, h=50)
-
-    assert arrives(face, resting) == []
-
-
-def test_a_speck_is_not_a_hand() -> None:
-    face = Box(x=300, y=200, w=100, h=120)
-    speck = Box(x=430, y=150, w=8, h=8)
-
-    assert arrives(face, speck) == []
-
-
-def test_it_needs_a_face_to_look_beside() -> None:
-    """A hand on its own says nothing about who is asking, so this reader
-    does not go looking for one."""
-    assert reader().read(room(Box(x=300, y=200, w=100, h=120)), faces=()) == []
-
-
-def test_how_far_a_hand_may_be_is_config() -> None:
-    face = Box(x=300, y=200, w=100, h=120)
-    far = Box(x=530, y=110, w=60, h=70)
-
-    assert arrives(face, far) == []
-    assert arrives(face, far, "signs.hands.beside_face=2.5")
-
-
-def test_a_skin_coloured_wall_is_not_a_hand() -> None:
-    """What the robot actually reported: raised_hand on twenty reads out of
-    twenty with nobody's hand up. A wooden door, a beige wall and a
-    cardboard box are all skin-coloured, and they are there in every frame.
-
-    Frame-to-frame movement did not save it - a Pi camera with
-    auto-exposure changes every pixel a little, every frame - so the robot
-    learns which patches are skin most of the time instead."""
-    face = Box(x=300, y=200, w=100, h=120)
-    door = Box(x=420, y=110, w=60, h=70)
-    always = room(face, door)
-    look = reader()
-
-    for second in range(12):
-        still_there = look.read(always, at=float(second), faces=(face,))
-
-    assert still_there == [], "furniture was read as a raised hand"
-
-
-def test_a_hand_in_front_of_that_wall_is_still_a_hand() -> None:
-    """The room being learned must not make the room a blind spot."""
-    face = Box(x=300, y=200, w=100, h=120)
-    door = Box(x=470, y=120, w=50, h=60)
-    hand = Box(x=200, y=120, w=70, h=80)
-    look = reader()
-
-    for second in range(12):
-        look.read(room(face, door), at=float(second), faces=(face,))
-    raised = look.read(room(face, hand), at=13.0, faces=(face,))
-
-    assert raised, "a hand went up somewhere the robot had never seen skin"
-
-
-def test_a_hand_held_still_is_still_a_hand() -> None:
-    """A child holds it up and waits, which is the whole point of the
-    feature. It stays a hand until the room has watched it long enough to
-    call it furniture - and by then the turn has been taken."""
-    face = Box(x=300, y=200, w=100, h=120)
-    hand = Box(x=420, y=110, w=60, h=70)
-    look = reader()
-
-    look.read(room(face), at=0.0, faces=(face,))
-    look.read(room(face, hand), at=1.0, faces=(face,))
-    held = look.read(room(face, hand), at=2.5, faces=(face,))
-
-    assert held, "it forgot a hand that stopped waving"
-
-
-def test_a_school_can_switch_that_rule_off() -> None:
-    """A robot facing a plain wall does not need it, and a school that finds
-    it too clever turns it off rather than editing anything."""
-    face = Box(x=300, y=200, w=100, h=120)
-    door = Box(x=420, y=110, w=60, h=70)
-    always = room(face, door)
-    look = reader("signs.hands.needs_motion=false")
-
-    for second in range(12):
-        seen_anyway = look.read(always, at=float(second), faces=(face,))
-
-    assert seen_anyway
-
-
-def test_this_one_needs_nothing_installed() -> None:
-    """Which is the point of it: the robot could not run the model wheel at
-    all - it aborts with an illegal instruction on a Pi 4."""
-    assert reader().available is True
-
-
 # --- a hand ----------------------------------------------------------------
 
 
@@ -423,12 +238,11 @@ class OneSign:
         return None
 
 
-def test_the_reader_the_robot_uses_is_mapped(system) -> None:
-    """The bug that cost a class: the reader that needs no model calls it
-    `raised_hand`, and the meanings table knew only mediapipe's word for the
-    same thing - so every hand was seen and then dropped."""
+def test_a_mapped_sign_reaches_the_lesson(system) -> None:
+    """The bug that cost a class: a reader's own name for what it saw was
+    not in the meanings table, so every hand was seen and then dropped."""
     watch = watching(system)
-    watch.hands = OneSign("raised_hand")
+    watch.hands = OneSign("Pointing_Up")
 
     for seq in range(3):
         watch.read(frame(picture(), seq=seq + 1))
@@ -437,12 +251,12 @@ def test_the_reader_the_robot_uses_is_mapped(system) -> None:
     assert seen(system, SIGN_SEEN)[-1].means == "ask"
 
 
-def test_every_readers_name_for_it_is_mapped() -> None:
-    """A robot that changes reader must not go quietly deaf."""
+def test_the_readers_own_name_for_it_is_mapped() -> None:
+    """A sign the reader can produce and the table has never heard of is a
+    sign seen and silently dropped, which cost a whole class once."""
     actions = load("config", "pi", [], use_env=False).signs.hands.actions
 
-    assert actions.get("raised_hand") == "ask"
-    assert actions.get("Pointing_Up") == "ask", "and mediapipe's word, where it runs"
+    assert actions.get("Pointing_Up") == "ask"
 
 
 def test_a_sign_nobody_mapped_is_said_out_loud(system, caplog) -> None:
@@ -498,9 +312,9 @@ def looking(system, student_id: str, x: int = 300, y: int = 200, w: int = 120) -
                           attention=0.9, yaw=0.0, pitch=0.0, seen_for=3.0),)))
 
 
-def test_a_raised_hand_takes_the_name_from_the_face_beside_it(system) -> None:
-    """With no card, this is the whole of who is asking: the hand says that
-    somebody wants to speak, and the face says which child it is."""
+def test_a_sign_takes_the_name_from_the_face_beside_it(system) -> None:
+    """A hand says somebody wants to speak; the face says which child. True
+    of any reader, which is why it is tested against a fake one."""
     student = system.repos["student"].list_for_class(system.orchestrator.scope)[0]
     watch = watching(system)
     watch.hands = OneSign("Pointing_Up")
@@ -579,27 +393,23 @@ def test_a_school_that_wants_more_signs_edits_config() -> None:
         system.close()
 
 
-def test_the_robot_pays_for_what_it_uses() -> None:
-    """Measured on the robot: a hand costs 10 ms a read and a card costs 41,
-    and there is no printer in the building. Reading markers nobody has
-    printed was an eighth of a core."""
+def test_the_robot_does_not_pretend_to_see_hands() -> None:
+    """mediapipe aborts on a Pi 4, and the reader written to replace it
+    found hands in the wall however it was tuned. A robot that reports a
+    raised hand at a person sitting still is worse than one that reports
+    nothing: it interrupts the lesson to ask a question nobody asked."""
     robot = load("config", "pi", [], use_env=False).signs
 
-    assert robot.hands.reader == "raised_hand"
-    assert robot.cards.reader == "none", "it was looking for cards that do not exist"
+    assert robot.enabled is False
+    assert robot.hands.reader == "none"
 
 
-def test_hands_cost_something_so_nothing_switches_them_on_by_accident() -> None:
-    """The expensive half: cards cost milliseconds, a hand model costs tens,
-    on a Pi already running a face detector. The robot asks for them; a
-    laptop or a school without the model gets cards and no surprise bill."""
-    assert load("config", "debug", [], use_env=False).signs.hands.reader == "none"
-
-    robot = load("config", "pi", [], use_env=False).signs
-    assert robot.hands.reader == "raised_hand", (
-        "the robot reads hands without a model: mediapipe's wheel aborts on a Pi 4"
-    )
-    assert robot.fps <= 4.0, "a held sign does not need a high frame rate"
+def test_nothing_reads_hands_by_itself() -> None:
+    """A model on every frame, on a machine already running a face
+    detector, and the one that needs no model was removed for calling a
+    wall a hand. Neither turns on by itself."""
+    for mode in ("debug", "pi"):
+        assert load("config", mode, [], use_env=False).signs.hands.reader == "none", mode
 
 
 def test_a_missing_hand_model_is_not_a_broken_robot() -> None:

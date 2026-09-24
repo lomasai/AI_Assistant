@@ -984,22 +984,22 @@ class CardsConfig(BaseModel):
 
 
 class HandsConfig(BaseModel):
-    """A hand held up, however this machine is able to see one.
+    """A hand held up, read by a model that knows what a hand is.
 
-    Two ways, and the robot's own CPU chose between them. `mediapipe` reads
-    hand shapes with Google's pre-trained recognizer - accurate, and its
-    aarch64 wheel is built for a processor with AES instructions, which a
-    Raspberry Pi 4 does not have: it aborts the whole process with an
-    illegal instruction.
+    There was a second reader here that needed no model: skin colour in an
+    arch around the face. It was written because mediapipe's aarch64 wheel
+    aborts on a Pi 4, and it was removed after four rounds of tuning because
+    colour is not a hand. In a room of wood and warm paint most of the wall
+    is skin-coloured, and neither movement nor a learned background settled
+    it - the robot reported a raised hand at a person sitting still.
 
-    `raised_hand` is what the Pi runs instead. It knows one thing - a hand
-    up beside a face - which is the only thing this robot needs a hand for,
-    costs a few milliseconds, and needs no model and no wheel.
+    So: a model, or nothing. A printed card does the same job for two
+    milliseconds and says who is holding it.
     """
 
     model_config = Strict
 
-    reader: str = "none"           # raised_hand | mediapipe | none
+    reader: str = "none"           # mediapipe | none
     model: str = "models/gesture_recognizer.task"
     max_hands: int = Field(default=2, ge=1)
     min_score: float = Field(default=0.6, ge=0.0, le=1.0)
@@ -1012,58 +1012,15 @@ class HandsConfig(BaseModel):
     # that child's hand. Beyond it, nobody owns the sign.
     near_face: float = Field(default=0.25, gt=0.0, le=1.0)
 
-    # --- raised_hand only -------------------------------------------------
-    # Where a raised hand is, relative to the face it belongs to: this much
-    # of a face height above it, and this much of a face width to either
-    # side. A hand goes up beside the head, not in front of the chest.
-    above_face: float = Field(default=1.8, gt=0)
-    beside_face: float = Field(default=0.9, ge=0)
-    # How far down the sides of the head a hand still counts. Only the
-    # sides: the strip under the chin is a neck, and a neck is skin that is
-    # always there.
-    below_face: float = Field(default=0.4, ge=0)
-
-    # Skin, in chroma rather than brightness: Cr and Cb barely move across
-    # skin tones where brightness moves a great deal, which is what makes
-    # one setting work for a whole classroom.
-    skin_cr: tuple[int, int] = (133, 180)
-    skin_cb: tuple[int, int] = (77, 130)
-    blur_px: int = Field(default=5, ge=1)
-
-    # How big the blob has to be, as a share of the area of the face it is
-    # next to. Below the first it is a finger's worth of noise; above the
-    # second it is a wall.
-    min_area: float = Field(default=0.12, gt=0)
-    max_area: float = Field(default=1.6, gt=0)
-
-    # A hand arrives; a wall was always there. Skin colour alone says a
-    # wooden door, a beige wall and a cardboard box are hands, in every
-    # frame, all afternoon - which is what the robot reported twice.
-    #
-    # Frame-to-frame movement was the first answer and a poor one: a Pi
-    # camera with auto-exposure changes every pixel a little, every frame,
-    # so everything counts as moving and nothing is ruled out. What tells a
-    # hand from a doorframe is not that it moved, it is that this patch of
-    # the picture is not usually skin.
-    needs_motion: bool = True
-    # How long the robot watches before it knows what the room's own
-    # skin-coloured furniture is. It learns continuously; this is the pace.
-    settles_in_seconds: float = Field(default=8.0, gt=0)
-    # A patch that is skin this often is part of the room. Above this, it is
-    # furniture and no hand is reported there.
-    usually_skin_at: float = Field(default=0.55, gt=0.0, le=1.0)
-
     # One sign, one meaning. The recognizer knows thumbs and the rest, and
     # they stay unmapped: the only thing a hand is for here is saying "I
     # would like to ask something", and the name comes from the face beside
     # it. Everything else a child can say with their mouth.
-    # Every reader's own name for the thing it saw, because the names are
-    # the reader's and the meanings are the school's. raised_hand comes from
-    # the reader that needs no model; Pointing_Up is what mediapipe calls a
-    # finger in the air. A robot that switches reader must not go deaf.
-    actions: dict[str, str] = Field(
-        default_factory=lambda: {"raised_hand": "ask", "Pointing_Up": "ask"}
-    )
+    # The reader's own name for the thing it saw, because the names are the
+    # reader's and the meanings are the school's. A sign a reader can
+    # produce and this table has never heard of is seen and then silently
+    # dropped, which cost a whole class once.
+    actions: dict[str, str] = Field(default_factory=lambda: {"Pointing_Up": "ask"})
 
 
 class AskingConfig(BaseModel):

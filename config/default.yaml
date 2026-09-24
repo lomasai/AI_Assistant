@@ -546,9 +546,9 @@ signs:
     sheet_dir: data/cards
 
   hands:
-    # The expensive half, and the first thing to switch off. Google's
-    # recognizer already knows these shapes, so nothing is trained here:
-    # what it costs is a model on every frame it is given.
+    # A model, or nothing. There was a reader here that needed no model -
+    # skin colour beside a face - and it called a wall a hand however it was
+    # tuned, so it was removed rather than patched a fifth time.
     reader: none          # mediapipe | none
     model: models/gesture_recognizer.task
     max_hands: 2
@@ -557,26 +557,11 @@ signs:
     hold_reads: 2         # held, not flashed - which is how a wave is ruled out
     near_face: 0.25       # how close to a face a hand must be to be theirs
 
-    # A hand arrives; a wall was always there. Skin colour alone calls a
-    # wooden door and a beige wall hands, in every frame, all afternoon -
-    # and frame-to-frame movement does not save it, because a Pi camera
-    # with auto-exposure changes every pixel a little, every frame.
-    #
-    # So the robot learns which patches of the picture are *usually* skin
-    # and refuses to find hands in them.
-    needs_motion: true
-    settles_in_seconds: 8.0
-    usually_skin_at: 0.55
-
     # One sign, one meaning. The recognizer also knows Thumb_Up,
     # Thumb_Down, Victory, Open_Palm and Closed_Fist; they stay unmapped
     # until there is a reason for them, and a sign that is polite in one
     # classroom is not in another - which is why this is config, not code.
-    # Both readers' names for it. raised_hand is the one that needs no
-    # model; Pointing_Up is what mediapipe calls a finger in the air.
-    # Changing the reader must not quietly make the robot deaf.
     actions:
-      raised_hand: ask
       Pointing_Up: ask
 
   asking:
