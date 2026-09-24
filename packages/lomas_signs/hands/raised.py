@@ -34,6 +34,8 @@ class RaisedHand:
 
     def __init__(self, cfg) -> None:
         self.cfg = cfg
+        self._before: np.ndarray | None = None
+        self._stirred: list[tuple[Box, float]] = []
 
     @property
     def available(self) -> bool:
@@ -60,12 +62,55 @@ class RaisedHand:
             # somebody's shoulder is their raised hand.
             self._cut_out(skin, face)
 
+        self._remember_movement(image, at, cv2)
+
         found: list[Sign] = []
         for face in faces:
             hand = self._beside(skin, face, image.shape, cv2)
-            if hand is not None:
+            if hand is not None and self._stirred_lately(hand, at):
                 found.append(Sign(name=RAISED, box=hand, score=1.0, at=at))
         return found
+
+    # --- a hand goes up; furniture does not --------------------------------
+
+    def _remember_movement(self, image: np.ndarray, at: float, cv2) -> None:
+        """Where the picture has changed since the last look.
+
+        Skin colour on its own calls a wooden door, a beige wall and a
+        cardboard box hands - and calls them hands in every frame for the
+        whole afternoon, which is exactly what the robot reported. What
+        separates a hand from a doorframe is that a hand arrived.
+        """
+        if not self.cfg.needs_motion:
+            return
+
+        grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        before, self._before = self._before, grey
+        self._stirred = [(box, seen) for box, seen in self._stirred
+                         if at - seen <= self.cfg.motion_window_seconds]
+        if before is None or before.shape != grey.shape:
+            return
+
+        moving = cv2.threshold(cv2.absdiff(grey, before), self.cfg.motion_threshold,
+                               FULL, cv2.THRESH_BINARY)[1]
+        contours, _ = cv2.findContours(moving, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            self._stirred.append((Box(x=x, y=y, w=w, h=h), at))
+
+    def _stirred_lately(self, hand: Box, at: float) -> bool:
+        """Whether anything moved where this hand is, recently enough.
+
+        A window rather than this frame alone: a hand is raised and then
+        held still, and a child holding their hand up patiently is the one
+        this whole feature is for.
+        """
+        if not self.cfg.needs_motion:
+            return True
+        wanted = self.cfg.motion_fraction * hand.w * hand.h
+        return any(at - seen <= self.cfg.motion_window_seconds
+                   and _overlap(hand, box) >= wanted
+                   for box, seen in self._stirred)
 
     # --- what skin looks like ---------------------------------------------
 
@@ -128,3 +173,10 @@ class RaisedHand:
         if not (self.cfg.min_area * face_area <= area <= self.cfg.max_area * face_area):
             return None
         return cv2.boundingRect(biggest)
+
+
+def _overlap(one: Box, other: Box) -> float:
+    """How much of the picture these two share."""
+    across = min(one.x + one.w, other.x + other.w) - max(one.x, other.x)
+    down = min(one.y + one.h, other.y + other.h) - max(one.y, other.y)
+    return float(across * down) if across > 0 and down > 0 else 0.0

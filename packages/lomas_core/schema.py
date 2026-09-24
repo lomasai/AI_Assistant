@@ -1036,6 +1036,18 @@ class HandsConfig(BaseModel):
     min_area: float = Field(default=0.12, gt=0)
     max_area: float = Field(default=1.6, gt=0)
 
+    # A hand *goes* up. Skin colour alone says a wooden door, a beige wall
+    # and a cardboard box are hands, and they are hands in every frame for
+    # the whole afternoon - which is what the robot reported. Something that
+    # has never moved is furniture.
+    needs_motion: bool = True
+    motion_threshold: int = Field(default=12, ge=1)     # grey levels
+    motion_fraction: float = Field(default=0.06, gt=0)  # of the blob
+    # How long a hand stays a hand after the movement that raised it. Long
+    # enough to hold it still and be seen, short enough that the furniture
+    # does not inherit it.
+    motion_window_seconds: float = Field(default=4.0, gt=0)
+
     # One sign, one meaning. The recognizer knows thumbs and the rest, and
     # they stay unmapped: the only thing a hand is for here is saying "I
     # would like to ask something", and the name comes from the face beside

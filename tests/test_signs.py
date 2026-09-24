@@ -237,13 +237,24 @@ def reader(*extra: str):
     return HAND_READERS.create("raised_hand", cfg)
 
 
+def arrives(face: Box, hand: Box | None, *extra: str, at: float = 1.0):
+    """The room, and then the room with a hand in it.
+
+    Two frames because a hand *goes* up: skin colour alone calls a wooden
+    door a hand, and calls it one in every frame all afternoon.
+    """
+    look = reader(*extra)
+    look.read(room(face), at=at - 1, faces=(face,))
+    return look.read(room(face, hand), at=at, faces=(face,))
+
+
 def test_a_hand_beside_a_head_is_a_hand_up() -> None:
     """The whole feature, on a Pi that cannot run a hand model: skin above
     and beside a face the camera already found."""
     face = Box(x=300, y=200, w=100, h=120)
     hand = Box(x=420, y=110, w=60, h=70)
 
-    found = reader().read(room(face, hand), faces=(face,))
+    found = arrives(face, hand)
 
     assert len(found) == 1
     assert found[0].name == "raised_hand"
@@ -255,17 +266,19 @@ def test_a_face_on_its_own_is_not_a_raised_hand() -> None:
     hands in a room of forty children sitting still."""
     face = Box(x=300, y=200, w=100, h=120)
 
-    assert reader().read(room(face), faces=(face,)) == []
+    assert arrives(face, None) == []
 
 
 def test_somebody_behind_you_is_not_your_hand() -> None:
     face = Box(x=300, y=200, w=100, h=120)
     behind = Box(x=380, y=120, w=90, h=100)
+    look = reader()
+    look.read(room(face), at=0.0, faces=(face,))
     page = room(face)
     cv2.rectangle(page, (behind.x, behind.y),
                   (behind.x + behind.w, behind.y + behind.h), SKIN, -1)
 
-    found = reader().read(page, faces=(face, behind))
+    found = look.read(page, at=1.0, faces=(face, behind))
 
     assert found == [], "a face over your shoulder was read as your raised hand"
 
@@ -277,7 +290,7 @@ def test_a_neck_is_not_a_raised_hand() -> None:
     face = Box(x=300, y=200, w=100, h=120)
     neck = Box(x=320, y=325, w=60, h=60)
 
-    assert reader().read(room(face, neck), faces=(face,)) == []
+    assert arrives(face, neck) == []
 
 
 def test_a_hand_beside_the_ear_still_counts() -> None:
@@ -286,7 +299,7 @@ def test_a_hand_beside_the_ear_still_counts() -> None:
     face = Box(x=300, y=200, w=100, h=120)
     ear = Box(x=210, y=230, w=70, h=70)
 
-    assert reader().read(room(face, ear), faces=(face,))
+    assert arrives(face, ear)
 
 
 def test_a_hand_in_your_lap_is_not_a_hand_up() -> None:
@@ -295,14 +308,14 @@ def test_a_hand_in_your_lap_is_not_a_hand_up() -> None:
     face = Box(x=300, y=200, w=100, h=120)
     resting = Box(x=320, y=420, w=60, h=50)
 
-    assert reader().read(room(face, resting), faces=(face,)) == []
+    assert arrives(face, resting) == []
 
 
 def test_a_speck_is_not_a_hand() -> None:
     face = Box(x=300, y=200, w=100, h=120)
     speck = Box(x=430, y=150, w=8, h=8)
 
-    assert reader().read(room(face, speck), faces=(face,)) == []
+    assert arrives(face, speck) == []
 
 
 def test_it_needs_a_face_to_look_beside() -> None:
@@ -315,8 +328,48 @@ def test_how_far_a_hand_may_be_is_config() -> None:
     face = Box(x=300, y=200, w=100, h=120)
     far = Box(x=530, y=110, w=60, h=70)
 
-    assert reader().read(room(face, far), faces=(face,)) == []
-    assert reader("signs.hands.beside_face=2.5").read(room(face, far), faces=(face,))
+    assert arrives(face, far) == []
+    assert arrives(face, far, "signs.hands.beside_face=2.5")
+
+
+def test_a_skin_coloured_wall_is_not_a_hand() -> None:
+    """What the robot actually reported: raised_hand on every read of a
+    whole class, hands down. A wooden door, a beige wall and a cardboard box
+    are all skin-coloured, and they are there in every frame."""
+    face = Box(x=300, y=200, w=100, h=120)
+    door = Box(x=420, y=110, w=60, h=70)
+    always = room(face, door)
+    look = reader()
+
+    look.read(always, at=0.0, faces=(face,))
+    still_there = look.read(always, at=1.0, faces=(face,))
+
+    assert still_there == [], "furniture was read as a raised hand"
+
+
+def test_a_hand_held_still_is_still_a_hand() -> None:
+    """A child holds it up and waits, which is the whole point of the
+    feature. The movement that raised it counts for a few seconds."""
+    face = Box(x=300, y=200, w=100, h=120)
+    hand = Box(x=420, y=110, w=60, h=70)
+    look = reader()
+
+    look.read(room(face), at=0.0, faces=(face,))
+    look.read(room(face, hand), at=1.0, faces=(face,))
+    held = look.read(room(face, hand), at=2.5, faces=(face,))
+
+    assert held, "it forgot a hand that stopped waving"
+
+
+def test_a_school_can_switch_the_movement_rule_off() -> None:
+    face = Box(x=300, y=200, w=100, h=120)
+    door = Box(x=420, y=110, w=60, h=70)
+    always = room(face, door)
+    look = reader("signs.hands.needs_motion=false")
+
+    look.read(always, at=0.0, faces=(face,))
+
+    assert look.read(always, at=1.0, faces=(face,))
 
 
 def test_this_one_needs_nothing_installed() -> None:

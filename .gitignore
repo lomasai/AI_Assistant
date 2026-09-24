@@ -9,6 +9,9 @@ data/*
 data/logs/*
 !data/logs/*.jsonl
 !data/logs/*.md
+# What the camera was looking at when it said something odd. A picture is
+# the only honest answer to "which beige thing did it think was a hand?".
+!data/logs/*.png
 data/logs/lomas.jsonl
 
 config/site.yaml

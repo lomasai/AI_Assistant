@@ -43,6 +43,13 @@ REPORT_EVERY = 1.0
 MILLISECONDS = 1000.0
 HALF = 2.0
 CENTIMETRES = 100.0
+SHOT = "signs_seen.png"
+FACE_COLOUR = (120, 200, 120)
+SIGN_COLOUR = (80, 120, 255)
+CARD_COLOUR = (255, 200, 80)
+LINE = 2
+TEXT_SIZE = 0.6
+TEXT_UP = 8
 
 
 def distance_m(width_px: float, frame_px: int) -> float:
@@ -63,6 +70,8 @@ def main() -> int:
     ap.add_argument("--config-dir", default=str(ROOT / "config"))
     ap.add_argument("--seconds", type=float, default=30.0)
     ap.add_argument("--hands", action="store_true", help="measure hands too")
+    ap.add_argument("--save", action="store_true",
+                    help="write a picture of what it matched, into data/logs")
     args = ap.parse_args()
 
     load_secrets(Path(args.config_dir) / SECRETS_FILE)
@@ -95,7 +104,10 @@ def main() -> int:
     frames.start()
     source = cfg.signs.source or cfg.sources[0].id
 
+    shown = Path(cfg.runtime.log_dir) / SHOT
     print(f"\nWatching {source} for {args.seconds:.0f}s. Hold a card up and walk back.\n")
+    if args.save:
+        print(f"...and writing what it matched to {shown}\n")
     print(f"{'cards':>6} {'widest':>7} {'~far':>6} {'card ms':>8} {'hand ms':>8}  seen")
 
     card_ms: list[float] = []
@@ -147,6 +159,8 @@ def main() -> int:
             names = ", ".join(f"#{c.marker_id}/{c.turn}" for c in seen) or "-"
             if signs:
                 names += " | " + ", ".join(f"{s.name} {s.score:.2f}" for s in signs)
+            if args.save:
+                _picture(small, faces, signs, seen, shown)
             print(f"{len(seen):>6} {wide:>7} {far:>5.1f}m {_mean(card_ms):>7.1f} "
                   f"{_mean(hand_ms):>7.1f}  {names}")
     except KeyboardInterrupt:
@@ -169,6 +183,34 @@ def main() -> int:
     else:
         print("hands were not measured (--hands, and mediapipe installed)")
     return 0
+
+
+def _picture(image, faces, signs, cards, where: Path) -> None:
+    """What the robot is looking at, with what it found drawn on it.
+
+    Written because guessing twice is a habit: the reader said `raised_hand`
+    on every frame of a room with nobody's hand up, and no amount of reading
+    the code says which beige thing it was.
+    """
+    import cv2
+
+    shot = image.copy()
+    for face in faces:
+        cv2.rectangle(shot, (face.x, face.y), (face.x + face.w, face.y + face.h),
+                      FACE_COLOUR, LINE)
+    for sign in signs:
+        box = sign.box
+        cv2.rectangle(shot, (box.x, box.y), (box.x + box.w, box.y + box.h),
+                      SIGN_COLOUR, LINE)
+        cv2.putText(shot, sign.name, (box.x, max(box.y - TEXT_UP, TEXT_UP)),
+                    cv2.FONT_HERSHEY_SIMPLEX, TEXT_SIZE, SIGN_COLOUR, LINE)
+    for card in cards:
+        box = card.box
+        cv2.rectangle(shot, (box.x, box.y), (box.x + box.w, box.y + box.h),
+                      CARD_COLOUR, LINE)
+
+    where.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(where), shot)
 
 
 def _faces(detector, image) -> tuple[Box, ...]:

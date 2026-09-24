@@ -557,6 +557,13 @@ signs:
     hold_reads: 2         # held, not flashed - which is how a wave is ruled out
     near_face: 0.25       # how close to a face a hand must be to be theirs
 
+    # A hand goes up; furniture does not. Skin colour alone calls a wooden
+    # door and a beige wall hands, every frame, all afternoon.
+    needs_motion: true
+    motion_threshold: 12
+    motion_fraction: 0.06
+    motion_window_seconds: 4.0
+
     # One sign, one meaning. The recognizer also knows Thumb_Up,
     # Thumb_Down, Victory, Open_Palm and Closed_Fist; they stay unmapped
     # until there is a reason for them, and a sign that is polite in one
