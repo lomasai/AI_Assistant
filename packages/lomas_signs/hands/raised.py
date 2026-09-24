@@ -88,24 +88,43 @@ class RaisedHand:
     # --- where a raised hand is -------------------------------------------
 
     def _beside(self, mask: np.ndarray, face: Box, shape, cv2) -> Box | None:
+        face_area = float(face.w * face.h)
+        for left, top, right, bottom in self._arch(face, shape):
+            found = self._biggest(mask[top:bottom, left:right], face_area, cv2)
+            if found is None:
+                continue
+            x, y, w, h = found
+            return Box(x=left + x, y=top + y, w=w, h=h)
+        return None
+
+    def _arch(self, face: Box, shape) -> list[tuple[int, int, int, int]]:
+        """Where a raised hand can be, and nowhere else.
+
+        An arch over the head, not a box around it: above, and down each
+        side, but never the strip directly under the chin. That strip is a
+        neck and a chest, which are skin, are always there, and were read as
+        a raised hand on nearly every frame of a whole class - two hundred
+        and seventy-five of them.
+        """
         height, width = shape[:2]
         top = max(int(face.y - face.h * self.cfg.above_face), 0)
-        bottom = min(int(face.y + face.h * (1 + self.cfg.below_face)), height)
         left = max(int(face.x - face.w * self.cfg.beside_face), 0)
         right = min(int(face.x + face.w * (1 + self.cfg.beside_face)), width)
-        if bottom <= top or right <= left:
-            return None
+        shoulder = min(int(face.y + face.h * (1 + self.cfg.below_face)), height)
 
-        patch = mask[top:bottom, left:right]
+        over = (left, top, right, face.y)
+        beside_left = (left, face.y, face.x, shoulder)
+        beside_right = (face.x + face.w, face.y, right, shoulder)
+        return [where for where in (over, beside_left, beside_right)
+                if where[2] > where[0] and where[3] > where[1]]
+
+    def _biggest(self, patch: np.ndarray, face_area: float, cv2):
         contours, _ = cv2.findContours(patch, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             return None
 
-        face_area = float(face.w * face.h)
         biggest = max(contours, key=cv2.contourArea)
         area = float(cv2.contourArea(biggest))
         if not (self.cfg.min_area * face_area <= area <= self.cfg.max_area * face_area):
             return None
-
-        x, y, w, h = cv2.boundingRect(biggest)
-        return Box(x=left + x, y=top + y, w=w, h=h)
+        return cv2.boundingRect(biggest)

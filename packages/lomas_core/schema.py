@@ -1005,7 +1005,9 @@ class HandsConfig(BaseModel):
     min_score: float = Field(default=0.6, ge=0.0, le=1.0)
     # One read in this many. 1 is every read the watcher takes.
     every: int = Field(default=1, ge=1)
-    hold_reads: int = Field(default=2, ge=1)
+    # Three reads at three a second is a second of holding it there. Two was
+    # a glimpse, and a classroom is full of glimpses.
+    hold_reads: int = Field(default=3, ge=1)
     # How near a face a hand has to be, as a share of the frame width, to be
     # that child's hand. Beyond it, nobody owns the sign.
     near_face: float = Field(default=0.25, gt=0.0, le=1.0)
@@ -1016,7 +1018,10 @@ class HandsConfig(BaseModel):
     # side. A hand goes up beside the head, not in front of the chest.
     above_face: float = Field(default=1.8, gt=0)
     beside_face: float = Field(default=0.9, ge=0)
-    below_face: float = Field(default=0.3, ge=0)
+    # How far down the sides of the head a hand still counts. Only the
+    # sides: the strip under the chin is a neck, and a neck is skin that is
+    # always there.
+    below_face: float = Field(default=0.4, ge=0)
 
     # Skin, in chroma rather than brightness: Cr and Cb barely move across
     # skin tones where brightness moves a great deal, which is what makes

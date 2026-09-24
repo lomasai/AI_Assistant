@@ -270,6 +270,25 @@ def test_somebody_behind_you_is_not_your_hand() -> None:
     assert found == [], "a face over your shoulder was read as your raised hand"
 
 
+def test_a_neck_is_not_a_raised_hand() -> None:
+    """The one that ruined a class: 275 hand-ups in 258 seconds, because the
+    strip under a chin is skin, is always there, and was inside the search
+    box. A hand goes up beside the head or over it, never under the chin."""
+    face = Box(x=300, y=200, w=100, h=120)
+    neck = Box(x=320, y=325, w=60, h=60)
+
+    assert reader().read(room(face, neck), faces=(face,)) == []
+
+
+def test_a_hand_beside_the_ear_still_counts() -> None:
+    """The arch goes down the sides, or a hand held at ear height - which is
+    where a shy child holds it - would not be seen."""
+    face = Box(x=300, y=200, w=100, h=120)
+    ear = Box(x=210, y=230, w=70, h=70)
+
+    assert reader().read(room(face, ear), faces=(face,))
+
+
 def test_a_hand_in_your_lap_is_not_a_hand_up() -> None:
     """Below the face, where a child's hands rest. A raised hand goes up
     beside the head, and that is the difference between asking and sitting."""
