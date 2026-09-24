@@ -333,23 +333,42 @@ def test_how_far_a_hand_may_be_is_config() -> None:
 
 
 def test_a_skin_coloured_wall_is_not_a_hand() -> None:
-    """What the robot actually reported: raised_hand on every read of a
-    whole class, hands down. A wooden door, a beige wall and a cardboard box
-    are all skin-coloured, and they are there in every frame."""
+    """What the robot actually reported: raised_hand on twenty reads out of
+    twenty with nobody's hand up. A wooden door, a beige wall and a
+    cardboard box are all skin-coloured, and they are there in every frame.
+
+    Frame-to-frame movement did not save it - a Pi camera with
+    auto-exposure changes every pixel a little, every frame - so the robot
+    learns which patches are skin most of the time instead."""
     face = Box(x=300, y=200, w=100, h=120)
     door = Box(x=420, y=110, w=60, h=70)
     always = room(face, door)
     look = reader()
 
-    look.read(always, at=0.0, faces=(face,))
-    still_there = look.read(always, at=1.0, faces=(face,))
+    for second in range(12):
+        still_there = look.read(always, at=float(second), faces=(face,))
 
     assert still_there == [], "furniture was read as a raised hand"
 
 
+def test_a_hand_in_front_of_that_wall_is_still_a_hand() -> None:
+    """The room being learned must not make the room a blind spot."""
+    face = Box(x=300, y=200, w=100, h=120)
+    door = Box(x=470, y=120, w=50, h=60)
+    hand = Box(x=200, y=120, w=70, h=80)
+    look = reader()
+
+    for second in range(12):
+        look.read(room(face, door), at=float(second), faces=(face,))
+    raised = look.read(room(face, hand), at=13.0, faces=(face,))
+
+    assert raised, "a hand went up somewhere the robot had never seen skin"
+
+
 def test_a_hand_held_still_is_still_a_hand() -> None:
     """A child holds it up and waits, which is the whole point of the
-    feature. The movement that raised it counts for a few seconds."""
+    feature. It stays a hand until the room has watched it long enough to
+    call it furniture - and by then the turn has been taken."""
     face = Box(x=300, y=200, w=100, h=120)
     hand = Box(x=420, y=110, w=60, h=70)
     look = reader()
@@ -361,15 +380,18 @@ def test_a_hand_held_still_is_still_a_hand() -> None:
     assert held, "it forgot a hand that stopped waving"
 
 
-def test_a_school_can_switch_the_movement_rule_off() -> None:
+def test_a_school_can_switch_that_rule_off() -> None:
+    """A robot facing a plain wall does not need it, and a school that finds
+    it too clever turns it off rather than editing anything."""
     face = Box(x=300, y=200, w=100, h=120)
     door = Box(x=420, y=110, w=60, h=70)
     always = room(face, door)
     look = reader("signs.hands.needs_motion=false")
 
-    look.read(always, at=0.0, faces=(face,))
+    for second in range(12):
+        seen_anyway = look.read(always, at=float(second), faces=(face,))
 
-    assert look.read(always, at=1.0, faces=(face,))
+    assert seen_anyway
 
 
 def test_this_one_needs_nothing_installed() -> None:

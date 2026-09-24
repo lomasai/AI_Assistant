@@ -1036,17 +1036,22 @@ class HandsConfig(BaseModel):
     min_area: float = Field(default=0.12, gt=0)
     max_area: float = Field(default=1.6, gt=0)
 
-    # A hand *goes* up. Skin colour alone says a wooden door, a beige wall
-    # and a cardboard box are hands, and they are hands in every frame for
-    # the whole afternoon - which is what the robot reported. Something that
-    # has never moved is furniture.
+    # A hand arrives; a wall was always there. Skin colour alone says a
+    # wooden door, a beige wall and a cardboard box are hands, in every
+    # frame, all afternoon - which is what the robot reported twice.
+    #
+    # Frame-to-frame movement was the first answer and a poor one: a Pi
+    # camera with auto-exposure changes every pixel a little, every frame,
+    # so everything counts as moving and nothing is ruled out. What tells a
+    # hand from a doorframe is not that it moved, it is that this patch of
+    # the picture is not usually skin.
     needs_motion: bool = True
-    motion_threshold: int = Field(default=12, ge=1)     # grey levels
-    motion_fraction: float = Field(default=0.06, gt=0)  # of the blob
-    # How long a hand stays a hand after the movement that raised it. Long
-    # enough to hold it still and be seen, short enough that the furniture
-    # does not inherit it.
-    motion_window_seconds: float = Field(default=4.0, gt=0)
+    # How long the robot watches before it knows what the room's own
+    # skin-coloured furniture is. It learns continuously; this is the pace.
+    settles_in_seconds: float = Field(default=8.0, gt=0)
+    # A patch that is skin this often is part of the room. Above this, it is
+    # furniture and no hand is reported there.
+    usually_skin_at: float = Field(default=0.55, gt=0.0, le=1.0)
 
     # One sign, one meaning. The recognizer knows thumbs and the rest, and
     # they stay unmapped: the only thing a hand is for here is saying "I

@@ -10,6 +10,7 @@ HALF = 2
 FULL = 255
 HALF_LIT = FULL // HALF
 ONE = 1.0
+LEAST = 0.02   # a frame always teaches the room a little
 NEEDS_FACES = "raised_hand, which needs a face to look beside"
 
 
@@ -36,9 +37,8 @@ class RaisedHand:
 
     def __init__(self, cfg) -> None:
         self.cfg = cfg
-        self._before: np.ndarray | None = None
-        self._heat: np.ndarray | None = None
-        self._heat_at = 0.0
+        self._usual: np.ndarray | None = None
+        self._usual_at = 0.0
 
     @property
     def available(self) -> bool:
@@ -65,83 +65,59 @@ class RaisedHand:
             # somebody's shoulder is their raised hand.
             self._cut_out(skin, face)
 
-        self._remember_movement(image, at, cv2)
-
         found: list[Sign] = []
         for face in faces:
             hand = self._beside(skin, face, image.shape, cv2)
-            if hand is not None and self._stirred_lately(hand, at):
+            if hand is not None and self._is_new(hand):
                 found.append(Sign(name=RAISED, box=hand, score=1.0, at=at))
+
+        # Learned after the looking, so a hand that is up right now does not
+        # teach the robot that its own corner of the room is furniture.
+        self._learn_the_room(skin, at)
         return found
 
-    # --- a hand goes up; furniture does not --------------------------------
+    # --- a hand arrives; a wall was always there ---------------------------
 
-    def _remember_movement(self, image: np.ndarray, at: float, cv2) -> None:
-        """Where the picture has changed, as a picture of its own.
+    def _learn_the_room(self, skin: np.ndarray, at: float) -> None:
+        """Which parts of the picture are usually skin-coloured.
 
-        Skin colour alone calls a wooden door, a beige wall and a cardboard
-        box hands, in every frame, all afternoon - which is what the robot
-        reported. What separates a hand from a doorframe is that a hand
-        arrived.
+        Frame-to-frame movement was the first answer to "is this a hand or a
+        doorframe" and a poor one: a Pi camera with auto-exposure changes
+        every pixel a little, every frame, so everything moves and nothing
+        is ruled out - the robot reported a raised hand on twenty reads out
+        of twenty with nobody's hand up.
 
-        A fading image rather than a list of the places it happened: the
-        list held every speck of sensor noise for four seconds and was
-        searched for every candidate, which cost 440 ms a read on the robot
-        - a core and a third, to answer a question about a few hundred
-        pixels. This is two array operations and it does not grow.
+        This asks a better question. A wooden door is skin-coloured in every
+        frame of the afternoon; a hand is skin-coloured in the few seconds
+        it is up. So the robot keeps a running average of where skin is, and
+        will not find a hand anywhere that is skin most of the time.
         """
         if not self.cfg.needs_motion:
             return
 
-        grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        before, self._before = self._before, grey
-        if before is None or before.shape != grey.shape:
-            self._heat = np.zeros_like(grey)
-            self._heat_at = at
+        lit = (skin > HALF_LIT).astype(np.float32)
+        if self._usual is None or self._usual.shape != lit.shape:
+            self._usual = lit
+            self._usual_at = at
             return
 
-        moving = cv2.threshold(cv2.absdiff(grey, before), self.cfg.motion_threshold,
-                               FULL, cv2.THRESH_BINARY)[1]
-        self._heat = cv2.max(moving, self._faded(at, grey))
-        self._heat_at = at
+        # How much of this frame to believe, by how long it has been. A
+        # camera that drops frames learns at the same pace as one that does
+        # not, which is what makes the setting a time and not a count.
+        pace = (at - self._usual_at) / self.cfg.settles_in_seconds
+        share = min(max(pace, LEAST), ONE)
+        self._usual = self._usual * (ONE - share) + lit * share
+        self._usual_at = at
 
-    def _faded(self, at: float, grey: np.ndarray) -> np.ndarray:
-        """What is left of the last few seconds' movement.
-
-        It fades rather than expires so that a hand raised and then held
-        still is still a hand - a child holding their hand up patiently is
-        who this is for - while a room that has gone quiet forgets.
-        """
-        if self._heat is None or self._heat.shape != grey.shape:
-            return np.zeros_like(grey)
-
-        gone = (at - self._heat_at) / self.cfg.motion_window_seconds
-        if gone >= ONE:
-            return np.zeros_like(grey)
-        return (self._heat * (ONE - gone)).astype(np.uint8)
-
-    def _stirred_lately(self, hand: Box, at: float) -> bool:
-        """Whether anything moved where this hand is, recently enough."""
-        if not self.cfg.needs_motion:
+    def _is_new(self, hand: Box) -> bool:
+        """Whether this patch is skin more often than a hand ever would be."""
+        if not self.cfg.needs_motion or self._usual is None:
             return True
-        if self._heat is None:
-            return False
 
-        patch = self._heat[max(hand.y, 0):hand.y + hand.h, max(hand.x, 0):hand.x + hand.w]
+        patch = self._usual[max(hand.y, 0):hand.y + hand.h, max(hand.x, 0):hand.x + hand.w]
         if not patch.size:
-            return False
-        return float((patch > HALF_LIT).mean()) >= self.cfg.motion_fraction
-
-    def seen_as(self, image: np.ndarray) -> dict:
-        """What this reader is looking at, for somebody to look at.
-
-        Public because two rounds of reasoning about which beige thing the
-        camera thought was a hand is two rounds too many. A tool draws
-        these; nothing in the robot reads them.
-        """
-        import cv2
-
-        return {"skin": self._skin(image, cv2), "moved": self._heat}
+            return True
+        return float(patch.mean()) < self.cfg.usually_skin_at
 
     # --- what skin looks like ---------------------------------------------
 
