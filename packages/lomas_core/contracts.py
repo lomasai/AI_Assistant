@@ -43,6 +43,7 @@ SIGN_SEEN = "sign.seen"
 CARD_SEEN = "card.seen"
 HAND_UP = "sign.hand_up"              # somebody wants to ask, mid-lesson
 ROBOT_YIELDED = "robot.yielded"       # it finished its sentence and stopped
+VOLUME_CHANGED = "robot.volume"       # somebody turned it up, down or off
 
 TOPIC_REQUESTED = "topic.requested"   # the robot is waiting to be told
 TOPIC_CHOSEN = "topic.chosen"         # a child said what they want to learn
@@ -144,6 +145,22 @@ class StrangerSeen:
     seen_for: float
     source_id: str
     at: float
+
+
+@dataclass(frozen=True, slots=True)
+class VolumeChanged:
+    """The knob moved, and who moved it.
+
+    In the trace because "the buttons do nothing" and "the buttons work and
+    the robot is inaudible anyway" look identical from across a room, and
+    only one of them is a bug in this program.
+    """
+
+    level: float
+    muted: bool
+    by: str = ""
+    describe: str = ""
+    at: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

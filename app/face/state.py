@@ -67,6 +67,9 @@ class FaceState:
 
     def __init__(self, bus: EventBus) -> None:
         self.look = Look()
+        # Kept so a surface with controls on it can say what was pressed.
+        # It still never calls anything: an event is not a route.
+        self.bus = bus
         self._lock = threading.RLock()
 
         handlers = {

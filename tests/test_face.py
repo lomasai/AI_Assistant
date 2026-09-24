@@ -263,6 +263,31 @@ def test_the_robot_can_be_turned_down_from_its_own_screen(tmp_path) -> None:
         system.close()
 
 
+def test_every_press_reaches_the_trace(tmp_path) -> None:
+    """"The buttons do nothing" and "the buttons work and the robot is
+    inaudible anyway" look the same from across a room. A press on the bus
+    is how a trace tells them apart."""
+    from lomas_core.contracts import VOLUME_CHANGED
+
+    pytest.importorskip("pygame")
+    system = built("display.face_screen.surface=pygame")
+    knob = a_knob(tmp_path)
+    try:
+        face = FACE_SURFACES.create("pygame", system.cfg, FaceState(system.bus), knob)
+        buttons = dict(face._buttons(1024, 600))
+
+        face._pressed(buttons["+"], (1024, 600))
+        face._pressed(buttons["M"], (1024, 600))
+
+        moved = [p for _n, p in system.bus.replay(VOLUME_CHANGED)]
+        assert len(moved) == 2, "a press nobody can see happened"
+        assert moved[0].level > 0.5 and moved[0].by
+        assert moved[-1].muted is True
+        assert "%" in moved[-1].describe
+    finally:
+        system.close()
+
+
 def test_a_tap_on_the_face_is_not_a_volume_change(tmp_path) -> None:
     pytest.importorskip("pygame")
     system = built("display.face_screen.surface=pygame")

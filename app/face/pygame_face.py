@@ -8,6 +8,8 @@ from lomas_core import logging as log
 from lomas_core.errors import LomasError
 from lomas_core.schema import Config
 
+from lomas_core.contracts import VOLUME_CHANGED, VolumeChanged
+
 from app.face.state import (
     ASKING,
     AWAY,
@@ -18,6 +20,8 @@ from app.face.state import (
     FaceState,
 )
 from app.face.surface import FACE_SURFACES
+
+FACE_BUTTONS = "the robot's own screen"
 
 # The face, as numbers. A 7-inch panel seen from a desk two metres away, so
 # everything is large and there is very little of it.
@@ -365,21 +369,30 @@ class PygameFace:
         knob = self._knob()
         if knob is None:
             return
-        import time
-
         knob.nudge(steps)
-        self._touched = time.monotonic()
-        self.log.info("volume %s", knob.describe())
+        self._moved(knob)
 
     def _mute(self) -> None:
         knob = self._knob()
         if knob is None:
             return
+        knob.mute(not knob.muted)
+        self._moved(knob)
+
+    def _moved(self, knob) -> None:
+        """Said out loud and put on the bus.
+
+        "The buttons do nothing" and "the buttons work and the robot is
+        inaudible anyway" look identical from across a room, and only one of
+        them is a bug in this program. This is how a trace tells them apart.
+        """
         import time
 
-        knob.mute(not knob.muted)
         self._touched = time.monotonic()
         self.log.info("volume %s", knob.describe())
+        self.state.bus.publish(VOLUME_CHANGED, VolumeChanged(
+            level=knob.level, muted=knob.muted, by=FACE_BUTTONS,
+            describe=knob.describe(), at=time.time()))
 
     def _volume(self, pygame, surface, small, now, width, height) -> None:
         knob = self._knob()

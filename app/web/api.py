@@ -7,11 +7,13 @@ from pydantic import BaseModel, Field
 
 from lomas_core.contracts import (
     QUESTION_ASKED,
+    VOLUME_CHANGED,
     SAFETY_CLEARED,
     SAFETY_HALT,
     STORY_REQUESTED,
     QuestionAsked,
     SafetyHalt,
+    VolumeChanged,
     StoryRequested,
 )
 from lomas_core.errors import LomasError
@@ -203,6 +205,12 @@ def router(system) -> APIRouter:
             knob.set(body.level)
         elif body.steps:
             knob.nudge(body.steps)
+
+        # On the bus, so a trace shows every hand that moved it, wherever
+        # that hand was.
+        bus.publish(VOLUME_CHANGED, VolumeChanged(
+            level=knob.level, muted=knob.muted, by=TEACHER_SCREEN,
+            describe=knob.describe(), at=system.clock.now()))
         return loudness()
 
     @api.get("/display")
